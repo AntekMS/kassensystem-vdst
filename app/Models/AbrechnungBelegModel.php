@@ -1,0 +1,427 @@
+<?php
+
+namespace App\Models;
+
+use CodeIgniter\Model;
+
+/**
+ * AbrechnungBelegModel - Verknüpfungs-Verwaltung
+ *
+ * Wie ein intelligenter Kreuzverweisindex:
+ * - Verwaltet welche Belege in welcher Abrechnung sind
+ * - Verhindert Doppelzuordnungen
+ * - Ermöglicht flexible Beleg-Auswahl für Abrechnungen
+ */
+class AbrechnungBelegModel extends Model
+{
+    protected $table = 'abrechnung_belege';
+    protected $primaryKey = 'id';
+    protected $useAutoIncrement = true;
+    protected $returnType = 'array';
+    protected $useSoftDeletes = false;
+    protected $protectFields = true;
+
+    protected $allowedFields = [
+        'beleg_id', 'abrechnung_typ', 'abrechnung_id', 'hinzugefuegt_am'
+    ];
+
+    protected $useTimestamps = false; // Wir verwenden hinzugefuegt_am
+
+    protected $validationRules = [
+        'beleg_id' => 'required|integer',
+        'abrechnung_typ' => 'required|in_list[ah,hv]',
+        'abrechnung_id' => 'required|integer'
+    ];
+
+    protected $validationMessages = [
+        'beleg_id' => [
+            'required' => 'Eine Beleg-ID ist erforderlich.',
+            'integer' => 'Die Beleg-ID muss eine Zahl sein.'
+        ],
+        'abrechnung_typ' => [
+            'required' => 'Der Abrechnungstyp ist erforderlich.',
+            'in_list' => 'Abrechnungstyp muss "ah" oder "hv" sein.'
+        ],
+        'abrechnung_id' => [
+            'required' => 'Eine Abrechnungs-ID ist erforderlich.',
+            'integer' => 'Die Abrechnungs-ID muss eine Zahl sein.'
+        ]
+    ];
+
+    /**
+     * Fügt einen Beleg zu einer Abrechnung hinzu
+     *
+     * Wie das Einheften eines Belegs in einen Abrechnungsordner:
+     * - Prüft Berechtigung des Belegs
+     * - Verhindert Doppelzuordnungen
+     * - Aktualisiert Beleg-Status
+     *
+     * @param int $belegId
+     * @param string $abrechnungsTyp 'ah' oder 'hv'
+     * @param int $abrechnungsId
+     * @return bool|int
+     */
+    public function fuegeZuordnungHinzu($belegId, $abrechnungsTyp, $abrechnungsId)
+    {
+        // Prüfe ob Beleg bereits in dieser Abrechnung ist
+        if ($this->istBelegInAbrechnung($belegId, $abrechnungsTyp, $abrechnungsId)) {
+            $this->errors = ['duplicate' => 'Beleg ist bereits in dieser Abrechnung enthalten.'];
+            return false;
+        }
+
+        // Prüfe ob Beleg bereits in einer anderen Abrechnung desselben Typs ist
+        if ($this->istBelegInAnderenAbrechnungen($belegId, $abrechnungsTyp, $abrechnungsId)) {
+            $this->errors = ['conflict' => 'Beleg ist bereits in einer anderen ' . strtoupper($abrechnungsTyp) . '-Abrechnung enthalten.'];
+            return false;
+        }
+
+        // Validiere Beleg-Berechtigung
+        if (!$this->istBelegBerechtigt($belegId, $abrechnungsTyp)) {
+            $berechtigung = $abrechnungsTyp === 'ah' ? 'AH²' : 'HV';
+            $this->errors = ['permission' => "Beleg ist nicht für {$berechtigung}-Abrechnungen berechtigt."];
+            return false;
+        }
+
+        // Validiere Abrechnung existiert
+        if (!$this->abrechnungExistiert($abrechnungsTyp, $abrechnungsId)) {
+            $this->errors = ['abrechnung' => 'Die angegebene Abrechnung existiert nicht.'];
+            return false;
+        }
+
+        // Füge Zuordnung hinzu
+        $data = [
+            'beleg_id' => $belegId,
+            'abrechnung_typ' => $abrechnungsTyp,
+            'abrechnung_id' => $abrechnungsId,
+            'hinzugefuegt_am' => date('Y-m-d H:i:s')
+        ];
+
+        $result = $this->insert($data);
+
+        if ($result) {
+            // Beleg-Status aktualisieren
+            $this->aktualisiereBeregStatus($belegId, 'in_abrechnung');
+        }
+
+        return $result;
+    }
+
+    /**
+     * Entfernt einen Beleg aus einer Abrechnung
+     *
+     * @param int $belegId
+     * @param string $abrechnungsTyp
+     * @param int $abrechnungsId
+     * @return bool
+     */
+    public function entferneZuordnung($belegId, $abrechnungsTyp, $abrechnungsId)
+    {
+        $deleted = $this->where([
+            'beleg_id' => $belegId,
+            'abrechnung_typ' => $abrechnungsTyp,
+            'abrechnung_id' => $abrechnungsId
+        ])->delete();
+
+        if ($deleted) {
+            // Prüfe ob Beleg in anderen Abrechnungen ist
+            $andereZuordnungen = $this->where('beleg_id', $belegId)->countAllResults();
+
+            if ($andereZuordnungen === 0) {
+                // Beleg ist in keiner anderen Abrechnung, Status zurücksetzen
+                $this->aktualisiereBeregStatus($belegId, 'erfasst');
+            }
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * Holt alle Belege einer bestimmten Abrechnung
+     *
+     * @param string $abrechnungsTyp
+     * @param int $abrechnungsId
+     * @return array
+     */
+    public function getBelegeFuerAbrechnung($abrechnungsTyp, $abrechnungsId)
+    {
+        return $this->select('
+                abrechnung_belege.hinzugefuegt_am,
+                belege.*
+            ')
+            ->join('belege', 'belege.id = abrechnung_belege.beleg_id')
+            ->where('abrechnung_belege.abrechnung_typ', $abrechnungsTyp)
+            ->where('abrechnung_belege.abrechnung_id', $abrechnungsId)
+            ->orderBy('belege.rechnungsdatum', 'ASC')
+            ->findAll();
+    }
+
+    /**
+     * Holt alle Abrechnungen für einen bestimmten Beleg
+     *
+     * @param int $belegId
+     * @return array
+     */
+    public function getAbrechnungenFuerBeleg($belegId)
+    {
+        $abrechnungen = [];
+
+        // AH² Abrechnungen
+        $ahAbrechnungen = $this->select('
+                abrechnung_belege.hinzugefuegt_am,
+                ah_abrechnungen.id,
+                ah_abrechnungen.titel,
+                ah_abrechnungen.abrechnungsmonat,
+                ah_abrechnungen.status,
+                "ah" as typ
+            ')
+            ->join('ah_abrechnungen', 'ah_abrechnungen.id = abrechnung_belege.abrechnung_id')
+            ->where('abrechnung_belege.beleg_id', $belegId)
+            ->where('abrechnung_belege.abrechnung_typ', 'ah')
+            ->findAll();
+
+        // HV Abrechnungen
+        $hvAbrechnungen = $this->select('
+                abrechnung_belege.hinzugefuegt_am,
+                hv_abrechnungen.id,
+                hv_abrechnungen.titel,
+                hv_abrechnungen.abrechnungsmonat,
+                hv_abrechnungen.status,
+                "hv" as typ
+            ')
+            ->join('hv_abrechnungen', 'hv_abrechnungen.id = abrechnung_belege.abrechnung_id')
+            ->where('abrechnung_belege.beleg_id', $belegId)
+            ->where('abrechnung_belege.abrechnung_typ', 'hv')
+            ->findAll();
+
+        return array_merge($ahAbrechnungen, $hvAbrechnungen);
+    }
+
+    /**
+     * Prüft ob ein Beleg bereits in einer bestimmten Abrechnung ist
+     *
+     * @param int $belegId
+     * @param string $abrechnungsTyp
+     * @param int $abrechnungsId
+     * @return bool
+     */
+    public function istBelegInAbrechnung($belegId, $abrechnungsTyp, $abrechnungsId)
+    {
+        return $this->where([
+                'beleg_id' => $belegId,
+                'abrechnung_typ' => $abrechnungsTyp,
+                'abrechnung_id' => $abrechnungsId
+            ])->countAllResults() > 0;
+    }
+
+    /**
+     * Prüft ob ein Beleg bereits in anderen Abrechnungen desselben Typs ist
+     *
+     * @param int $belegId
+     * @param string $abrechnungsTyp
+     * @param int $excludeAbrechnungsId
+     * @return bool
+     */
+    public function istBelegInAnderenAbrechnungen($belegId, $abrechnungsTyp, $excludeAbrechnungsId = null)
+    {
+        $builder = $this->where('beleg_id', $belegId)
+            ->where('abrechnung_typ', $abrechnungsTyp);
+
+        if ($excludeAbrechnungsId) {
+            $builder->where('abrechnung_id !=', $excludeAbrechnungsId);
+        }
+
+        return $builder->countAllResults() > 0;
+    }
+
+    /**
+     * Prüft ob ein Beleg für einen Abrechnungstyp berechtigt ist
+     *
+     * @param int $belegId
+     * @param string $abrechnungsTyp
+     * @return bool
+     */
+    private function istBelegBerechtigt($belegId, $abrechnungsTyp)
+    {
+        $belegModel = new BelegModel();
+        $beleg = $belegModel->find($belegId);
+
+        if (!$beleg) {
+            return false;
+        }
+
+        $erforderlicheKategorie = $abrechnungsTyp === 'ah' ? 'ah_berechtigt' : 'hv_berechtigt';
+
+        return $beleg['kategorie'] === $erforderlicheKategorie;
+    }
+
+    /**
+     * Prüft ob eine Abrechnung existiert
+     *
+     * @param string $abrechnungsTyp
+     * @param int $abrechnungsId
+     * @return bool
+     */
+    private function abrechnungExistiert($abrechnungsTyp, $abrechnungsId)
+    {
+        if ($abrechnungsTyp === 'ah') {
+            $model = new AhAbrechnungModel();
+        } else {
+            $model = new HvAbrechnungModel();
+        }
+
+        return $model->find($abrechnungsId) !== null;
+    }
+
+    /**
+     * Aktualisiert den Status eines Belegs
+     *
+     * @param int $belegId
+     * @param string $neuerStatus
+     * @return bool
+     */
+    private function aktualisiereBeregStatus($belegId, $neuerStatus)
+    {
+        $belegModel = new BelegModel();
+        return $belegModel->update($belegId, ['status' => $neuerStatus]);
+    }
+
+    /**
+     * Verschiebt alle Belege von einer Abrechnung zu einer anderen
+     *
+     * @param string $abrechnungsTyp
+     * @param int $vonAbrechnungsId
+     * @param int $zuAbrechnungsId
+     * @return bool
+     */
+    public function verschiebeAlleBeleg($abrechnungsTyp, $vonAbrechnungsId, $zuAbrechnungsId)
+    {
+        // Prüfe ob Ziel-Abrechnung existiert
+        if (!$this->abrechnungExistiert($abrechnungsTyp, $zuAbrechnungsId)) {
+            return false;
+        }
+
+        return $this->where([
+            'abrechnung_typ' => $abrechnungsTyp,
+            'abrechnung_id' => $vonAbrechnungsId
+        ])->set(['abrechnung_id' => $zuAbrechnungsId])
+            ->update();
+    }
+
+    /**
+     * Löscht alle Zuordnungen einer Abrechnung
+     *
+     * @param string $abrechnungsTyp
+     * @param int $abrechnungsId
+     * @return bool
+     */
+    public function loescheAlleZuordnungen($abrechnungsTyp, $abrechnungsId)
+    {
+        // Hole alle betroffenen Belege
+        $belege = $this->select('beleg_id')
+            ->where([
+                'abrechnung_typ' => $abrechnungsTyp,
+                'abrechnung_id' => $abrechnungsId
+            ])->findAll();
+
+        $belegIds = array_column($belege, 'beleg_id');
+
+        // Lösche Zuordnungen
+        $deleted = $this->where([
+            'abrechnung_typ' => $abrechnungsTyp,
+            'abrechnung_id' => $abrechnungsId
+        ])->delete();
+
+        if ($deleted && !empty($belegIds)) {
+            // Setze Status der Belege zurück, falls sie in keinen anderen Abrechnungen sind
+            foreach ($belegIds as $belegId) {
+                $andereZuordnungen = $this->where('beleg_id', $belegId)->countAllResults();
+                if ($andereZuordnungen === 0) {
+                    $this->aktualisiereBeregStatus($belegId, 'erfasst');
+                }
+            }
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * Holt Statistiken für Dashboard
+     *
+     * @return array
+     */
+    public function getDashboardStats()
+    {
+        return [
+            'gesamt_zuordnungen' => $this->countAll(),
+            'ah_zuordnungen' => $this->where('abrechnung_typ', 'ah')->countAllResults(),
+            'hv_zuordnungen' => $this->where('abrechnung_typ', 'hv')->countAllResults(),
+            'heute_hinzugefuegt' => $this->where('DATE(hinzugefuegt_am)', date('Y-m-d'))->countAllResults()
+        ];
+    }
+
+    /**
+     * Holt verfügbare Belege für eine Abrechnung
+     * (Belege die nicht bereits in einer anderen Abrechnung desselben Typs sind)
+     *
+     * @param string $abrechnungsTyp
+     * @param int|null $excludeAbrechnungsId Aktuelle Abrechnung ausschließen
+     * @return array
+     */
+    public function getVerfuegbareBelege($abrechnungsTyp, $excludeAbrechnungsId = null)
+    {
+        $erforderlicheKategorie = $abrechnungsTyp === 'ah' ? 'ah_berechtigt' : 'hv_berechtigt';
+
+        // Subquery für bereits zugeordnete Belege
+        $builder = \Config\Database::connect()->table('belege');
+        $subquery = $this->select('beleg_id')
+            ->where('abrechnung_typ', $abrechnungsTyp);
+
+        if ($excludeAbrechnungsId) {
+            $subquery->where('abrechnung_id !=', $excludeAbrechnungsId);
+        }
+
+        return $builder->select('id, belegnummer, rechnungsdatum, beschreibung, betrag, lieferant, status')
+            ->where('kategorie', $erforderlicheKategorie)
+            ->whereIn('status', ['erfasst', 'in_abrechnung'])
+            ->whereNotIn('id', $subquery->get()->getResultArray())
+            ->orderBy('rechnungsdatum', 'ASC')
+            ->get()
+            ->getResultArray();
+    }
+
+    /**
+     * Holt bereits zugeordnete Belege für eine Abrechnung
+     *
+     * @param string $abrechnungsTyp
+     * @param int $abrechnungsId
+     * @return array
+     */
+    public function getZugeordneteBelege($abrechnungsTyp, $abrechnungsId)
+    {
+        return $this->select('
+                belege.id, 
+                belege.belegnummer, 
+                belege.rechnungsdatum, 
+                belege.beschreibung, 
+                belege.betrag, 
+                belege.lieferant,
+                abrechnung_belege.hinzugefuegt_am
+            ')
+            ->join('belege', 'belege.id = abrechnung_belege.beleg_id')
+            ->where('abrechnung_belege.abrechnung_typ', $abrechnungsTyp)
+            ->where('abrechnung_belege.abrechnung_id', $abrechnungsId)
+            ->orderBy('belege.rechnungsdatum', 'ASC')
+            ->findAll();
+    }
+
+    /**
+     * Formatiert Hinzugefügt-Datum für Anzeige
+     *
+     * @param string $datum
+     * @return string
+     */
+    public function formatiereHinzugefuegtAm($datum)
+    {
+        return date('d.m.Y H:i', strtotime($datum));
+    }
+}

@@ -11,13 +11,19 @@
                 <h4 class="text-muted"><?= esc($abrechnung['titel']) ?></h4>
             </div>
             <div>
-                <a href="<?= base_url('/abrechnungen/' . $typ) ?>" class="btn btn-outline-vdst">
-                    ← Zurück zur Übersicht
+                <a href="<?= base_url('/abrechnungen/' . $typ) ?>" class="btn btn-outline-secondary">
+                    ← Abrechnungen-Übersicht
                 </a>
                 <a href="<?= base_url('/abrechnungen/' . $typ . '/preview/' . $abrechnung['id']) ?>"
-                   class="btn btn-outline-info">
-                    👁️ Vorschau
+                   class="btn btn-info">
+                    👁️ Zur Vorschau
                 </a>
+                <?php if (count($zugeordnete_belege) > 0): ?>
+                    <a href="<?= base_url('/abrechnungen/' . $typ . '/exportExcel/' . $abrechnung['id']) ?>"
+                       class="btn btn-success">
+                        📊 Excel-Export
+                    </a>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -192,6 +198,9 @@
     <script>
         const abrechnungId = <?= $abrechnung['id'] ?>;
         const abrechnungTyp = '<?= $typ ?>';
+        const baseUrl = '<?= base_url() ?>';
+        const csrfToken = '<?= csrf_token() ?>';
+        const csrfHash = '<?= csrf_hash() ?>';
 
         document.addEventListener('DOMContentLoaded', function() {
             // Beleg hinzufügen
@@ -215,16 +224,22 @@
         function addBelegToAbrechnung(belegId) {
             const formData = new FormData();
             formData.append('beleg_id', belegId);
+            formData.append(csrfToken, csrfHash);
 
-            fetch(`/abrechnungen/${abrechnungTyp}/addBeleg/${abrechnungId}`, {
+            fetch(`${baseUrl}/abrechnungen/${abrechnungTyp}/addBeleg/${abrechnungId}`, {
                 method: 'POST',
                 body: formData,
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    console.log('Response headers:', response.headers);
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Response data:', data);
                     if (data.success) {
                         // Beleg aus verfügbarer Liste entfernen
                         const belegItem = document.querySelector(`[data-beleg-id="${belegId}"]`);
@@ -259,7 +274,7 @@
             const formData = new FormData();
             formData.append('beleg_id', belegId);
 
-            fetch(`/abrechnungen/${abrechnungTyp}/removeBeleg/${abrechnungId}`, {
+            fetch(`${baseUrl}/abrechnungen/${abrechnungTyp}/removeBeleg/${abrechnungId}`, {
                 method: 'POST',
                 body: formData,
                 headers: {
@@ -361,7 +376,7 @@
                 const formData = new FormData();
                 formData.append('status', 'ausstehend');
 
-                fetch(`/abrechnungen/${abrechnungTyp}/changeStatus/${abrechnungId}`, {
+                fetch(`${baseUrl}/abrechnungen/${abrechnungTyp}/changeStatus/${abrechnungId}`, {
                     method: 'POST',
                     body: formData
                 })

@@ -297,7 +297,7 @@ class BelegModel extends Model
         return in_array(strtolower($dateityp), $erlaubteTypen);
     }
 
-    /**
+    /**f
      * Formatiert Betrag für Anzeige
      *
      * @param float $betrag

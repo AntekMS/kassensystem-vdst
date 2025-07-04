@@ -135,16 +135,16 @@
                                         <div class="btn-group btn-group-sm">
                                             <a href="<?= base_url('/abrechnungen/' . $typ . '/belege/' . $abrechnung['id']) ?>"
                                                class="btn btn-outline-dark" title="Belege verwalten">
-                                                📄
+                                                📄 Belege
                                             </a>
                                             <a href="<?= base_url('/abrechnungen/' . $typ . '/preview/' . $abrechnung['id']) ?>"
                                                class="btn btn-outline-info" title="Vorschau">
-                                                👁️
+                                                👁️ Vorschau
                                             </a>
                                             <?php if ($abrechnung['anzahl_belege'] > 0): ?>
                                                 <a href="<?= base_url('/abrechnungen/' . $typ . '/exportExcel/' . $abrechnung['id']) ?>"
-                                                   class="btn btn-outline-success" title="Excel-Export">
-                                                    📊
+                                                   class="btn btn-success" title="Excel-Export">
+                                                    📊 Excel
                                                 </a>
                                             <?php endif; ?>
                                             <?php if ($abrechnung['status'] === 'entwurf'): ?>

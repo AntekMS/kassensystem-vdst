@@ -156,12 +156,17 @@
 
                         <h6>Nächste Schritte:</h6>
                         <ol class="small">
-                            <li>Abrechnung erstellen</li>
-                            <li>Belege auswählen und zuordnen</li>
-                            <li>Vorschau prüfen</li>
-                            <li>Status auf "Ausstehend" setzen</li>
-                            <li>Excel-Datei herunterladen und einreichen</li>
+                            <li><strong>Abrechnung erstellen</strong></li>
+                            <li><strong>Belege auswählen</strong> (Herzstück der Bearbeitung)</li>
+                            <li><strong>Vorschau prüfen</strong></li>
+                            <li><strong>Excel-Export herunterladen</strong></li>
+                            <li>Status auf "Ausstehend" setzen und einreichen</li>
                         </ol>
+
+                        <div class="alert alert-info mt-3">
+                            <strong>💡 Tipp:</strong> Nach dem Erstellen kannst du über "📄 Belege" die gewünschten
+                            Belege für diese Abrechnung auswählen.
+                        </div>
                     </div>
                 </div>
 

@@ -12,12 +12,16 @@
             </div>
             <div>
                 <a href="<?= base_url('/abrechnungen/' . $typ . '/belege/' . $abrechnung['id']) ?>"
+                   class="btn btn-vdst">
+                    📄 Belege verwalten
+                </a>
+                <a href="<?= base_url('/abrechnungen/' . $typ) ?>"
                    class="btn btn-outline-vdst">
-                    ← Belege bearbeiten
+                    ← Zurück zur Übersicht
                 </a>
                 <?php if (count($belege) > 0): ?>
                     <a href="<?= base_url('/abrechnungen/' . $typ . '/exportExcel/' . $abrechnung['id']) ?>"
-                       class="btn btn-success">
+                       class="btn btn-success btn-lg">
                         📊 Excel herunterladen
                     </a>
                 <?php endif; ?>

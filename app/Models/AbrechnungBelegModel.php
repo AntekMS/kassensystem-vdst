@@ -50,16 +50,6 @@ class AbrechnungBelegModel extends Model
 
     /**
      * Fügt einen Beleg zu einer Abrechnung hinzu
-     *
-     * Wie das Einheften eines Belegs in einen Abrechnungsordner:
-     * - Prüft Berechtigung des Belegs
-     * - Verhindert Doppelzuordnungen
-     * - Aktualisiert Beleg-Status
-     *
-     * @param int $belegId
-     * @param string $abrechnungsTyp 'ah' oder 'hv'
-     * @param int $abrechnungsId
-     * @return bool|int
      */
     public function fuegeZuordnungHinzu($belegId, $abrechnungsTyp, $abrechnungsId)
     {
@@ -108,11 +98,6 @@ class AbrechnungBelegModel extends Model
 
     /**
      * Entfernt einen Beleg aus einer Abrechnung
-     *
-     * @param int $belegId
-     * @param string $abrechnungsTyp
-     * @param int $abrechnungsId
-     * @return bool
      */
     public function entferneZuordnung($belegId, $abrechnungsTyp, $abrechnungsId)
     {
@@ -137,10 +122,6 @@ class AbrechnungBelegModel extends Model
 
     /**
      * Holt alle Belege einer bestimmten Abrechnung
-     *
-     * @param string $abrechnungsTyp
-     * @param int $abrechnungsId
-     * @return array
      */
     public function getBelegeFuerAbrechnung($abrechnungsTyp, $abrechnungsId)
     {
@@ -157,9 +138,6 @@ class AbrechnungBelegModel extends Model
 
     /**
      * Holt alle Abrechnungen für einen bestimmten Beleg
-     *
-     * @param int $belegId
-     * @return array
      */
     public function getAbrechnungenFuerBeleg($belegId)
     {
@@ -198,11 +176,6 @@ class AbrechnungBelegModel extends Model
 
     /**
      * Prüft ob ein Beleg bereits in einer bestimmten Abrechnung ist
-     *
-     * @param int $belegId
-     * @param string $abrechnungsTyp
-     * @param int $abrechnungsId
-     * @return bool
      */
     public function istBelegInAbrechnung($belegId, $abrechnungsTyp, $abrechnungsId)
     {
@@ -215,11 +188,6 @@ class AbrechnungBelegModel extends Model
 
     /**
      * Prüft ob ein Beleg bereits in anderen Abrechnungen desselben Typs ist
-     *
-     * @param int $belegId
-     * @param string $abrechnungsTyp
-     * @param int $excludeAbrechnungsId
-     * @return bool
      */
     public function istBelegInAnderenAbrechnungen($belegId, $abrechnungsTyp, $excludeAbrechnungsId = null)
     {
@@ -235,14 +203,10 @@ class AbrechnungBelegModel extends Model
 
     /**
      * Prüft ob ein Beleg für einen Abrechnungstyp berechtigt ist
-     *
-     * @param int $belegId
-     * @param string $abrechnungsTyp
-     * @return bool
      */
     private function istBelegBerechtigt($belegId, $abrechnungsTyp)
     {
-        $belegModel = new BelegModel();
+        $belegModel = new \App\Models\BelegModel();
         $beleg = $belegModel->find($belegId);
 
         if (!$beleg) {
@@ -256,17 +220,13 @@ class AbrechnungBelegModel extends Model
 
     /**
      * Prüft ob eine Abrechnung existiert
-     *
-     * @param string $abrechnungsTyp
-     * @param int $abrechnungsId
-     * @return bool
      */
     private function abrechnungExistiert($abrechnungsTyp, $abrechnungsId)
     {
         if ($abrechnungsTyp === 'ah') {
-            $model = new AhAbrechnungModel();
+            $model = new \App\Models\AhAbrechnungModel();
         } else {
-            $model = new HvAbrechnungModel();
+            $model = new \App\Models\HvAbrechnungModel();
         }
 
         return $model->find($abrechnungsId) !== null;
@@ -274,24 +234,15 @@ class AbrechnungBelegModel extends Model
 
     /**
      * Aktualisiert den Status eines Belegs
-     *
-     * @param int $belegId
-     * @param string $neuerStatus
-     * @return bool
      */
     private function aktualisiereBeregStatus($belegId, $neuerStatus)
     {
-        $belegModel = new BelegModel();
+        $belegModel = new \App\Models\BelegModel();
         return $belegModel->update($belegId, ['status' => $neuerStatus]);
     }
 
     /**
      * Verschiebt alle Belege von einer Abrechnung zu einer anderen
-     *
-     * @param string $abrechnungsTyp
-     * @param int $vonAbrechnungsId
-     * @param int $zuAbrechnungsId
-     * @return bool
      */
     public function verschiebeAlleBeleg($abrechnungsTyp, $vonAbrechnungsId, $zuAbrechnungsId)
     {
@@ -309,10 +260,6 @@ class AbrechnungBelegModel extends Model
 
     /**
      * Löscht alle Zuordnungen einer Abrechnung
-     *
-     * @param string $abrechnungsTyp
-     * @param int $abrechnungsId
-     * @return bool
      */
     public function loescheAlleZuordnungen($abrechnungsTyp, $abrechnungsId)
     {
@@ -346,8 +293,6 @@ class AbrechnungBelegModel extends Model
 
     /**
      * Holt Statistiken für Dashboard
-     *
-     * @return array
      */
     public function getDashboardStats()
     {
@@ -362,28 +307,29 @@ class AbrechnungBelegModel extends Model
     /**
      * Holt verfügbare Belege für eine Abrechnung
      * (Belege die nicht bereits in einer anderen Abrechnung desselben Typs sind)
-     *
-     * @param string $abrechnungsTyp
-     * @param int|null $excludeAbrechnungsId Aktuelle Abrechnung ausschließen
-     * @return array
      */
     public function getVerfuegbareBelege($abrechnungsTyp, $excludeAbrechnungsId = null)
     {
         $erforderlicheKategorie = $abrechnungsTyp === 'ah' ? 'ah_berechtigt' : 'hv_berechtigt';
 
-        // Subquery für bereits zugeordnete Belege
-        $builder = \Config\Database::connect()->table('belege');
-        $subquery = $this->select('beleg_id')
+        // Query für bereits zugeordnete Belege
+        $db = \Config\Database::connect();
+        $subqueryBuilder = $db->table('abrechnung_belege');
+        $subqueryBuilder->select('beleg_id')
             ->where('abrechnung_typ', $abrechnungsTyp);
 
         if ($excludeAbrechnungsId) {
-            $subquery->where('abrechnung_id !=', $excludeAbrechnungsId);
+            $subqueryBuilder->where('abrechnung_id !=', $excludeAbrechnungsId);
         }
 
+        $subquery = $subqueryBuilder->getCompiledSelect();
+
+        // Hauptquery für verfügbare Belege
+        $builder = $db->table('belege');
         return $builder->select('id, belegnummer, rechnungsdatum, beschreibung, betrag, lieferant, status')
             ->where('kategorie', $erforderlicheKategorie)
             ->whereIn('status', ['erfasst', 'in_abrechnung'])
-            ->whereNotIn('id', $subquery->get()->getResultArray())
+            ->where("id NOT IN ($subquery)", null, false)
             ->orderBy('rechnungsdatum', 'ASC')
             ->get()
             ->getResultArray();
@@ -391,10 +337,6 @@ class AbrechnungBelegModel extends Model
 
     /**
      * Holt bereits zugeordnete Belege für eine Abrechnung
-     *
-     * @param string $abrechnungsTyp
-     * @param int $abrechnungsId
-     * @return array
      */
     public function getZugeordneteBelege($abrechnungsTyp, $abrechnungsId)
     {
@@ -416,9 +358,6 @@ class AbrechnungBelegModel extends Model
 
     /**
      * Formatiert Hinzugefügt-Datum für Anzeige
-     *
-     * @param string $datum
-     * @return string
      */
     public function formatiereHinzugefuegtAm($datum)
     {

@@ -140,99 +140,63 @@ class ExcelHelper
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('AH² Abrechnung');
 
-        // Header wie in deinem AH-Sheet
-        $sheet->setCellValue('A2', 'Name:');
-        $sheet->setCellValue('B2', 'Datum');
-        $sheet->setCellValue('C2', 'Grund:');
-        $sheet->setCellValue('D2', 'Betrag:');
-        $sheet->setCellValue('E2', 'Status:');
-        $sheet->setCellValue('G2', 'Done:');
-        $sheet->setCellValue('H2', 'Datum');
-        $sheet->setCellValue('I2', 'Beleg:');
-        $sheet->setCellValue('J2', 'Summe');
-        $sheet->setCellValue('L2', 'Gesamt:');
-        $sheet->setCellValue('M2', $abrechnung['gesamtsumme']);
+        // Titel der Abrechnung
+        $sheet->setCellValue('A1', $abrechnung['titel'] ?? 'Abrechnung Alt-Herren-Bund');
 
-        // Belege eintragen
+        // Header gemäß Excel-Vorlage: Beschreibung | Datum | Beleg | Betrag | Bezugsquelle
+        $sheet->setCellValue('A2', 'Beschreibung');
+        $sheet->setCellValue('B2', 'Datum');
+        $sheet->setCellValue('C2', 'Beleg');
+        $sheet->setCellValue('D2', 'Betrag');
+        $sheet->setCellValue('E2', 'Bezugsquelle');
+
+        // Belege eintragen – ab Zeile 3
         $zeile = 3;
         foreach ($belege as $beleg) {
-            $sheet->setCellValue('G' . $zeile, $beleg['lieferant'] ?: 'Kassenwart');
-            $sheet->setCellValue('H' . $zeile, \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel(strtotime($beleg['rechnungsdatum'])));
-            $sheet->setCellValue('I' . $zeile, $beleg['beschreibung']);
-            $sheet->setCellValue('J' . $zeile, $beleg['betrag']);
+            // A: Beschreibung
+            $sheet->setCellValue('A' . $zeile, $beleg['beschreibung']);
+            // B: Datum (Excel-Datum)
+            $sheet->setCellValue('B' . $zeile,
+                \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel(
+                    strtotime($beleg['rechnungsdatum'])
+                )
+            );
+            // C: Belegnummer (wenn vorhanden)
+            $sheet->setCellValue('C' . $zeile, $beleg['belegnummer'] ?? '');
+            // D: Betrag
+            $sheet->setCellValue('D' . $zeile, $beleg['betrag']);
+            // E: Bezugsquelle (Lieferant oder Kassenwart)
+            $sheet->setCellValue('E' . $zeile, $beleg['lieferant'] ?: 'Kassenwart');
             $zeile++;
         }
 
         // Formatierung
-        $sheet->getColumnDimension('C')->setWidth(30);
-        $sheet->getColumnDimension('I')->setWidth(40);
-        $sheet->getStyle('H3:H' . ($zeile - 1))->getNumberFormat()->setFormatCode('DD.MM.YYYY');
-        $sheet->getStyle('J2:J' . ($zeile - 1))->getNumberFormat()->setFormatCode('#,##0.00 "€"');
-        $sheet->getStyle('M2')->getNumberFormat()->setFormatCode('#,##0.00 "€"');
-
-        return $spreadsheet;
-    }
-
-    /**
-     * Erstellt HV-Abrechnung Excel
-     */
-    public static function erstelleHvAbrechnung($abrechnung, $belege)
-    {
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('HV Abrechnung');
-
-        // Ähnlich wie AH² aber mit Begründungen
-        $sheet->setCellValue('A1', 'HV Abrechnung: ' . $abrechnung['titel']);
-        $sheet->setCellValue('A2', 'Monat: ' . $abrechnung['abrechnungsmonat']);
-
-        if (!empty($abrechnung['begruendung'])) {
-            $sheet->setCellValue('A4', 'Allgemeine Begründung:');
-            $sheet->setCellValue('A5', $abrechnung['begruendung']);
-        }
-
-        // Header für Belege
-        $startZeile = 7;
-        $sheet->setCellValue('A' . $startZeile, 'Belegnummer');
-        $sheet->setCellValue('B' . $startZeile, 'Datum');
-        $sheet->setCellValue('C' . $startZeile, 'Beschreibung');
-        $sheet->setCellValue('D' . $startZeile, 'Lieferant');
-        $sheet->setCellValue('E' . $startZeile, 'Betrag');
-        $sheet->setCellValue('F' . $startZeile, 'Begründung');
-
-        // Belege mit automatischen Begründungen
-        $zeile = $startZeile + 1;
-        foreach ($belege as $beleg) {
-            $sheet->setCellValue('A' . $zeile, $beleg['belegnummer']);
-            $sheet->setCellValue('B' . $zeile, \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel(strtotime($beleg['rechnungsdatum'])));
-            $sheet->setCellValue('C' . $zeile, $beleg['beschreibung']);
-            $sheet->setCellValue('D' . $zeile, $beleg['lieferant'] ?: '-');
-            $sheet->setCellValue('E' . $zeile, $beleg['betrag']);
-
-            // Automatische Begründung generieren
-            $begruendung = self::generiereHvBegruendung($beleg['beschreibung']);
-            $sheet->setCellValue('F' . $zeile, $begruendung);
-
-            $zeile++;
-        }
-
-        // Gesamtsumme
-        $sheet->setCellValue('D' . $zeile, 'Gesamtsumme:');
-        $sheet->setCellValue('E' . $zeile, $abrechnung['gesamtsumme']);
-
-        // Formatierung
-        $sheet->getColumnDimension('A')->setWidth(15);
+        // Spaltenbreiten wie in Excel
+        $sheet->getColumnDimension('A')->setWidth(30);
         $sheet->getColumnDimension('B')->setWidth(12);
-        $sheet->getColumnDimension('C')->setWidth(40);
-        $sheet->getColumnDimension('D')->setWidth(20);
-        $sheet->getColumnDimension('E')->setWidth(12);
-        $sheet->getColumnDimension('F')->setWidth(30);
+        $sheet->getColumnDimension('C')->setWidth(15);
+        $sheet->getColumnDimension('D')->setWidth(12);
+        $sheet->getColumnDimension('E')->setWidth(25);
 
-        $sheet->getStyle('B' . ($startZeile + 1) . ':B' . ($zeile - 1))->getNumberFormat()->setFormatCode('DD.MM.YYYY');
-        $sheet->getStyle('E' . ($startZeile + 1) . ':E' . $zeile)->getNumberFormat()->setFormatCode('#,##0.00 "€"');
+        // Datum formatieren
+        $sheet->getStyle('B3:B' . ($zeile - 1))
+            ->getNumberFormat()
+            ->setFormatCode('DD.MM.YYYY');
+        // Beträge formatieren
+        $sheet->getStyle('D2:D' . ($zeile - 1))
+            ->getNumberFormat()
+            ->setFormatCode('#,##0.00 "€"');
+
+        // Gesamt unten anzeigen
+        $sheet->setCellValue('C' . $zeile, 'Gesamtsumme:');
+        $sheet->setCellValue('D' . $zeile, $abrechnung['gesamtsumme']);
+        $sheet->getStyle('D' . $zeile)
+            ->getNumberFormat()
+            ->setFormatCode('#,##0.00 "€"');
 
         return $spreadsheet;
     }
+
 
     /**
      * Speichert Excel und gibt Download-Response zurück

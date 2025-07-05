@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Controllers\BaseController;
 use App\Models\BelegModel;
 use App\Models\AbrechnungBelegModel;
+use App\Models\BuchungModel;
 use CodeIgniter\Files\File;
 
 /**
@@ -20,11 +21,13 @@ class BelegeController extends BaseController
 {
     protected $belegModel;
     protected $abrechnungBelegModel;
+    protected $buchungModel;
 
     public function __construct()
     {
         $this->belegModel = new BelegModel();
         $this->abrechnungBelegModel = new AbrechnungBelegModel();
+        $this->buchungModel = new BuchungModel();
     }
 
     /**
@@ -320,8 +323,8 @@ class BelegeController extends BaseController
                 ->with('error', 'Beleg kann nicht gelöscht werden, da er in folgenden Abrechnungen verwendet wird: ' . implode(', ', $abrechnungsListe));
         }
 
-        // Prüfe ob Beleg in Buchungen verwendet wird
-        $buchungen = $this->db->table('buchungen')->where('beleg_id', $id)->get()->getResultArray();
+        // Prüfe ob Beleg in Buchungen verwendet wird - KORRIGIERT
+        $buchungen = $this->buchungModel->where('beleg_id', $id)->findAll();
         if (!empty($buchungen)) {
             return redirect()->to("/belege/show/{$id}")
                 ->with('error', 'Beleg kann nicht gelöscht werden, da er mit einer Buchung verknüpft ist. Löschen Sie zuerst die Buchung.');

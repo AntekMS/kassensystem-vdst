@@ -17,7 +17,14 @@
                 <div class="col-md-3">
                     <div class="card kontostand-card">
                         <div class="card-header">
-                            <?= $this->include('buchungen/components/konto_name', ['konto' => $konto]) ?>
+                            <?php
+                            $kontoNamen = [
+                                'aktivenkasse' => 'Aktivenkasse',
+                                'getraenkekasse' => 'Getränkekasse',
+                                'barkasse' => 'Barkasse'
+                            ];
+                            echo $kontoNamen[$konto] ?? ucfirst($konto);
+                            ?>
                         </div>
                         <div class="card-body text-center">
                             <div class="row">
@@ -205,7 +212,14 @@
                                     </td>
                                     <td>
                                     <span class="badge bg-secondary">
-                                        <?= $this->include('buchungen/components/konto_name', ['konto' => $buchung['konto_typ']]) ?>
+                                        <?php
+                                        $kontoNamen = [
+                                            'aktivenkasse' => 'Aktivenkasse',
+                                            'getraenkekasse' => 'Getränkekasse',
+                                            'barkasse' => 'Barkasse'
+                                        ];
+                                        echo $kontoNamen[$buchung['konto_typ']] ?? ucfirst($buchung['konto_typ']);
+                                        ?>
                                     </span>
                                     </td>
                                     <td class="text-end">

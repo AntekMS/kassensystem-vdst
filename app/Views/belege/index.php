@@ -221,6 +221,14 @@
                                                class="btn btn-outline-success" title="Download">
                                                 📥
                                             </a>
+                                            <?php if (empty($beleg['abrechnungen']) && $beleg['status'] === 'erfasst'): ?>
+                                                <a href="<?= base_url('/belege/delete/' . $beleg['id']) ?>"
+                                                   class="btn btn-outline-danger btn-sm"
+                                                   onclick="return confirmDelete('Beleg <?= $beleg['belegnummer'] ?> wirklich löschen? Die Datei wird ebenfalls gelöscht!')"
+                                                   title="Löschen">
+                                                    🗑️
+                                                </a>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
                                 </tr>

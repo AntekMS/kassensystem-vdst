@@ -312,27 +312,41 @@ class BelegeController extends BaseController
         $abrechnungen = $this->abrechnungBelegModel->getAbrechnungenFuerBeleg($id);
 
         if (!empty($abrechnungen)) {
+            $abrechnungsListe = [];
+            foreach ($abrechnungen as $abrechnung) {
+                $abrechnungsListe[] = $abrechnung['titel'] . ' (' . strtoupper($abrechnung['typ']) . ')';
+            }
             return redirect()->to("/belege/show/{$id}")
-                ->with('error', 'Beleg kann nicht gelöscht werden, da er in Abrechnungen verwendet wird.');
+                ->with('error', 'Beleg kann nicht gelöscht werden, da er in folgenden Abrechnungen verwendet wird: ' . implode(', ', $abrechnungsListe));
+        }
+
+        // Prüfe ob Beleg in Buchungen verwendet wird
+        $buchungen = $this->db->table('buchungen')->where('beleg_id', $id)->get()->getResultArray();
+        if (!empty($buchungen)) {
+            return redirect()->to("/belege/show/{$id}")
+                ->with('error', 'Beleg kann nicht gelöscht werden, da er mit einer Buchung verknüpft ist. Löschen Sie zuerst die Buchung.');
         }
 
         try {
             // Datei löschen
-            if (file_exists(FCPATH . $beleg['dateipfad'])) {
-                unlink(FCPATH . $beleg['dateipfad']);
+            $dateipfad = FCPATH . $beleg['dateipfad'];
+            if (file_exists($dateipfad)) {
+                if (!unlink($dateipfad)) {
+                    log_message('warning', 'Datei konnte nicht gelöscht werden: ' . $dateipfad);
+                }
             }
 
             // Aus Datenbank löschen
             if ($this->belegModel->delete($id)) {
                 return redirect()->to('/belege')
-                    ->with('success', "Beleg {$beleg['belegnummer']} wurde erfolgreich gelöscht!");
+                    ->with('success', "Beleg {$beleg['belegnummer']} und die zugehörige Datei wurden erfolgreich gelöscht!");
             } else {
-                return redirect()->to('/belege')->with('error', 'Fehler beim Löschen des Belegs.');
+                return redirect()->to('/belege')->with('error', 'Fehler beim Löschen des Belegs aus der Datenbank.');
             }
 
         } catch (\Exception $e) {
             log_message('error', 'Beleg-Löschung Fehler: ' . $e->getMessage());
-            return redirect()->to('/belege')->with('error', 'Ein Fehler ist beim Löschen aufgetreten.');
+            return redirect()->to('/belege')->with('error', 'Ein Fehler ist beim Löschen aufgetreten: ' . $e->getMessage());
         }
     }
 

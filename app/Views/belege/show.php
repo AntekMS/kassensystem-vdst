@@ -19,6 +19,14 @@
                 <a href="<?= base_url('/belege/download/' . $beleg['id']) ?>" class="btn btn-vdst">
                     📥 Download
                 </a>
+                <?php if (empty($abrechnungen) && $beleg['status'] === 'erfasst'): ?>
+                    <a href="<?= base_url('/belege/delete/' . $beleg['id']) ?>"
+                       class="btn btn-danger"
+                       onclick="return confirmDelete('Beleg <?= $beleg['belegnummer'] ?> wirklich löschen? Die Datei wird ebenfalls unwiderruflich gelöscht!')"
+                       title="Beleg und Datei löschen">
+                        🗑️ Löschen
+                    </a>
+                <?php endif; ?>
             </div>
         </div>
 

@@ -19,11 +19,38 @@
                    class="btn btn-outline-vdst">
                     ← Zurück zur Übersicht
                 </a>
+
                 <?php if (count($belege) > 0): ?>
-                    <a href="<?= base_url('/abrechnungen/' . $typ . '/exportExcel/' . $abrechnung['id']) ?>"
-                       class="btn btn-success btn-lg">
-                        📊 Excel herunterladen
-                    </a>
+                    <!-- Export-Optionen als große Buttons -->
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-success btn-lg dropdown-toggle"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                            📊 Export herunterladen
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center"
+                                   href="<?= base_url('/abrechnungen/' . $typ . '/exportExcel/' . $abrechnung['id']) ?>">
+                                    <span class="me-2">📊</span>
+                                    <div>
+                                        <strong>Excel-Datei</strong><br>
+                                        <small class="text-muted">Tabelle mit allen Beleg-Daten</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center"
+                                   href="<?= base_url('/abrechnungen/' . $typ . '/downloadZip/' . $abrechnung['id']) ?>">
+                                    <span class="me-2">📁</span>
+                                    <div>
+                                        <strong>ZIP-Archiv</strong><br>
+                                        <small class="text-muted">Alle <?= count($belege) ?> Beleg-Dateien + Info</small>
+                                    </div>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 <?php endif; ?>
             </div>
         </div>
@@ -146,7 +173,7 @@
                                 <th>Belegnummer</th>
                                 <th>Datum</th>
                                 <th>Beschreibung</th>
-                                <th>Lieferant</th>
+                                <th>Bezugsquelle</th>
                                 <th class="text-end">Betrag</th>
                                 <?php if ($typ === 'hv'): ?>
                                     <th>Begründung</th>
@@ -231,40 +258,75 @@
         <!-- Export-Info -->
         <?php if (count($belege) > 0): ?>
             <div class="row mt-4">
-                <div class="col-12">
+                <div class="col-md-6">
                     <div class="card">
                         <div class="card-header bg-success text-white">
-                            <strong>📊 Excel-Export bereit</strong>
+                            <strong>📊 Excel-Export</strong>
                         </div>
                         <div class="card-body">
-                            <p class="mb-2">
-                                <strong>Die Abrechnung enthält <?= count($belege) ?> Belege mit einer Gesamtsumme von <?= number_format($abrechnung['gesamtsumme'], 2, ',', '.') ?> €.</strong>
-                            </p>
-                            <p class="mb-3">
-                                Der Excel-Export enthält:
-                            </p>
-                            <ul class="mb-3">
-                                <li>Alle Belegnummern und Dateipfade</li>
-                                <li>Rechnungsdaten und Beträge</li>
-                                <li>Lieferanten-Informationen</li>
+                            <p><strong>Strukturierte Tabelle</strong> mit allen Beleg-Daten:</p>
+                            <ul class="small mb-3">
+                                <li>Belegnummern und Rechnungsdaten</li>
+                                <li>Bezugsquellen und Beschreibungen</li>
+                                <li>Beträge und Gesamtsumme</li>
                                 <?php if ($typ === 'hv'): ?>
-                                    <li>Automatische Begründungen pro Beleg</li>
-                                    <li>Allgemeine HV-Begründung</li>
+                                    <li>Automatische HV-Begründungen</li>
                                 <?php endif; ?>
-                                <li>Gesamtsumme und Abrechnung-Details</li>
                             </ul>
-                            <div class="text-center">
-                                <a href="<?= base_url('/abrechnungen/' . $typ . '/exportExcel/' . $abrechnung['id']) ?>"
-                                   class="btn btn-success btn-lg">
-                                    📊 Excel-Datei herunterladen
-                                </a>
-                            </div>
+                            <a href="<?= base_url('/abrechnungen/' . $typ . '/exportExcel/' . $abrechnung['id']) ?>"
+                               class="btn btn-success w-100">
+                                📊 Excel herunterladen
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-dark text-white">
+                            <strong>📁 ZIP-Archiv</strong>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Komplettes Beleg-Archiv</strong> mit allen Originaldateien:</p>
+                            <ul class="small mb-3">
+                                <li><?= count($belege) ?> Original-Beleg-Dateien</li>
+                                <li>Aussagekräftige Dateinamen</li>
+                                <li>Übersichtliche Nummerierung</li>
+                                <li>Detaillierte Info-Datei</li>
+                                <li>Gesamtgröße: ca. <?= schaetzeArchivGroesse($belege) ?></li>
+                            </ul>
+                            <a href="<?= base_url('/abrechnungen/' . $typ . '/downloadZip/' . $abrechnung['id']) ?>"
+                               class="btn btn-dark w-100">
+                                📁 ZIP-Archiv herunterladen
+                            </a>
                         </div>
                     </div>
                 </div>
             </div>
         <?php endif; ?>
     </div>
+
+<?php
+// Hilfsfunktion für geschätzte Archivgröße
+function schaetzeArchivGroesse($belege) {
+    $gesamtgroesse = 0;
+    foreach ($belege as $beleg) {
+        if (isset($beleg['dateigroesse']) && $beleg['dateigroesse'] > 0) {
+            $gesamtgroesse += $beleg['dateigroesse'];
+        } else {
+            // Schätzung basierend auf Dateityp
+            $schaetzung = $beleg['dateityp'] === 'pdf' ? 200000 : 500000; // 200KB für PDF, 500KB für Bilder
+            $gesamtgroesse += $schaetzung;
+        }
+    }
+
+    if ($gesamtgroesse < 1024 * 1024) {
+        return number_format($gesamtgroesse / 1024, 0) . ' KB';
+    } else {
+        return number_format($gesamtgroesse / (1024 * 1024), 1) . ' MB';
+    }
+}
+?>
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
@@ -278,6 +340,73 @@
                     window.open(this.href, '_blank');
                 });
             });
+
+            // Export-Download Feedback initialisieren
+            initializeExportFeedback();
         });
+
+        function initializeExportFeedback() {
+            // ZIP-Download mit Loading-Indikator
+            const zipLinks = document.querySelectorAll('a[href*="/downloadZip/"]');
+
+            zipLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    showLoadingToast('ZIP-Archiv wird erstellt...', 'Das kann einen Moment dauern.');
+
+                    setTimeout(() => {
+                        hideLoadingToast();
+                        showSuccessToast('ZIP-Download gestartet!', 'Das Archiv wurde erstellt und der Download gestartet.');
+                    }, 2000);
+                });
+            });
+
+            // Excel-Download Feedback
+            const excelLinks = document.querySelectorAll('a[href*="/exportExcel/"]');
+
+            excelLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    showSuccessToast('Excel-Export gestartet!', 'Die Datei wird heruntergeladen.');
+                });
+            });
+        }
+
+        function showLoadingToast(title, message) {
+            const toastHtml = `
+                <div class="toast-container position-fixed top-0 end-0 p-3">
+                    <div id="loadingToast" class="toast show" role="alert">
+                        <div class="toast-header bg-info text-white">
+                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                            <strong class="me-auto">${title}</strong>
+                        </div>
+                        <div class="toast-body">${message}</div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', toastHtml);
+        }
+
+        function hideLoadingToast() {
+            const loadingToast = document.getElementById('loadingToast');
+            if (loadingToast) {
+                loadingToast.remove();
+            }
+        }
+
+        function showSuccessToast(title, message) {
+            const toastHtml = `
+                <div class="toast-container position-fixed top-0 end-0 p-3">
+                    <div class="toast show" role="alert" data-bs-autohide="true" data-bs-delay="3000">
+                        <div class="toast-header bg-success text-white">
+                            <strong class="me-auto">${title}</strong>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                        </div>
+                        <div class="toast-body">${message}</div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', toastHtml);
+        }
     </script>
 <?= $this->endSection() ?>

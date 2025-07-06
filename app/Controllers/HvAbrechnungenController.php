@@ -150,21 +150,61 @@ class HvAbrechnungenController extends BaseController
      */
     public function removeBeleg($abrechnungId)
     {
-        $belegId = $this->request->getPost('beleg_id');
-
-        if ($this->abrechnungBelegModel->entferneZuordnung($belegId, 'hv', $abrechnungId)) {
-            $this->hvAbrechnungModel->berechneGesamtsumme($abrechnungId);
-            $abrechnung = $this->hvAbrechnungModel->find($abrechnungId);
-
-            return $this->response->setJSON([
-                'success' => true,
-                'message' => 'Beleg wurde entfernt',
-                'neue_gesamtsumme' => number_format($abrechnung['gesamtsumme'], 2, ',', '.') . ' €'
-            ]);
-        } else {
+        if (!$this->request->isAJAX() || $this->request->getMethod() !== 'post') {
             return $this->response->setJSON([
                 'success' => false,
-                'message' => 'Fehler beim Entfernen des Belegs'
+                'message' => 'Ungültige Anfrage'
+            ]);
+        }
+
+        $belegId = $this->request->getPost('beleg_id');
+
+        if (!$belegId || !is_numeric($belegId)) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Keine gültige Beleg-ID erhalten'
+            ]);
+        }
+
+        $abrechnung = $this->hvAbrechnungModel->find($abrechnungId);
+        if (!$abrechnung) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Abrechnung nicht gefunden'
+            ]);
+        }
+
+        if ($abrechnung['status'] === 'bezahlt') {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Bezahlte Abrechnungen können nicht mehr bearbeitet werden'
+            ]);
+        }
+
+        try {
+            $entfernt = $this->abrechnungBelegModel->entferneZuordnung($belegId, 'hv', $abrechnungId);
+
+            if ($entfernt) {
+                $this->hvAbrechnungModel->berechneGesamtsumme($abrechnungId);
+                $abrechnung = $this->hvAbrechnungModel->find($abrechnungId);
+
+                return $this->response->setJSON([
+                    'success' => true,
+                    'message' => 'Beleg wurde erfolgreich entfernt',
+                    'neue_gesamtsumme' => number_format($abrechnung['gesamtsumme'], 2, ',', '.') . ' €'
+                ]);
+            } else {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'Beleg konnte nicht entfernt werden'
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            log_message('error', 'Fehler beim Entfernen des Belegs: ' . $e->getMessage());
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Ein unerwarteter Fehler ist aufgetreten'
             ]);
         }
     }
@@ -289,6 +329,44 @@ class HvAbrechnungenController extends BaseController
     }
 
     /**
+     * ZIP-Download aller Belege einer HV-Abrechnung
+     */
+    public function downloadBelegeZip($id)
+    {
+        $abrechnung = $this->hvAbrechnungModel->find($id);
+
+        if (!$abrechnung) {
+            return redirect()->back()->with('error', 'Abrechnung nicht gefunden.');
+        }
+
+        $belege = $this->hvAbrechnungModel->getBelege($id);
+
+        if (empty($belege)) {
+            return redirect()->back()->with('error', 'Keine Belege in dieser Abrechnung gefunden.');
+        }
+
+        try {
+            require_once APPPATH . 'Helpers/ZipHelper.php';
+            $zipPath = \App\Helpers\ZipHelper::erstelleBelegeZip($abrechnung, $belege, 'hv');
+
+            if (!$zipPath || !file_exists($zipPath)) {
+                throw new \Exception('ZIP-Datei konnte nicht erstellt werden.');
+            }
+
+            $filename = 'HV_Belege_' . $abrechnung['abrechnungsmonat'] . '_' .
+                preg_replace('/[^a-zA-Z0-9]/', '_', $abrechnung['titel']) . '.zip';
+
+            return $this->response->download($zipPath, null, true)
+                ->setFileName($filename)
+                ->setContentType('application/zip');
+
+        } catch (\Exception $e) {
+            log_message('error', 'ZIP-Download Fehler: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Fehler beim ZIP-Download: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * HV-Abrechnung löschen
      */
     public function delete($id)
@@ -299,17 +377,30 @@ class HvAbrechnungenController extends BaseController
             return redirect()->to('/abrechnungen/hv')->with('error', 'Abrechnung nicht gefunden.');
         }
 
-        if ($abrechnung['status'] !== 'entwurf') {
-            return redirect()->back()->with('error', 'Nur Entwürfe können gelöscht werden.');
+        // Erweiterte Lösch-Bedingungen
+        $kannGeloeschtWerden = in_array($abrechnung['status'], ['entwurf', 'ausstehend']);
+
+        if (!$kannGeloeschtWerden) {
+            $statusText = $this->hvAbrechnungModel->formatiereStatus($abrechnung['status']);
+            return redirect()->back()->with('error',
+                "Abrechnung mit Status '{$statusText}' kann nicht gelöscht werden. Nur Entwürfe und ausstehende Abrechnungen sind löschbar.");
         }
 
-        $this->abrechnungBelegModel->loescheAlleZuordnungen('hv', $id);
+        try {
+            // Alle Beleg-Zuordnungen entfernen
+            $this->abrechnungBelegModel->loescheAlleZuordnungen('hv', $id);
 
-        if ($this->hvAbrechnungModel->delete($id)) {
-            return redirect()->to('/abrechnungen/hv')
-                ->with('success', 'HV Abrechnung wurde gelöscht!');
-        } else {
-            return redirect()->back()->with('error', 'Fehler beim Löschen der Abrechnung.');
+            // Abrechnung löschen
+            if ($this->hvAbrechnungModel->delete($id)) {
+                return redirect()->to('/abrechnungen/hv')
+                    ->with('success', "HV Abrechnung '{$abrechnung['titel']}' wurde erfolgreich gelöscht!");
+            } else {
+                return redirect()->back()->with('error', 'Fehler beim Löschen der Abrechnung.');
+            }
+
+        } catch (\Exception $e) {
+            log_message('error', 'Fehler beim Löschen der HV-Abrechnung: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Ein unerwarteter Fehler ist beim Löschen aufgetreten.');
         }
     }
 }

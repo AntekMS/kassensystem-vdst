@@ -149,22 +149,65 @@ class AhAbrechnungenController extends BaseController
      */
     public function removeBeleg($abrechnungId)
     {
-        $belegId = $this->request->getPost('beleg_id');
-
-        if ($this->abrechnungBelegModel->entferneZuordnung($belegId, 'ah', $abrechnungId)) {
-            // Neue Gesamtsumme berechnen
-            $this->ahAbrechnungModel->berechneGesamtsumme($abrechnungId);
-            $abrechnung = $this->ahAbrechnungModel->find($abrechnungId);
-
-            return $this->response->setJSON([
-                'success' => true,
-                'message' => 'Beleg wurde entfernt',
-                'neue_gesamtsumme' => number_format($abrechnung['gesamtsumme'], 2, ',', '.') . ' €'
-            ]);
-        } else {
+        // Validierung der Request-Methode
+        if (!$this->request->isAJAX() || $this->request->getMethod() !== 'post') {
             return $this->response->setJSON([
                 'success' => false,
-                'message' => 'Fehler beim Entfernen des Belegs'
+                'message' => 'Ungültige Anfrage'
+            ]);
+        }
+
+        $belegId = $this->request->getPost('beleg_id');
+
+        if (!$belegId || !is_numeric($belegId)) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Keine gültige Beleg-ID erhalten'
+            ]);
+        }
+
+        // Prüfe ob Abrechnung existiert und im richtigen Status ist
+        $abrechnung = $this->ahAbrechnungModel->find($abrechnungId);
+        if (!$abrechnung) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Abrechnung nicht gefunden'
+            ]);
+        }
+
+        if ($abrechnung['status'] === 'bezahlt') {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Bezahlte Abrechnungen können nicht mehr bearbeitet werden'
+            ]);
+        }
+
+        try {
+            // Beleg aus Abrechnung entfernen
+            $entfernt = $this->abrechnungBelegModel->entferneZuordnung($belegId, 'ah', $abrechnungId);
+
+            if ($entfernt) {
+                // Gesamtsumme neu berechnen
+                $this->ahAbrechnungModel->berechneGesamtsumme($abrechnungId);
+                $abrechnung = $this->ahAbrechnungModel->find($abrechnungId);
+
+                return $this->response->setJSON([
+                    'success' => true,
+                    'message' => 'Beleg wurde erfolgreich entfernt',
+                    'neue_gesamtsumme' => number_format($abrechnung['gesamtsumme'], 2, ',', '.') . ' €'
+                ]);
+            } else {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'message' => 'Beleg konnte nicht entfernt werden. Möglicherweise ist er nicht in dieser Abrechnung.'
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            log_message('error', 'Fehler beim Entfernen des Belegs: ' . $e->getMessage());
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Ein unerwarteter Fehler ist aufgetreten'
             ]);
         }
     }
@@ -241,6 +284,47 @@ class AhAbrechnungenController extends BaseController
     }
 
     /**
+     * ZIP-Download aller Belege einer AH²-Abrechnung
+     * Wie ein intelligenter Kopierer, der alle Akten zusammenpackt
+     */
+    public function downloadBelegeZip($id)
+    {
+        $abrechnung = $this->ahAbrechnungModel->find($id);
+
+        if (!$abrechnung) {
+            return redirect()->back()->with('error', 'Abrechnung nicht gefunden.');
+        }
+
+        $belege = $this->ahAbrechnungModel->getBelege($id);
+
+        if (empty($belege)) {
+            return redirect()->back()->with('error', 'Keine Belege in dieser Abrechnung gefunden.');
+        }
+
+        try {
+            // ZIP-Helper verwenden
+            require_once APPPATH . 'Helpers/ZipHelper.php';
+            $zipPath = \App\Helpers\ZipHelper::erstelleBelegeZip($abrechnung, $belege, 'ah');
+
+            if (!$zipPath || !file_exists($zipPath)) {
+                throw new \Exception('ZIP-Datei konnte nicht erstellt werden.');
+            }
+
+            $filename = 'AH_Belege_' . $abrechnung['abrechnungsmonat'] . '_' .
+                preg_replace('/[^a-zA-Z0-9]/', '_', $abrechnung['titel']) . '.zip';
+
+            // ZIP-Download mit automatischer Löschung
+            return $this->response->download($zipPath, null, true)
+                ->setFileName($filename)
+                ->setContentType('application/zip');
+
+        } catch (\Exception $e) {
+            log_message('error', 'ZIP-Download Fehler: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Fehler beim ZIP-Download: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Abrechnung löschen
      */
     public function delete($id)
@@ -251,20 +335,30 @@ class AhAbrechnungenController extends BaseController
             return redirect()->to('/abrechnungen/ah')->with('error', 'Abrechnung nicht gefunden.');
         }
 
-        // Nur Entwürfe können gelöscht werden
-        if ($abrechnung['status'] !== 'entwurf') {
-            return redirect()->back()->with('error', 'Nur Entwürfe können gelöscht werden.');
+        // Erweiterte Lösch-Bedingungen
+        $kannGeloeschtWerden = in_array($abrechnung['status'], ['entwurf', 'ausstehend']);
+
+        if (!$kannGeloeschtWerden) {
+            $statusText = $this->ahAbrechnungModel->formatiereStatus($abrechnung['status']);
+            return redirect()->back()->with('error',
+                "Abrechnung mit Status '{$statusText}' kann nicht gelöscht werden. Nur Entwürfe und ausstehende Abrechnungen sind löschbar.");
         }
 
-        // Alle Zuordnungen löschen
-        $this->abrechnungBelegModel->loescheAlleZuordnungen('ah', $id);
+        try {
+            // Schritt 1: Alle Beleg-Zuordnungen entfernen (Belege bleiben bestehen)
+            $this->abrechnungBelegModel->loescheAlleZuordnungen('ah', $id);
 
-        // Abrechnung löschen
-        if ($this->ahAbrechnungModel->delete($id)) {
-            return redirect()->to('/abrechnungen/ah')
-                ->with('success', 'AH² Abrechnung wurde gelöscht!');
-        } else {
-            return redirect()->back()->with('error', 'Fehler beim Löschen der Abrechnung.');
+            // Schritt 2: Abrechnung löschen
+            if ($this->ahAbrechnungModel->delete($id)) {
+                return redirect()->to('/abrechnungen/ah')
+                    ->with('success', "AH² Abrechnung '{$abrechnung['titel']}' wurde erfolgreich gelöscht!");
+            } else {
+                return redirect()->back()->with('error', 'Fehler beim Löschen der Abrechnung aus der Datenbank.');
+            }
+
+        } catch (\Exception $e) {
+            log_message('error', 'Fehler beim Löschen der Abrechnung: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Ein unerwarteter Fehler ist beim Löschen aufgetreten.');
         }
     }
 }

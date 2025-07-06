@@ -101,23 +101,50 @@ class AbrechnungBelegModel extends Model
      */
     public function entferneZuordnung($belegId, $abrechnungsTyp, $abrechnungsId)
     {
-        $deleted = $this->where([
-            'beleg_id' => $belegId,
-            'abrechnung_typ' => $abrechnungsTyp,
-            'abrechnung_id' => $abrechnungsId
-        ])->delete();
-
-        if ($deleted) {
-            // Prüfe ob Beleg in anderen Abrechnungen ist
-            $andereZuordnungen = $this->where('beleg_id', $belegId)->countAllResults();
-
-            if ($andereZuordnungen === 0) {
-                // Beleg ist in keiner anderen Abrechnung, Status zurücksetzen
-                $this->aktualisiereBeregStatus($belegId, 'erfasst');
-            }
+        if (!$belegId || !$abrechnungsTyp || !$abrechnungsId) {
+            log_message('error', 'entferneZuordnung: Unvollständige Parameter');
+            return false;
         }
 
-        return $deleted;
+        try {
+            // Debugging: Prüfe ob Zuordnung existiert
+            $existiert = $this->where([
+                'beleg_id' => $belegId,
+                'abrechnung_typ' => $abrechnungsTyp,
+                'abrechnung_id' => $abrechnungsId
+            ])->countAllResults();
+
+            if ($existiert === 0) {
+                log_message('warning', "Zuordnung nicht gefunden: Beleg {$belegId}, Typ {$abrechnungsTyp}, Abrechnung {$abrechnungsId}");
+                return false;
+            }
+
+            // Zuordnung löschen
+            $deleted = $this->where([
+                'beleg_id' => $belegId,
+                'abrechnung_typ' => $abrechnungsTyp,
+                'abrechnung_id' => $abrechnungsId
+            ])->delete();
+
+            if ($deleted) {
+                // Prüfe ob Beleg in anderen Abrechnungen ist
+                $andereZuordnungen = $this->where('beleg_id', $belegId)->countAllResults();
+
+                if ($andereZuordnungen === 0) {
+                    // Beleg ist in keiner anderen Abrechnung, Status zurücksetzen
+                    $this->aktualisiereBeregStatus($belegId, 'erfasst');
+                }
+
+                log_message('info', "Beleg {$belegId} erfolgreich aus {$abrechnungsTyp}-Abrechnung {$abrechnungsId} entfernt");
+                return true;
+            }
+
+            return false;
+
+        } catch (\Exception $e) {
+            log_message('error', 'Fehler in entferneZuordnung: ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**

@@ -141,18 +141,37 @@
                                                class="btn btn-outline-info" title="Vorschau">
                                                 👁️ Vorschau
                                             </a>
+
                                             <?php if ($abrechnung['anzahl_belege'] > 0): ?>
-                                                <a href="<?= base_url('/abrechnungen/' . $typ . '/exportExcel/' . $abrechnung['id']) ?>"
-                                                   class="btn btn-success" title="Excel-Export">
-                                                    📊 Excel
-                                                </a>
+                                                <!-- Export-Dropdown -->
+                                                <div class="btn-group btn-group-sm">
+                                                    <button type="button" class="btn btn-success dropdown-toggle"
+                                                            data-bs-toggle="dropdown" aria-expanded="false" title="Export-Optionen">
+                                                        📊 Export
+                                                    </button>
+                                                    <ul class="dropdown-menu">
+                                                        <li>
+                                                            <a class="dropdown-item"
+                                                               href="<?= base_url('/abrechnungen/' . $typ . '/exportExcel/' . $abrechnung['id']) ?>">
+                                                                📊 Excel-Datei
+                                                            </a>
+                                                        </li>
+                                                        <li>
+                                                            <a class="dropdown-item"
+                                                               href="<?= base_url('/abrechnungen/' . $typ . '/downloadZip/' . $abrechnung['id']) ?>">
+                                                                📁 ZIP-Archiv (alle Belege)
+                                                            </a>
+                                                        </li>
+                                                    </ul>
+                                                </div>
                                             <?php endif; ?>
-                                            <?php if ($abrechnung['status'] === 'entwurf'): ?>
+
+                                            <?php if (in_array($abrechnung['status'], ['entwurf', 'ausstehend'])): ?>
                                                 <a href="<?= base_url('/abrechnungen/' . $typ . '/delete/' . $abrechnung['id']) ?>"
-                                                   class="btn btn-outline-danger"
-                                                   onclick="return confirmDelete('Abrechnung wirklich löschen?')"
-                                                   title="Löschen">
-                                                    🗑️
+                                                   class="btn btn-outline-danger btn-sm"
+                                                   onclick="return confirmDelete('<?= esc($abrechnung['titel']) ?>', '<?= $abrechnung['status'] ?>')"
+                                                   title="Abrechnung löschen">
+                                                    🗑️ Löschen
                                                 </a>
                                             <?php endif; ?>
                                         </div>
@@ -237,6 +256,153 @@
                     changeStatus(abrechnungId, currentStatus);
                 });
             });
+
+            // Export-Download Feedback
+            initializeExportFeedback();
         });
+
+        function initializeExportFeedback() {
+            // ZIP-Download mit Loading-Indikator
+            const zipLinks = document.querySelectorAll('a[href*="/downloadZip/"]');
+
+            zipLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    showLoadingToast('ZIP-Archiv wird erstellt...', 'Das kann einen Moment dauern.');
+
+                    setTimeout(() => {
+                        hideLoadingToast();
+                        showSuccessToast('ZIP-Download gestartet!', 'Das Archiv wurde erstellt und der Download gestartet.');
+                    }, 2000);
+                });
+            });
+
+            // Excel-Download Feedback
+            const excelLinks = document.querySelectorAll('a[href*="/exportExcel/"]');
+
+            excelLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    showSuccessToast('Excel-Export gestartet!', 'Die Datei wird heruntergeladen.');
+                });
+            });
+        }
+
+        function showLoadingToast(title, message) {
+            const toastHtml = `
+                <div class="toast-container position-fixed top-0 end-0 p-3">
+                    <div id="loadingToast" class="toast show" role="alert">
+                        <div class="toast-header bg-info text-white">
+                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                            <strong class="me-auto">${title}</strong>
+                        </div>
+                        <div class="toast-body">${message}</div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', toastHtml);
+        }
+
+        function hideLoadingToast() {
+            const loadingToast = document.getElementById('loadingToast');
+            if (loadingToast) {
+                loadingToast.remove();
+            }
+        }
+
+        function showSuccessToast(title, message) {
+            const toastHtml = `
+                <div class="toast-container position-fixed top-0 end-0 p-3">
+                    <div class="toast show" role="alert" data-bs-autohide="true" data-bs-delay="3000">
+                        <div class="toast-header bg-success text-white">
+                            <strong class="me-auto">${title}</strong>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                        </div>
+                        <div class="toast-body">${message}</div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', toastHtml);
+        }
+            // Verbesserte Lösch-Bestätigung
+            function confirmDelete(titel, status) {
+            const statusText = status === 'entwurf' ? 'Entwurf' : 'Ausstehende Abrechnung';
+            const message = `${statusText} "${titel}" wirklich löschen?\n\n` +
+            `⚠️ ACHTUNG:\n` +
+            `• Alle Beleg-Zuordnungen werden entfernt\n` +
+            `• Die Belege selbst bleiben erhalten\n` +
+            `• Diese Aktion kann nicht rückgängig gemacht werden\n\n` +
+            `Fortfahren?`;
+
+            return confirm(message);
+        }
+
+            // Zusätzliche Debugging-Funktion für AJAX-Requests
+            function debugRemoveBeleg(belegId, abrechnungId, typ) {
+            console.log('removeBeleg Debug:', {
+                belegId: belegId,
+                abrechnungId: abrechnungId,
+                typ: typ,
+                url: `${baseUrl}/abrechnungen/${typ}/removeBeleg/${abrechnungId}`
+            });
+        }
+
+            // Erweiterte removeBelegFromAbrechnung Funktion mit besserem Error-Handling
+            function removeBelegFromAbrechnung(belegId) {
+            // Debug-Info
+            debugRemoveBeleg(belegId, abrechnungId, abrechnungTyp);
+
+            const formData = new FormData();
+            formData.append('beleg_id', belegId);
+            // CSRF-Token falls verfügbar
+            if (typeof csrfToken !== 'undefined' && typeof csrfHash !== 'undefined') {
+            formData.append(csrfToken, csrfHash);
+        }
+
+            const url = `${baseUrl}/abrechnungen/${abrechnungTyp}/removeBeleg/${abrechnungId}`;
+
+            fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+        })
+            .then(response => {
+            console.log('Response Status:', response.status);
+            if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+            return response.json();
+        })
+            .then(data => {
+            console.log('Response Data:', data);
+
+            if (data.success) {
+            // Beleg aus DOM entfernen
+            const belegElement = document.querySelector(`.zugeordneter-beleg[data-beleg-id="${belegId}"]`);
+            if (belegElement) {
+            belegElement.remove();
+        }
+
+            // UI aktualisieren
+            updateGesamtsumme(data.neue_gesamtsumme);
+            updateBelegAnzahl();
+
+            showMessage(data.message, 'success');
+
+            // Seite nach kurzer Verzögerung neu laden um verfügbare Belege zu aktualisieren
+            setTimeout(() => {
+            location.reload();
+        }, 1000);
+        } else {
+            showMessage(data.message || 'Unbekannter Fehler beim Entfernen', 'error');
+        }
+        })
+            .catch(error => {
+            console.error('Fetch Error:', error);
+            showMessage(`Fehler beim Entfernen des Belegs: ${error.message}`, 'error');
+        });
+        }
     </script>
 <?= $this->endSection() ?>

@@ -109,3 +109,21 @@ if (is_cli()) {
     $routes->cli('kassensystem/backup', 'CLIController::backup');
     $routes->cli('kassensystem/cleanup', 'CLIController::cleanup');
 }
+
+// ZIP-Downloads für Abrechnungen
+$routes->get('abrechnungen/ah/downloadZip/(:num)', 'AhAbrechnungenController::downloadBelegeZip/$1');
+$routes->get('abrechnungen/hv/downloadZip/(:num)', 'HvAbrechnungenController::downloadBelegeZip/$1');
+
+// Beleg-Management AJAX-Routen
+$routes->post('abrechnungen/ah/addBeleg/(:num)', 'AhAbrechnungenController::addBeleg/$1');
+$routes->post('abrechnungen/ah/removeBeleg/(:num)', 'AhAbrechnungenController::removeBeleg/$1');
+$routes->post('abrechnungen/hv/addBeleg/(:num)', 'HvAbrechnungenController::addBeleg/$1');
+$routes->post('abrechnungen/hv/removeBeleg/(:num)', 'HvAbrechnungenController::removeBeleg/$1');
+
+// Lösch-Routen
+$routes->get('abrechnungen/ah/delete/(:num)', 'AhAbrechnungenController::delete/$1');
+$routes->get('abrechnungen/hv/delete/(:num)', 'HvAbrechnungenController::delete/$1');
+
+// ZIP-Download Routen
+$routes->get('abrechnungen/ah/downloadZip/(:num)', 'AhAbrechnungenController::downloadBelegeZip/$1');
+$routes->get('abrechnungen/hv/downloadZip/(:num)', 'HvAbrechnungenController::downloadBelegeZip/$1');

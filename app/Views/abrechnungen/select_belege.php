@@ -18,11 +18,29 @@
                    class="btn btn-info">
                     👁️ Zur Vorschau
                 </a>
+
                 <?php if (count($zugeordnete_belege) > 0): ?>
-                    <a href="<?= base_url('/abrechnungen/' . $typ . '/exportExcel/' . $abrechnung['id']) ?>"
-                       class="btn btn-success">
-                        📊 Excel-Export
-                    </a>
+                    <!-- Export-Optionen -->
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-success dropdown-toggle"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                            📊 Export
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item"
+                                   href="<?= base_url('/abrechnungen/' . $typ . '/exportExcel/' . $abrechnung['id']) ?>">
+                                    📊 Excel-Export
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item"
+                                   href="<?= base_url('/abrechnungen/' . $typ . '/downloadZip/' . $abrechnung['id']) ?>">
+                                    📁 ZIP-Archiv
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 <?php endif; ?>
             </div>
         </div>
@@ -218,6 +236,9 @@
                     removeBelegFromAbrechnung(belegId);
                 }
             });
+
+            // Export-Download Feedback initialisieren
+            initializeExportFeedback();
         });
 
         // Beleg zur Abrechnung hinzufügen
@@ -382,6 +403,70 @@
                 })
                     .then(() => location.reload());
             }
+        }
+
+        function initializeExportFeedback() {
+            // ZIP-Download mit Loading-Indikator
+            const zipLinks = document.querySelectorAll('a[href*="/downloadZip/"]');
+
+            zipLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    showLoadingToast('ZIP-Archiv wird erstellt...', 'Das kann einen Moment dauern.');
+
+                    setTimeout(() => {
+                        hideLoadingToast();
+                        showSuccessToast('ZIP-Download gestartet!', 'Das Archiv wurde erstellt und der Download gestartet.');
+                    }, 2000);
+                });
+            });
+
+            // Excel-Download Feedback
+            const excelLinks = document.querySelectorAll('a[href*="/exportExcel/"]');
+
+            excelLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    showSuccessToast('Excel-Export gestartet!', 'Die Datei wird heruntergeladen.');
+                });
+            });
+        }
+
+        function showLoadingToast(title, message) {
+            const toastHtml = `
+                <div class="toast-container position-fixed top-0 end-0 p-3">
+                    <div id="loadingToast" class="toast show" role="alert">
+                        <div class="toast-header bg-info text-white">
+                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                            <strong class="me-auto">${title}</strong>
+                        </div>
+                        <div class="toast-body">${message}</div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', toastHtml);
+        }
+
+        function hideLoadingToast() {
+            const loadingToast = document.getElementById('loadingToast');
+            if (loadingToast) {
+                loadingToast.remove();
+            }
+        }
+
+        function showSuccessToast(title, message) {
+            const toastHtml = `
+                <div class="toast-container position-fixed top-0 end-0 p-3">
+                    <div class="toast show" role="alert" data-bs-autohide="true" data-bs-delay="3000">
+                        <div class="toast-header bg-success text-white">
+                            <strong class="me-auto">${title}</strong>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                        </div>
+                        <div class="toast-body">${message}</div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', toastHtml);
         }
     </script>
 <?= $this->endSection() ?>

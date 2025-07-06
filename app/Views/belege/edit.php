@@ -77,14 +77,14 @@
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label for="lieferant" class="form-label">
-                                        <strong>Lieferant/Firma</strong>
+                                        <strong>Bezugsquelle</strong>
                                     </label>
                                     <input type="text"
                                            class="form-control"
                                            id="lieferant"
                                            name="lieferant"
                                            value="<?= old('lieferant', $beleg['lieferant']) ?>"
-                                           placeholder="Name der Firma oder Person">
+                                           placeholder="z.B. Amazon, Metro, Netto">
                                 </div>
                                 <div class="col-md-6">
                                     <label for="kategorie" class="form-label">

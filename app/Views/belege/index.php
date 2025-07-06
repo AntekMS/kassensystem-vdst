@@ -90,7 +90,7 @@
                     <div class="col-md-3">
                         <label class="form-label">Suche</label>
                         <input type="text" name="suche" value="<?= esc($filter['suche'] ?? '') ?>"
-                               placeholder="Beschreibung, Lieferant, Belegnummer..." class="form-control">
+                               placeholder="Beschreibung, Bezugsquelle, Belegnummer..." class="form-control">
                     </div>
                     <div class="col-md-1">
                         <label class="form-label">&nbsp;</label>
@@ -130,7 +130,7 @@
                                 <th>Belegnummer</th>
                                 <th>Datum</th>
                                 <th>Beschreibung</th>
-                                <th>Lieferant</th>
+                                <th>Bezugsquelle</th>
                                 <th class="text-end">Betrag</th>
                                 <th>Kategorie</th>
                                 <th>Status</th>

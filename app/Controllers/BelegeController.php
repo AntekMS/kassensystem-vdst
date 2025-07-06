@@ -92,6 +92,10 @@ class BelegeController extends BaseController
      * Speichert neuen Beleg mit Datei-Upload
      * Wie das Einheften eines neuen Dokuments
      */
+    /**
+     * Speichert neuen Beleg mit Datei-Upload - KORRIGIERTE VERSION
+     * Problem gelöst: Datei-Informationen werden VOR dem Verschieben gesammelt
+     */
     public function store()
     {
         $validation = \Config\Services::validation();
@@ -115,6 +119,21 @@ class BelegeController extends BaseController
             return redirect()->back()->withInput()->with('error', 'Fehler beim Datei-Upload: ' . $file->getErrorString());
         }
 
+        // *** WICHTIG: ALLE Datei-Informationen VOR dem Verschieben sammeln! ***
+        $originalName = $file->getName();           // Original-Name
+        $fileSize = $file->getSize();               // Dateigröße
+        $extension = $file->getExtension();         // Dateiendung
+        $tempPath = $file->getTempName();           // Temp-Pfad (nur für Debugging)
+
+        // MIME-Type sicher bestimmen BEVOR die Datei verschoben wird
+        try {
+            $mimeType = $file->getMimeType(); // oder $file->getType()
+        } catch (\Exception $e) {
+            // Fallback basierend auf Dateiendung
+            $mimeType = $this->getMimeTypeFromExtension($extension);
+            log_message('warning', 'MIME-Type konnte nicht bestimmt werden, Fallback verwendet: ' . $mimeType);
+        }
+
         // Belegnummer generieren
         $rechnungsdatum = $this->request->getPost('rechnungsdatum');
         $belegnummer = $this->belegModel->generiereNaechsteBelegnummer($rechnungsdatum);
@@ -127,16 +146,18 @@ class BelegeController extends BaseController
         try {
             // Dateipfad und Namen generieren
             $dateipfad = $this->belegModel->generiereDateipfad($rechnungsdatum);
-            $systemDateiname = $this->belegModel->generiereSystemDateiname($belegnummer, $file->getExtension());
+            $systemDateiname = $this->belegModel->generiereSystemDateiname($belegnummer, $extension);
             $vollstaendigerPfad = $dateipfad . $systemDateiname;
 
             // Verzeichnis erstellen falls nicht vorhanden
             $this->erstelleVerzeichnisStruktur($dateipfad);
 
-            // Datei verschieben und umbenennen
+            // *** JETZT ERST die Datei verschieben (nur EINMAL!) ***
             $file->move(FCPATH . $dateipfad, $systemDateiname);
 
-            // Beleg-Daten für Datenbank vorbereiten
+            // *** NACH dem Verschieben KEINE weiteren Datei-Operationen auf $file! ***
+
+            // Beleg-Daten für Datenbank vorbereiten (mit vorher gesammelten Informationen)
             $belegData = [
                 'belegnummer' => $belegnummer,
                 'rechnungsdatum' => $rechnungsdatum,
@@ -144,11 +165,11 @@ class BelegeController extends BaseController
                 'beschreibung' => $this->request->getPost('beschreibung'),
                 'betrag' => $this->request->getPost('betrag'),
                 'lieferant' => $this->request->getPost('lieferant') ?: null,
-                'dateiname_original' => $file->getName(),
+                'dateiname_original' => $originalName,           // Vorher gesammelt
                 'dateiname_system' => $systemDateiname,
                 'dateipfad' => $vollstaendigerPfad,
-                'dateityp' => strtolower($file->getExtension()),
-                'dateigroesse' => $file->getSize(),
+                'dateityp' => strtolower($extension),            // Vorher gesammelt
+                'dateigroesse' => $fileSize,                     // Vorher gesammelt
                 'kategorie' => $this->request->getPost('kategorie'),
                 'status' => 'erfasst',
                 'notizen' => $this->request->getPost('notizen') ?: null
@@ -162,7 +183,9 @@ class BelegeController extends BaseController
                 return redirect()->to('/belege')->with('success', $message);
             } else {
                 // Datei wieder löschen bei DB-Fehler
-                unlink(FCPATH . $vollstaendigerPfad);
+                if (file_exists(FCPATH . $vollstaendigerPfad)) {
+                    unlink(FCPATH . $vollstaendigerPfad);
+                }
                 return redirect()->back()->withInput()->with('error', 'Fehler beim Speichern in der Datenbank.');
             }
 
@@ -173,8 +196,24 @@ class BelegeController extends BaseController
             }
 
             log_message('error', 'Beleg-Upload Fehler: ' . $e->getMessage());
-            return redirect()->back()->withInput()->with('error', 'Ein unerwarteter Fehler ist aufgetreten.');
+            return redirect()->back()->withInput()->with('error', 'Ein unerwarteter Fehler ist aufgetreten: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Fallback MIME-Type basierend auf Dateiendung
+     * Für den Fall, dass getMimeType() fehlschlägt
+     */
+    private function getMimeTypeFromExtension($extension)
+    {
+        $mimeTypes = [
+            'pdf' => 'application/pdf',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png'
+        ];
+
+        return $mimeTypes[strtolower($extension)] ?? 'application/octet-stream';
     }
 
     /**
@@ -371,9 +410,9 @@ class BelegeController extends BaseController
             return redirect()->back()->with('error', 'Datei nicht gefunden.');
         }
 
-        // Download mit originalem Namen
+        // Download mit System-Dateiname (z.B. "2024-06-15-001.pdf")
         return $this->response->download($dateipfad, null, true)
-            ->setFileName($beleg['dateiname_original']);
+            ->setFileName($beleg['dateiname_system']);
     }
 
     /**
@@ -393,15 +432,16 @@ class BelegeController extends BaseController
             return $this->response->setJSON(['error' => 'Datei nicht gefunden']);
         }
 
-        // Für PDFs und Bilder unterschiedlich behandeln
+        // MIME-Type NICHT über finfo ermitteln, sondern aus DB verwenden
         if ($beleg['dateityp'] === 'pdf') {
-            return $this->response->setHeader('Content-Type', 'application/pdf')
-                ->setBody(file_get_contents($dateipfad));
+            $mimeType = 'application/pdf';
         } else {
-            $mimeType = mime_content_type($dateipfad);
-            return $this->response->setHeader('Content-Type', $mimeType)
-                ->setBody(file_get_contents($dateipfad));
+            // Für Bilder basierend auf gespeichertem Dateityp
+            $mimeType = 'image/' . $beleg['dateityp'];
         }
+
+        return $this->response->setHeader('Content-Type', $mimeType)
+            ->setBody(file_get_contents($dateipfad));
     }
 
     // ==================== PRIVATE HELPER METHODS ====================

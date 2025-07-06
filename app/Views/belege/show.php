@@ -60,7 +60,7 @@
                                 </td>
                             </tr>
                             <tr>
-                                <td><strong>Lieferant:</strong></td>
+                                <td><strong>Bezugsquelle:</strong></td>
                                 <td><?= $beleg['lieferant'] ?: '<span class="text-muted">Nicht angegeben</span>' ?></td>
                             </tr>
                             <tr>

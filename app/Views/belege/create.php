@@ -4,191 +4,232 @@
 
 <?= $this->section('content') ?>
     <div class="container-fluid">
-        <!-- Page Title -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="page-title">Neuen Beleg hinzufügen</h1>
-            <a href="<?= base_url('/belege') ?>" class="btn btn-outline-vdst">
-                ← Zurück zur Übersicht
-            </a>
+        <!-- Page Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="page-title mb-1">📄 Neuen Beleg hinzufügen</h1>
+                        <p class="text-muted mb-0">Laden Sie einen Beleg hoch und erfassen Sie die dazugehörigen Informationen</p>
+                    </div>
+                    <a href="<?= base_url('/belege') ?>" class="btn btn-outline-vdst">
+                        ← Zurück zur Übersicht
+                    </a>
+                </div>
+            </div>
         </div>
 
-        <form action="<?= base_url('/belege/store') ?>" method="post" enctype="multipart/form-data">
+        <form action="<?= base_url('/belege/store') ?>" method="post" enctype="multipart/form-data" id="belegForm">
             <?= csrf_field() ?>
 
             <div class="row">
-                <!-- Datei-Upload -->
-                <div class="col-md-6">
-                    <div class="card card-vdst">
+                <!-- Linke Spalte: Datei-Upload -->
+                <div class="col-lg-5">
+                    <div class="card card-vdst h-100">
                         <div class="card-header">
-                            <strong>Datei hochladen</strong>
+                            <h5 class="mb-0">📤 Datei hochladen</h5>
                         </div>
                         <div class="card-body">
-                            <div class="mb-3">
-                                <label for="beleg_datei" class="form-label">
-                                    <strong>Beleg-Datei</strong> <span class="text-danger">*</span>
-                                </label>
-                                <input type="file"
-                                       class="form-control <?= isset($errors['beleg_datei']) ? 'is-invalid' : '' ?>"
-                                       id="beleg_datei"
-                                       name="beleg_datei"
-                                       accept=".pdf,.jpg,.jpeg,.png"
-                                       required>
-                                <?php if (isset($errors['beleg_datei'])): ?>
-                                    <div class="invalid-feedback"><?= $errors['beleg_datei'] ?></div>
-                                <?php endif; ?>
-                                <small class="text-muted">
-                                    PDF, JPG oder PNG • Max. <?= $max_upload_size ?> MB
-                                </small>
+                            <!-- Upload-Bereich -->
+                            <div class="upload-area mb-3" onclick="document.getElementById('beleg_datei').click()" style="cursor: pointer;">
+                                <div class="text-center p-4 border-2 border-dashed border-secondary rounded" id="uploadZone">
+                                    <div id="uploadDefault">
+                                        <div class="mb-3">
+                                            <i class="display-4">📁</i>
+                                        </div>
+                                        <h5 class="mb-2">Datei auswählen</h5>
+                                        <p class="text-muted mb-2">Klicken Sie hier oder ziehen Sie eine Datei hinein</p>
+                                        <small class="text-muted">PDF, JPG, PNG • Max. <?= $max_upload_size ?> MB</small>
+                                    </div>
+                                    <div id="uploadPreview" style="display: none;">
+                                        <div class="mb-2">
+                                            <i class="display-5">✓</i>
+                                        </div>
+                                        <div class="fw-bold" id="fileName"></div>
+                                        <small class="text-muted" id="fileSize"></small>
+                                    </div>
+                                </div>
                             </div>
 
-                            <!-- Datei-Vorschau -->
-                            <div id="file-preview" style="display: none;">
-                                <div class="alert alert-info">
-                                    <strong>Ausgewählte Datei:</strong><br>
-                                    <span id="file-name"></span><br>
-                                    <small id="file-size"></small>
-                                </div>
+                            <input type="file"
+                                   class="form-control <?= isset($errors['beleg_datei']) ? 'is-invalid' : '' ?>"
+                                   id="beleg_datei"
+                                   name="beleg_datei"
+                                   accept=".pdf,.jpg,.jpeg,.png"
+                                   style="display: none;"
+                                   required>
+
+                            <?php if (isset($errors['beleg_datei'])): ?>
+                                <div class="invalid-feedback d-block"><?= $errors['beleg_datei'] ?></div>
+                            <?php endif; ?>
+
+                            <!-- Upload-Hinweise -->
+                            <div class="mt-4">
+                                <h6 class="fw-bold">💡 Hinweise zum Upload:</h6>
+                                <ul class="small text-muted mb-0">
+                                    <li>Erlaubte Dateitypen: PDF, JPG, PNG</li>
+                                    <li>Maximale Dateigröße: <?= $max_upload_size ?> MB</li>
+                                    <li>Die Datei wird automatisch umbenannt</li>
+                                    <li>Originalname wird gespeichert</li>
+                                </ul>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Beleg-Metadaten -->
-                <div class="col-md-6">
-                    <div class="card card-vdst">
+                <!-- Rechte Spalte: Beleg-Daten -->
+                <div class="col-lg-7">
+                    <div class="card card-vdst h-100">
                         <div class="card-header">
-                            <strong>Beleg-Informationen</strong>
+                            <h5 class="mb-0">📋 Beleg-Informationen</h5>
                         </div>
                         <div class="card-body">
-                            <!-- Rechnungsdatum -->
-                            <div class="mb-3">
-                                <label for="rechnungsdatum" class="form-label">
-                                    <strong>Rechnungsdatum</strong> <span class="text-danger">*</span>
-                                </label>
-                                <input type="date"
-                                       class="form-control <?= isset($errors['rechnungsdatum']) ? 'is-invalid' : '' ?>"
-                                       id="rechnungsdatum"
-                                       name="rechnungsdatum"
-                                       value="<?= old('rechnungsdatum', date('Y-m-d')) ?>"
-                                       required>
-                                <?php if (isset($errors['rechnungsdatum'])): ?>
-                                    <div class="invalid-feedback"><?= $errors['rechnungsdatum'] ?></div>
-                                <?php endif; ?>
-                                <small class="text-muted">Datum auf der Rechnung (wichtig für Belegnummer)</small>
-                            </div>
-
-                            <!-- Betrag -->
-                            <div class="mb-3">
-                                <label for="betrag" class="form-label">
-                                    <strong>Betrag</strong> <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <input type="number"
-                                           class="form-control <?= isset($errors['betrag']) ? 'is-invalid' : '' ?>"
-                                           id="betrag"
-                                           name="betrag"
-                                           step="0.01"
-                                           min="0.01"
-                                           value="<?= old('betrag') ?>"
-                                           placeholder="0,00"
+                            <!-- Grunddaten -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="rechnungsdatum" class="form-label fw-bold">
+                                        Rechnungsdatum <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="date"
+                                           class="form-control <?= isset($errors['rechnungsdatum']) ? 'is-invalid' : '' ?>"
+                                           id="rechnungsdatum"
+                                           name="rechnungsdatum"
+                                           value="<?= old('rechnungsdatum', date('Y-m-d')) ?>"
                                            required>
-                                    <span class="input-group-text">€</span>
-                                    <?php if (isset($errors['betrag'])): ?>
-                                        <div class="invalid-feedback"><?= $errors['betrag'] ?></div>
+                                    <?php if (isset($errors['rechnungsdatum'])): ?>
+                                        <div class="invalid-feedback"><?= $errors['rechnungsdatum'] ?></div>
                                     <?php endif; ?>
+                                    <small class="text-muted">Datum auf der Rechnung (bestimmt die Belegnummer)</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="betrag" class="form-label fw-bold">
+                                        Betrag <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="number"
+                                               class="form-control <?= isset($errors['betrag']) ? 'is-invalid' : '' ?>"
+                                               id="betrag"
+                                               name="betrag"
+                                               step="0.01"
+                                               min="0.01"
+                                               value="<?= old('betrag') ?>"
+                                               placeholder="0,00"
+                                               required>
+                                        <span class="input-group-text">€</span>
+                                        <?php if (isset($errors['betrag'])): ?>
+                                            <div class="invalid-feedback"><?= $errors['betrag'] ?></div>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Lieferant -->
-                            <div class="mb-3">
-                                <label for="lieferant" class="form-label">
-                                    <strong>Lieferant/Firma</strong>
-                                </label>
-                                <input type="text"
-                                       class="form-control"
-                                       id="lieferant"
-                                       name="lieferant"
-                                       value="<?= old('lieferant') ?>"
-                                       placeholder="Name der Firma oder Person">
-                                <small class="text-muted">Optional</small>
+                            <!-- Bezugsquelle und Kategorie -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="lieferant" class="form-label fw-bold">
+                                        Bezugsquelle
+                                    </label>
+                                    <input type="text"
+                                           class="form-control"
+                                           id="lieferant"
+                                           name="lieferant"
+                                           value="<?= old('lieferant') ?>"
+                                           placeholder="z.B. Amazon, Rewe, Baumarkt...">
+                                    <small class="text-muted">Name des Geschäfts oder Anbieters</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="kategorie" class="form-label fw-bold">
+                                        Kategorie <span class="text-danger">*</span>
+                                    </label>
+                                    <select class="form-select <?= isset($errors['kategorie']) ? 'is-invalid' : '' ?>"
+                                            id="kategorie"
+                                            name="kategorie"
+                                            required>
+                                        <option value="">Kategorie auswählen...</option>
+                                        <?php foreach($kategorien as $value => $label): ?>
+                                            <option value="<?= $value ?>" <?= old('kategorie') === $value ? 'selected' : '' ?>>
+                                                <?= $label ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <?php if (isset($errors['kategorie'])): ?>
+                                        <div class="invalid-feedback"><?= $errors['kategorie'] ?></div>
+                                    <?php endif; ?>
+                                    <small class="text-muted">Bestimmt, für welche Abrechnungen der Beleg verfügbar ist</small>
+                                </div>
                             </div>
 
-                            <!-- Kategorie -->
+                            <!-- Beschreibung -->
                             <div class="mb-3">
-                                <label for="kategorie" class="form-label">
-                                    <strong>Kategorie</strong> <span class="text-danger">*</span>
-                                </label>
-                                <select class="form-control <?= isset($errors['kategorie']) ? 'is-invalid' : '' ?>"
-                                        id="kategorie"
-                                        name="kategorie"
-                                        required>
-                                    <option value="">Kategorie auswählen...</option>
-                                    <?php foreach($kategorien as $value => $label): ?>
-                                        <option value="<?= $value ?>" <?= old('kategorie') === $value ? 'selected' : '' ?>>
-                                            <?= $label ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <?php if (isset($errors['kategorie'])): ?>
-                                    <div class="invalid-feedback"><?= $errors['kategorie'] ?></div>
-                                <?php endif; ?>
-                                <small class="text-muted">
-                                    Bestimmt für welche Abrechnungen der Beleg verwendet werden kann
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Beschreibung -->
-            <div class="row mt-3">
-                <div class="col-12">
-                    <div class="card card-vdst">
-                        <div class="card-header">
-                            <strong>Beschreibung</strong>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <label for="beschreibung" class="form-label">
-                                    <strong>Was wurde gekauft/bezahlt?</strong> <span class="text-danger">*</span>
+                                <label for="beschreibung" class="form-label fw-bold">
+                                    Beschreibung <span class="text-danger">*</span>
                                 </label>
                                 <textarea class="form-control <?= isset($errors['beschreibung']) ? 'is-invalid' : '' ?>"
                                           id="beschreibung"
                                           name="beschreibung"
                                           rows="3"
-                                          placeholder="Beschreibung der Ausgabe..."
+                                          placeholder="Was wurde gekauft oder bezahlt? (z.B. Büromaterial, Verpflegung für Veranstaltung...)"
                                           required><?= old('beschreibung') ?></textarea>
                                 <?php if (isset($errors['beschreibung'])): ?>
                                     <div class="invalid-feedback"><?= $errors['beschreibung'] ?></div>
                                 <?php endif; ?>
+                                <small class="text-muted">Kurze, aber aussagekräftige Beschreibung der Ausgabe</small>
                             </div>
 
-                            <div class="mb-3">
-                                <label for="notizen" class="form-label">
-                                    <strong>Notizen</strong> <small class="text-muted">(optional)</small>
+                            <!-- Notizen -->
+                            <div class="mb-4">
+                                <label for="notizen" class="form-label fw-bold">
+                                    Zusätzliche Notizen <small class="text-muted">(optional)</small>
                                 </label>
                                 <textarea class="form-control"
                                           id="notizen"
                                           name="notizen"
                                           rows="2"
-                                          placeholder="Zusätzliche Informationen..."><?= old('notizen') ?></textarea>
+                                          placeholder="Weitere Informationen, Anmerkungen oder Besonderheiten..."><?= old('notizen') ?></textarea>
+                            </div>
+
+                            <!-- Info-Box -->
+                            <div class="alert alert-info">
+                                <div class="row">
+                                    <div class="col-1 text-center">
+                                        <i class="fs-4">ℹ️</i>
+                                    </div>
+                                    <div class="col-11">
+                                        <strong>Automatische Verarbeitung:</strong><br>
+                                        <small>
+                                            • Belegnummer wird automatisch generiert (Format: YYYY-MM-DD-001)<br>
+                                            • Datei wird systematisch organisiert und umbenannt<br>
+                                            • Status wird auf "Erfasst" gesetzt
+                                        </small>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Submit Buttons -->
+            <!-- Submit-Bereich -->
             <div class="row mt-4">
                 <div class="col-12">
-                    <div class="d-flex justify-content-between">
-                        <a href="<?= base_url('/belege') ?>" class="btn btn-outline-secondary">
-                            Abbrechen
-                        </a>
-                        <button type="submit" class="btn btn-vdst btn-lg">
-                            <strong>Beleg speichern</strong>
-                        </button>
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="text-muted">
+                                        <span class="text-danger">*</span> Pflichtfelder
+                                    </span>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <a href="<?= base_url('/belege') ?>" class="btn btn-outline-secondary">
+                                        Abbrechen
+                                    </a>
+                                    <button type="submit" class="btn btn-vdst btn-lg" id="submitBtn">
+                                        <strong>📄 Beleg speichern</strong>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -196,25 +237,106 @@
     </div>
 <?= $this->endSection() ?>
 
+<?= $this->section('styles') ?>
+    <style>
+        .upload-area {
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            background-color: rgba(0,0,0,0.02);
+        }
+
+        .upload-area.dragover {
+            background-color: rgba(220, 20, 60, 0.1);
+            border-color: var(--vdst-rot) !important;
+        }
+
+        .form-label.fw-bold {
+            color: var(--vdst-schwarz);
+        }
+
+        .card-header h5 {
+            color: var(--vdst-weiss);
+        }
+
+        .input-group-text {
+            background-color: var(--vdst-grau);
+            border-color: #ddd;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: var(--vdst-rot);
+            box-shadow: 0 0 0 0.2rem rgba(220, 20, 60, 0.25);
+        }
+    </style>
+<?= $this->endSection() ?>
+
 <?= $this->section('scripts') ?>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Datei-Upload Vorschau
             const fileInput = document.getElementById('beleg_datei');
-            const filePreview = document.getElementById('file-preview');
-            const fileName = document.getElementById('file-name');
-            const fileSize = document.getElementById('file-size');
+            const uploadZone = document.getElementById('uploadZone');
+            const uploadDefault = document.getElementById('uploadDefault');
+            const uploadPreview = document.getElementById('uploadPreview');
+            const fileName = document.getElementById('fileName');
+            const fileSize = document.getElementById('fileSize');
+            const form = document.getElementById('belegForm');
+            const submitBtn = document.getElementById('submitBtn');
 
+            // Datei-Upload Handler
             fileInput.addEventListener('change', function() {
-                if (this.files[0]) {
-                    const file = this.files[0];
-                    fileName.textContent = file.name;
-                    fileSize.textContent = formatFileSize(file.size);
-                    filePreview.style.display = 'block';
-                } else {
-                    filePreview.style.display = 'none';
+                handleFileSelection(this.files[0]);
+            });
+
+            // Drag & Drop
+            uploadZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                uploadZone.classList.add('dragover');
+            });
+
+            uploadZone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                uploadZone.classList.remove('dragover');
+            });
+
+            uploadZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                uploadZone.classList.remove('dragover');
+
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    handleFileSelection(files[0]);
                 }
             });
+
+            // Datei-Auswahl verarbeiten
+            function handleFileSelection(file) {
+                if (file) {
+                    fileName.textContent = file.name;
+                    fileSize.textContent = formatFileSize(file.size);
+                    uploadDefault.style.display = 'none';
+                    uploadPreview.style.display = 'block';
+
+                    // Upload-Zone-Farbe ändern
+                    uploadZone.querySelector('.border-secondary').classList.remove('border-secondary');
+                    uploadZone.querySelector('.border-dashed').classList.add('border-success');
+                } else {
+                    uploadDefault.style.display = 'block';
+                    uploadPreview.style.display = 'none';
+                }
+            }
+
+            // Dateigröße formatieren
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+            }
 
             // Betrag formatieren
             const betragInput = document.getElementById('betrag');
@@ -224,14 +346,67 @@
                     this.value = value.toFixed(2);
                 }
             });
-        });
 
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-        }
+            // Form-Submission mit Loading-State
+            form.addEventListener('submit', function(e) {
+                submitBtn.innerHTML = '🔄 Wird gespeichert...';
+                submitBtn.disabled = true;
+
+                // Falls Fehler auftreten, Button nach 5 Sekunden wieder aktivieren
+                setTimeout(function() {
+                    if (submitBtn.disabled) {
+                        submitBtn.innerHTML = '<strong>📄 Beleg speichern</strong>';
+                        submitBtn.disabled = false;
+                    }
+                }, 5000);
+            });
+
+            // Keyboard Shortcuts
+            document.addEventListener('keydown', function(e) {
+                // Ctrl+S = Form speichern
+                if (e.ctrlKey && e.key === 's') {
+                    e.preventDefault();
+                    form.submit();
+                }
+
+                // Escape = Zurück zur Übersicht
+                if (e.key === 'Escape') {
+                    if (confirm('Eingabe abbrechen und zur Übersicht zurückkehren?')) {
+                        window.location.href = '<?= base_url('/belege') ?>';
+                    }
+                }
+            });
+
+            // Automatische Beschreibung basierend auf Bezugsquelle
+            const lieferantInput = document.getElementById('lieferant');
+            const beschreibungInput = document.getElementById('beschreibung');
+
+            lieferantInput.addEventListener('blur', function() {
+                if (this.value && !beschreibungInput.value) {
+                    // Vorschlag basierend auf häufigen Bezugsquellen
+                    const suggestions = {
+                        'amazon': 'Büromaterial',
+                        'rewe': 'Verpflegung',
+                        'baumarkt': 'Handwerksmaterial',
+                        'tankstelle': 'Kraftstoff',
+                        'post': 'Porto/Versand',
+                        'bahn': 'Fahrtkosten',
+                        'hotel': 'Übernachtung'
+                    };
+
+                    const suggestion = Object.keys(suggestions).find(key =>
+                        this.value.toLowerCase().includes(key)
+                    );
+
+                    if (suggestion) {
+                        beschreibungInput.value = suggestions[suggestion];
+                        beschreibungInput.focus();
+                    }
+                }
+            });
+
+            console.log('📄 Beleg-Upload-Formular geladen');
+            console.log('⌨️ Shortcuts: Ctrl+S (Speichern), ESC (Abbrechen)');
+        });
     </script>
 <?= $this->endSection() ?>

@@ -17,7 +17,15 @@
                 <div class="col-md-3">
                     <div class="card kontostand-card">
                         <div class="card-header">
-                            <?= $this->include('buchungen/components/konto_name', ['konto' => $konto]) ?>
+                            <?php
+                            // Direkte Konto-Namen-Zuordnung (Test)
+                            $kontoNamen = [
+                                'aktivenkasse' => 'Aktivenkasse',
+                                'getraenkekasse' => 'Getränkekasse',
+                                'barkasse' => 'Barkasse'
+                            ];
+                            echo $kontoNamen[$konto] ?? ucfirst($konto);
+                            ?>
                         </div>
                         <div class="card-body text-center">
                             <h3 class="<?= $daten['saldo'] >= 0 ? 'saldo-positiv' : 'saldo-negativ' ?>">
@@ -32,12 +40,20 @@
             <div class="col-md-3">
                 <div class="card border-3" style="border-color: var(--vdst-rot) !important;">
                     <div class="card-header text-center" style="background-color: var(--vdst-rot); color: white;">
-                        <strong>GESAMTSALDO</strong>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong id="saldo-titel">GESAMTSALDO</strong>
+                            <button class="btn btn-sm btn-outline-light" id="toggle-barkasse" title="Mit/Ohne Barkasse">
+                                <i class="fas fa-exchange-alt"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body text-center">
-                        <h2 class="<?= $gesamtsaldo >= 0 ? 'saldo-positiv' : 'saldo-negativ' ?>">
+                        <h2 id="gesamtsaldo-betrag" class="<?= $gesamtsaldo >= 0 ? 'saldo-positiv' : 'saldo-negativ' ?>">
                             <?= number_format($gesamtsaldo, 2, ',', '.') ?> €
                         </h2>
+                        <small id="saldo-hinweis" class="text-muted" style="display: none;">
+                            ohne Barkasse
+                        </small>
                     </div>
                 </div>
             </div>
@@ -128,8 +144,8 @@
                                 <td class="text-end"><strong><?= $buchung_stats['buchungen_monat'] ?></strong></td>
                             </tr>
                             <tr>
-                                <td>Ohne Beleg:</td>
-                                <td class="text-end"><?= $buchung_stats['ohne_beleg'] ?></td>
+                                <td>Gesamt:</td>
+                                <td class="text-end"><?= $buchung_stats['gesamt_buchungen'] ?? '-' ?></td>
                             </tr>
                             <tr>
                                 <td colspan="2">
@@ -256,36 +272,71 @@
             </div>
         </div>
 
-        <!-- System-Info -->
-        <?php if (!empty($alerts)): ?>
-            <div class="row mt-4">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header" style="background-color: var(--vdst-rot); color: white;">
-                            <strong>⚠️ Wichtige Hinweise</strong>
-                        </div>
-                        <div class="card-body">
-                            <?php foreach($alerts as $alert): ?>
-                                <div class="alert alert-<?= $alert['type'] ?> alert-sm">
-                                    <?= $alert['message'] ?>
-                                    <?php if (!empty($alert['link'])): ?>
-                                        <a href="<?= base_url($alert['link']) ?>" class="btn btn-outline-dark btn-sm ms-2">
-                                            Anzeigen
-                                        </a>
-                                    <?php endif; ?>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        <?php endif; ?>
+
     </div>
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Gesamtsaldo mit/ohne Barkasse Toggle
+            const toggleButton = document.getElementById('toggle-barkasse');
+            const saldoTitel = document.getElementById('saldo-titel');
+            const saldoBetrag = document.getElementById('gesamtsaldo-betrag');
+            const saldoHinweis = document.getElementById('saldo-hinweis');
+
+            // Kontostände aus PHP übernehmen
+            const kontostaende = <?= json_encode($kontostaende) ?>;
+            let mitBarkasse = true;
+
+            // Gesamtsaldo berechnen
+            function berechneGesamtsaldo(inklBarkasse = true) {
+                let summe = 0;
+                for (const [konto, daten] of Object.entries(kontostaende)) {
+                    if (!inklBarkasse && konto === 'barkasse') {
+                        continue; // Nur die Barkasse ausschließen
+                    }
+                    summe += parseFloat(daten.saldo) || 0;
+                }
+                return summe;
+            }
+
+            // Anzeige aktualisieren
+            function updateAnzeige() {
+                const saldo = berechneGesamtsaldo(mitBarkasse);
+                const formatierterBetrag = new Intl.NumberFormat('de-DE', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }).format(saldo) + ' €';
+
+                saldoBetrag.textContent = formatierterBetrag;
+                saldoBetrag.className = saldo >= 0 ? 'saldo-positiv' : 'saldo-negativ';
+
+                if (mitBarkasse) {
+                    saldoTitel.textContent = 'GESAMTSALDO';
+                    saldoHinweis.style.display = 'none';
+                } else {
+                    saldoTitel.textContent = 'SALDO OHNE BAR';
+                    saldoHinweis.style.display = 'block';
+                }
+            }
+
+            // Toggle Event
+            toggleButton.addEventListener('click', function() {
+                mitBarkasse = !mitBarkasse;
+                updateAnzeige();
+
+                // Speichere Einstellung im localStorage
+                localStorage.setItem('dashboard_mit_barkasse', mitBarkasse);
+            });
+
+            // Gespeicherte Einstellung laden
+            const gespeicherteEinstellung = localStorage.getItem('dashboard_mit_barkasse');
+            if (gespeicherteEinstellung !== null) {
+                mitBarkasse = gespeicherteEinstellung === 'true';
+                updateAnzeige();
+            }
+
             // Auto-Refresh der Zahlen alle 5 Minuten (optional)
             // setInterval(function() {
             //     location.reload();

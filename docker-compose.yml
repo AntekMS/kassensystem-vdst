@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # Dein CodeIgniter 4 Kassensystem
+  kassensystem-web:
+    build: .
+    container_name: kassensystem-vdst-web
+    ports:
+      - "8080:80"
+    depends_on:
+      - kassensystem-db
+    volumes:
+      # Optimierte Volume-Mounts für bessere Performance
+      - ./:/var/www/html/:cached
+      - ./writable:/var/www/html/writable:delegated
+      # Exclude node_modules and other heavy folders
+      - /var/www/html/node_modules
+      - kassensystem_vendor:/var/www/html/vendor
+    environment:
+      - DB_HOST=kassensystem-db
+      - DB_NAME=vdst_kassensystem_small
+      - DB_USER=kassenuser
+      - DB_PASS=kassenpass123
+      - CI_ENVIRONMENT=development
+      - app.baseURL=http://localhost:8080/
+    networks:
+      - kassensystem-network
+
+  # MySQL Datenbank für das Kassensystem
+  kassensystem-db:
+    image: mysql:8.0
+    container_name: kassensystem-vdst-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass123
+      MYSQL_DATABASE: vdst_kassensystem_small
+      MYSQL_USER: kassenuser
+      MYSQL_PASSWORD: kassenpass123
+    command: --log-bin-trust-function-creators=1
+    ports:
+      - "3306:3306"
+    volumes:
+      - kassensystem_mysql_data:/var/lib/mysql
+      - ./database:/docker-entrypoint-initdb.d/
+    networks:
+      - kassensystem-network
+
+  # phpMyAdmin für Datenbank-Management
+  kassensystem-phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: kassensystem-vdst-phpmyadmin
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: kassensystem-db
+      PMA_PORT: 3306
+      PMA_USER: kassenuser
+      PMA_PASSWORD: kassenpass123
+    depends_on:
+      - kassensystem-db
+    networks:
+      - kassensystem-network
+
+volumes:
+  kassensystem_mysql_data:
+  kassensystem_vendor:
+
+networks:
+  kassensystem-network:
+    driver: bridge

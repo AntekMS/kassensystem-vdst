@@ -150,13 +150,15 @@ class HvAbrechnungenController extends BaseController
      */
     public function removeBeleg($abrechnungId)
     {
-        if (!$this->request->isAJAX() || $this->request->getMethod() !== 'post') {
+        // KORRIGIERTE Validierung
+        if (!$this->request->isAJAX() || strtolower($this->request->getMethod(true)) !== 'post') {
             return $this->response->setJSON([
                 'success' => false,
                 'message' => 'Ungültige Anfrage'
             ]);
         }
 
+        // Rest bleibt gleich wie im AH-Controller...
         $belegId = $this->request->getPost('beleg_id');
 
         if (!$belegId || !is_numeric($belegId)) {
@@ -191,7 +193,8 @@ class HvAbrechnungenController extends BaseController
                 return $this->response->setJSON([
                     'success' => true,
                     'message' => 'Beleg wurde erfolgreich entfernt',
-                    'neue_gesamtsumme' => number_format($abrechnung['gesamtsumme'], 2, ',', '.') . ' €'
+                    'neue_gesamtsumme' => number_format($abrechnung['gesamtsumme'], 2, ',', '.') . ' €',
+                    'csrf_hash' => csrf_hash()
                 ]);
             } else {
                 return $this->response->setJSON([

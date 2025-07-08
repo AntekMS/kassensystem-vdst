@@ -254,32 +254,12 @@
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-                .then(response => {
-                    console.log('Response status:', response.status);
-                    console.log('Response headers:', response.headers);
-                    return response.json();
-                })
+                .then(response => response.json())
                 .then(data => {
-                    console.log('Response data:', data);
                     if (data.success) {
-                        // Beleg aus verfügbarer Liste entfernen
-                        const belegItem = document.querySelector(`[data-beleg-id="${belegId}"]`);
-                        const belegData = {
-                            id: belegId,
-                            belegnummer: belegItem.querySelector('strong').textContent,
-                            betrag: belegItem.dataset.betrag,
-                            html: belegItem.outerHTML
-                        };
-
-                        belegItem.remove();
-
-                        // Beleg zu ausgewählten hinzufügen
-                        addBelegToSelected(belegData);
-
-                        // Summe aktualisieren
-                        updateGesamtsumme(data.neue_gesamtsumme);
-
+                        // Anstatt DOM-Manipulation: Einfach neu laden
                         showMessage(data.message, 'success');
+                        setTimeout(() => location.reload(), 500);
                     } else {
                         showMessage(data.message, 'error');
                     }
@@ -294,6 +274,7 @@
         function removeBelegFromAbrechnung(belegId) {
             const formData = new FormData();
             formData.append('beleg_id', belegId);
+            formData.append(csrfToken, csrfHash);
 
             fetch(`${baseUrl}/abrechnungen/${abrechnungTyp}/removeBeleg/${abrechnungId}`, {
                 method: 'POST',
@@ -305,21 +286,15 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Beleg aus ausgewählten entfernen
-                        const belegItem = document.querySelector(`.zugeordneter-beleg[data-beleg-id="${belegId}"]`);
-                        belegItem.remove();
-
-                        // Summe aktualisieren
-                        updateGesamtsumme(data.neue_gesamtsumme);
-                        updateBelegAnzahl();
-
                         showMessage(data.message, 'success');
-
-                        // Seite neu laden um verfügbare Belege zu aktualisieren
-                        setTimeout(() => location.reload(), 1000);
+                        setTimeout(() => location.reload(), 500);
                     } else {
                         showMessage(data.message, 'error');
                     }
+                })
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    showMessage('Fehler beim Entfernen des Belegs', 'error');
                 });
         }
 

@@ -335,19 +335,20 @@ class AbrechnungBelegModel extends Model
      * Holt verfügbare Belege für eine Abrechnung
      * (Belege die nicht bereits in einer anderen Abrechnung desselben Typs sind)
      */
+    /**
+     * Holt verfügbare Belege für eine Abrechnung
+     * (Belege die nicht bereits in einer Abrechnung desselben Typs sind)
+     */
     public function getVerfuegbareBelege($abrechnungsTyp, $excludeAbrechnungsId = null)
     {
         $erforderlicheKategorie = $abrechnungsTyp === 'ah' ? 'ah_berechtigt' : 'hv_berechtigt';
 
-        // Query für bereits zugeordnete Belege
+        // Query für bereits zugeordnete Belege - KORRIGIERT!
         $db = \Config\Database::connect();
         $subqueryBuilder = $db->table('abrechnung_belege');
         $subqueryBuilder->select('beleg_id')
             ->where('abrechnung_typ', $abrechnungsTyp);
 
-        if ($excludeAbrechnungsId) {
-            $subqueryBuilder->where('abrechnung_id !=', $excludeAbrechnungsId);
-        }
 
         $subquery = $subqueryBuilder->getCompiledSelect();
 
@@ -355,9 +356,9 @@ class AbrechnungBelegModel extends Model
         $builder = $db->table('belege');
         return $builder->select('id, belegnummer, rechnungsdatum, beschreibung, betrag, lieferant, status')
             ->where('kategorie', $erforderlicheKategorie)
-            ->whereIn('status', ['erfasst', 'in_abrechnung'])
+            ->where('status', 'erfasst') // Nur erfasste Belege, nicht "in_abrechnung"
             ->where("id NOT IN ($subquery)", null, false)
-            ->orderBy('rechnungsdatum', 'ASC')
+            ->orderBy('rechnungsdatum', 'DESC') // Neueste zuerst
             ->get()
             ->getResultArray();
     }

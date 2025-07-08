@@ -78,5 +78,13 @@ class Filters extends BaseConfig
                 'abrechnungen/*',
             ]
         ],
+
+        'csrf' => [
+            'before' => ['post', 'put', 'patch', 'delete'],
+            'except' => [
+                'abrechnungen/*/removeBeleg/*',
+                'abrechnungen/*/addBeleg/*'
+            ]
+        ],
     ];
 }

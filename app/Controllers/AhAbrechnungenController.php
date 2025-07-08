@@ -149,8 +149,8 @@ class AhAbrechnungenController extends BaseController
      */
     public function removeBeleg($abrechnungId)
     {
-        // Validierung der Request-Methode
-        if (!$this->request->isAJAX() || $this->request->getMethod() !== 'post') {
+        // KORRIGIERTE Validierung
+        if (!$this->request->isAJAX() || strtolower($this->request->getMethod(true)) !== 'post') {
             return $this->response->setJSON([
                 'success' => false,
                 'message' => 'Ungültige Anfrage'
@@ -166,7 +166,7 @@ class AhAbrechnungenController extends BaseController
             ]);
         }
 
-        // Prüfe ob Abrechnung existiert und im richtigen Status ist
+        // Rest der Funktion bleibt gleich...
         $abrechnung = $this->ahAbrechnungModel->find($abrechnungId);
         if (!$abrechnung) {
             return $this->response->setJSON([
@@ -183,23 +183,22 @@ class AhAbrechnungenController extends BaseController
         }
 
         try {
-            // Beleg aus Abrechnung entfernen
             $entfernt = $this->abrechnungBelegModel->entferneZuordnung($belegId, 'ah', $abrechnungId);
 
             if ($entfernt) {
-                // Gesamtsumme neu berechnen
                 $this->ahAbrechnungModel->berechneGesamtsumme($abrechnungId);
                 $abrechnung = $this->ahAbrechnungModel->find($abrechnungId);
 
                 return $this->response->setJSON([
                     'success' => true,
                     'message' => 'Beleg wurde erfolgreich entfernt',
-                    'neue_gesamtsumme' => number_format($abrechnung['gesamtsumme'], 2, ',', '.') . ' €'
+                    'neue_gesamtsumme' => number_format($abrechnung['gesamtsumme'], 2, ',', '.') . ' €',
+                    'csrf_hash' => csrf_hash() // Neues Token für nächste Anfrage
                 ]);
             } else {
                 return $this->response->setJSON([
                     'success' => false,
-                    'message' => 'Beleg konnte nicht entfernt werden. Möglicherweise ist er nicht in dieser Abrechnung.'
+                    'message' => 'Beleg konnte nicht entfernt werden'
                 ]);
             }
 

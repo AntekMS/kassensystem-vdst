@@ -72,6 +72,7 @@
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="d-flex justify-content-between align-items-center">
+
                     <!-- Neue Buchung Button -->
                     <div>
                         <a href="<?= base_url('/buchungen/create') ?>" class="btn btn-vdst btn-lg">

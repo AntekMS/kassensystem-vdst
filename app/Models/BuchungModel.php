@@ -92,11 +92,15 @@ class BuchungModel extends Model
             $builder->where('buchungen.buchungsart', $filter['buchungsart']);
         }
 
+        // *** ERWEITERTE SUCHE: Jetzt auch in Buchungs-Notizen ***
         if (!empty($filter['suche'])) {
             $builder->groupStart()
                 ->like('buchungen.beschreibung', $filter['suche'])
                 ->orLike('belege.lieferant', $filter['suche'])
                 ->orLike('belege.belegnummer', $filter['suche'])
+                ->orLike('buchungen.notizen', $filter['suche'])      // *** HIER: Buchungs-Notizen hinzugefügt ***
+                ->orLike('belege.beschreibung', $filter['suche'])    // *** BONUS: Auch Beleg-Beschreibung ***
+                ->orLike('belege.notizen', $filter['suche'])         // *** BONUS: Auch Beleg-Notizen ***
                 ->groupEnd();
         }
 

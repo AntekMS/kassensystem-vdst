@@ -4,514 +4,488 @@
 
 **Name:** VDSt Kassensystem  
 **Framework:** CodeIgniter 4  
-**Zweck:** Digitales Kassenbuch und Abrechnungssystem für den Verein deutscher Studenten  
-**Hauptfunktionen:** Kassenbuch-Verwaltung, Beleg-Upload, AH²/HV-Abrechnungen, Excel-Export
+**Version:** 1.0  
+**Zweck:** Digitales Kassenbuch und Abrechnungssystem für den Verein deutscher Studenten
+
+### Hauptfunktionen
+- **Kassenbuch-Verwaltung** mit 3 Konten (Aktivenkasse, Getränkekasse, Barkasse)
+- **Beleg-Upload** mit automatischer Belegnummer-Generierung
+- **AH²/HV-Abrechnungen** mit Excel-Export
+- **ZIP-Archive** mit allen Beleg-Dateien
+- **Erweiterte Such- und Filterfunktionen**
+- **Session-Management** mit automatischer Verlängerung
 
 ---
 
-## Systemarchitektur
+## Tech-Stack & Architektur
 
-### Tech-Stack
-- **Backend:** PHP 8+ mit CodeIgniter 4
-- **Frontend:** Bootstrap 5 + Vanilla JavaScript
-- **Datenbank:** MySQL/MariaDB
-- **Datei-Verwaltung:** Lokaler File-Upload mit automatischer Organisation
-- **Excel-Export:** PhpOffice/PhpSpreadsheet
-- **Design:** VDSt-Farben (Schwarz/Weiß/Rot) - funktional, klassisch
+### Backend
+- **PHP 8+** mit CodeIgniter 4
+- **MySQL/MariaDB** mit Triggern und Views
+- **PhpOffice/PhpSpreadsheet** für Excel-Export
+- **Automatische Datei-Organisation** nach Datum
 
-### Ordner-Struktur
-```
-app/
-├── Controllers/
-│   ├── DashboardController.php
-│   ├── BuchungenController.php (Kassenbuch)
-│   ├── BelegeController.php
-│   ├── AhAbrechnungenController.php
-│   └── HvAbrechnungenController.php
-├── Models/
-│   ├── BelegModel.php (Kern-Model)
-│   ├── BuchungModel.php
-│   ├── AhAbrechnungModel.php
-│   ├── HvAbrechnungModel.php
-│   └── AbrechnungBelegModel.php (Verknüpfungen)
-├── Views/
-│   ├── layouts/main.php
-│   ├── dashboard/index.php
-│   ├── buchungen/ (Kassenbuch-Views)
-│   ├── belege/
-│   └── abrechnungen/ (gemeinsame Views für AH² + HV)
-├── Helpers/
-│   └── ExcelHelper.php (Excel-Export-Funktionen)
-└── Config/Routes.php
-
-public/uploads/belege/YYYY/MM/ (Datei-Organisation)
-```
-
----
-
-## Datenbank-Design
-
-### Kern-Tabellen
-
-#### 1. `belege` (Herzstück)
-```sql
-- id (PK)
-- belegnummer (UNIQUE, Format: YYYY-MM-DD-001)
-- rechnungsdatum (wichtig für Belegnummer!)
-- eingabedatum 
-- beschreibung
-- betrag
-- lieferant
-- dateiname_original, dateiname_system, dateipfad
-- dateityp (pdf, jpg, jpeg, png)
-- kategorie (normal, ah_berechtigt, hv_berechtigt)
-- status (erfasst, in_abrechnung, abgerechnet, bezahlt)
-- notizen
-```
-
-#### 2. `buchungen` (Kassenbuch)
-```sql
-- id (PK)
-- beleg_id (FK zu belege, NULL möglich)
-- buchungsdatum
-- beschreibung, betrag
-- konto_typ (aktivenkasse, getraenkekasse, barkasse)
-- buchungsart (einnahme, ausgabe)
-- notizen
-```
-
-#### 3. `ah_abrechnungen` / `hv_abrechnungen`
-```sql
-- id (PK)
-- abrechnungsmonat (YYYY-MM)
-- titel
-- status (entwurf, ausstehend, eingereicht, bezahlt)
-- gesamtsumme (automatisch berechnet)
-- begruendung (nur HV)
-- notizen
-```
-
-#### 4. `abrechnung_belege` (Verknüpfung)
-```sql
-- beleg_id (FK)
-- abrechnung_typ (ah, hv)
-- abrechnung_id (FK)
-- hinzugefuegt_am
-```
-
-### Besondere Features
-- **Automatische Triggers** berechnen Gesamtsummen
-- **Belegnummer-Generator** basierend auf Rechnungsdatum
-- **Flexible Datum-Behandlung** (Rechnungsdatum ≠ Eingabedatum ≠ Buchungsdatum)
-
----
-
-## Core-Funktionalitäten
-
-### 1. Kassenbuch (Kern des Systems)
-
-**Controller:** `BuchungenController`  
-**Views:** `buchungen/index.php`, `buchungen/create.php`, `buchungen/edit.php`
-
-**Funktionen:**
-- **Hauptansicht**: Tabellarische Darstellung aller Buchungen
-- **Kontostand-Berechnung**: Automatische Salden für alle 3 Konten
-- **Filter**: Datum, Konto-Typ, Buchungsart, Freitext-Suche
-- **Buchung erstellen**: Mit/ohne Beleg-Verknüpfung
-- **Excel-Export**: Kassenbuch im Original-Format
-
-**Workflow:**
-1. Buchung eingeben (Datum, Betrag, Konto, Ein/Ausgabe)
-2. Optional: Beleg verknüpfen (Upload oder Auswahl)
-3. Automatische Kontostand-Aktualisierung
-4. Excel-Export für Steuerberater
-
-### 2. Beleg-Verwaltung
-
-**Controller:** `BelegeController`  
-**Views:** `belege/index.php`, `belege/create.php`, `belege/show.php`, `belege/edit.php`
-
-**Funktionen:**
-- **Upload**: PDF, JPG, PNG mit automatischer Belegnummer-Generierung
-- **Datei-Organisation**: Automatisch nach `/uploads/belege/YYYY/MM/`
-- **Umbenennung**: `YYYY-MM-DD-001.ext` basierend auf Rechnungsdatum
-- **Kategorisierung**: Normal, AH²-berechtigt, HV-berechtigt
-- **Vorschau**: PDF-Viewer und Bild-Anzeige im Browser
-- **Status-Tracking**: erfasst → in_abrechnung → abgerechnet → bezahlt
-
-**Besonderheiten:**
-- **Rechnungsdatum bestimmt Belegnummer** (nicht Eingabedatum!)
-- Bei Datum-Änderung: Neue Belegnummer + Datei-Verschiebung
-- Bearbeitung nur möglich wenn Status = "erfasst"
-
-### 3. AH²-Abrechnungen
-
-**Controller:** `AhAbrechnungenController`  
-**Views:** Gemeinsame Views in `abrechnungen/` (mit `$typ = 'ah'`)
-
-**Funktionen:**
-- **Monatliche Abrechnungen** erstellen
-- **Beleg-Auswahl**: Nur AH²-berechtigte Belege
-- **AJAX-Management**: Belege hinzufügen/entfernen ohne Reload
-- **Status-Workflow**: entwurf → ausstehend → eingereicht → bezahlt
-- **Excel-Export**: Format wie Original AH²-Abrechnung
-
-**Workflow:**
-1. Neue Abrechnung für Monat erstellen
-2. Belege auswählen (auch aus anderen Monaten möglich!)
-3. Vorschau prüfen
-4. Status auf "ausstehend" → Excel downloaden → einreichen
-
-### 4. HV-Abrechnungen (Heimverein)
-
-**Controller:** `HvAbrechnungenController`  
-**Views:** Gemeinsame Views in `abrechnungen/` (mit `$typ = 'hv'`)
-
-**Funktionen:**
-- Wie AH²-Abrechnungen, aber mit **Begründungen**
-- **Automatische Begründungs-Generierung** basierend auf Schlüsselwörtern
-- **Manuelle Begründung** pro Abrechnung
-- **Excel-Export** mit Begründungs-Spalte
-
-**Auto-Begründungen:**
-- "Farbe, Streichen" → "Renovierung und Instandhaltung"
-- "Regal, Möbel" → "Möblierung der Räume"
-- "Werkzeug" → "Wartung und Reparatur"
-- Standard → "Notwendige Ausgabe für das Vereinshaus"
-
-### 5. Dashboard
-
-**Controller:** `DashboardController`  
-**View:** `dashboard/index.php`
-
-**Funktionen:**
-- **Kontostand-Übersicht**: Alle 3 Kassen + Gesamtsaldo
-- **Schnellzugriff**: Buttons für häufige Aktionen
-- **Statistiken**: Belege, Buchungen, Abrechnungen (nur Zahlen)
-- **Aktivitäten**: Letzte 5 Buchungen und Belege
-- **System-Alerts**: Warnungen für wichtige Aufgaben
-
----
-
-## Gemeinsame Views (Effizienz-Feature)
-
-### Konzept
-Statt 8 separater Views für AH² und HV gibt es nur 4 gemeinsame Views, die beide Typen über die `$typ` Variable handhaben.
-
-### Views:
-- `abrechnungen/index.php` - Übersicht (beide Typen)
-- `abrechnungen/create.php` - Erstellen (beide Typen)
-- `abrechnungen/select_belege.php` - **Herzstück**: Beleg-Auswahl mit AJAX
-- `abrechnungen/preview.php` - Vorschau vor Export
-
-### Typ-Unterscheidung:
-```php
-// In Controller:
-$data['typ'] = 'ah'; // oder 'hv'
-
-// In View:
-<?php if ($typ === 'ah'): ?>
-    AH²-spezifischer Inhalt
-<?php else: ?>
-    HV-spezifischer Inhalt
-<?php endif; ?>
-```
-
----
-
-## Excel-Export System
-
-### Technologie
-**PhpOffice/PhpSpreadsheet** für echte `.xlsx` Dateien (nicht CSV)
-
-### Export-Typen
-
-#### 1. Kassenbuch-Export
-**Methode:** `ExcelHelper::erstelleKassenbuch()`  
-**Format:** Exakt wie Original-Kassenbuch
-```
-B1: Datum | C1: Beschreibung | D1: Beleg Nr. | E1: Aktivenkasse | G1: Getränkekasse | I1: Barkasse | K1: Gesamt
-E2: Ein   | F2: Aus         |               | G2: Ein          | H2: Aus          | I2: Ein      | J2: Aus
-E3: Kontostand-Zeile mit aktuellen Salden
-B4+: Buchungen mit Beträgen in richtigen Spalten
-```
-
-#### 2. AH²-Abrechnung
-**Methode:** `ExcelHelper::erstelleAhAbrechnung()`  
-**Format:** Wie Original AH-Sheet
-```
-A2: Name | B2: Datum | C2: Grund | D2: Betrag | ... | L2: Gesamt: | M2: Gesamtsumme
-G3+: Belege mit Name, Datum, Beschreibung, Betrag
-```
-
-#### 3. HV-Abrechnung
-**Methode:** `ExcelHelper::erstelleHvAbrechnung()`  
-**Format:** Mit Begründungen
-```
-A1: HV Abrechnung Titel
-A4: Allgemeine Begründung
-A7: Belegnummer | B7: Datum | C7: Beschreibung | D7: Lieferant | E7: Betrag | F7: Begründung
-```
-
-### Formatierung
-- **Euro-Format**: `#,##0.00 "€";[Red]-#,##0.00 "€"`
-- **Datum-Format**: `DD.MM.YYYY`
-- **Spaltenbreiten**: Angepasst an Inhalt
-- **Fette Header**: Wie im Original
-
----
-
-## AJAX-System (Beleg-Verwaltung)
-
-### Kern-Feature: select_belege.php
-**Zweiteilige Ansicht:**
-- **Links**: Verfügbare Belege (filter nach Kategorie)
-- **Rechts**: Ausgewählte Belege für Abrechnung
-
-### AJAX-Endpunkte:
-```php
-POST /abrechnungen/{typ}/addBeleg/{id}     // Beleg hinzufügen
-POST /abrechnungen/{typ}/removeBeleg/{id}  // Beleg entfernen
-```
-
-### JavaScript-Funktionen:
-- `addBelegToAbrechnung()` - AJAX-Request + DOM-Update
-- `removeBelegFromAbrechnung()` - AJAX-Request + DOM-Update
-- `updateGesamtsumme()` - Live-Summenberechnung
-- `updateBelegAnzahl()` - Badge-Updates
-
-### Response-Format:
-```json
-{
-  "success": true,
-  "message": "Beleg wurde hinzugefügt",
-  "neue_gesamtsumme": "1.234,56 €"
-}
-```
-
----
-
-## Datei-Management System
-
-### Upload-Workflow
-1. **Datei-Upload** (PDF/JPG/PNG)
-2. **Belegnummer-Generierung** basierend auf Rechnungsdatum
-3. **Datei-Umbenennung** zu `YYYY-MM-DD-001.ext`
-4. **Ordner-Erstellung** `/uploads/belege/YYYY/MM/`
-5. **Datei-Verschiebung** in Zielordner
-6. **DB-Eintrag** mit allen Metadaten
-
-### Datei-Organisation
-```
-public/uploads/belege/
-├── 2024/
-│   ├── 01/
-│   │   ├── 2024-01-15-001.pdf
-│   │   └── 2024-01-15-002.jpg
-│   └── 02/
-└── 2025/
-    └── 01/
-```
+### Frontend
+- **Bootstrap 5** + Vanilla JavaScript
+- **AJAX-basierte** Beleg-Zuordnung
+- **VDSt-Design** (Schwarz/Weiß/Rot)
+- **Responsive** für Desktop-Nutzung
 
 ### Sicherheit
-- **Dateityp-Validierung**: Nur PDF, JPG, PNG
-- **Größen-Limit**: 10MB per Datei
-- **Eindeutige Namen**: Keine Kollisionen möglich
-
----
-
-## Business Logic
-
-### Belegnummer-System
-**Format:** `YYYY-MM-DD-001`  
-**Basis:** Rechnungsdatum (nicht Eingabedatum!)  
-**Generator:** `BelegModel::generiereNaechsteBelegnummer()`
-
-```php
-// Beispiel:
-Rechnung vom 15.01.2025 → 2025-01-15-001
-Zweite Rechnung vom selben Tag → 2025-01-15-002
-```
-
-### Status-Workflow
-
-#### Belege:
-1. **erfasst** - Neu eingegeben, bearbeitbar
-2. **in_abrechnung** - In AH²/HV-Abrechnung zugeordnet
-3. **abgerechnet** - Abrechnung eingereicht
-4. **bezahlt** - Geld erhalten
-
-#### Abrechnungen:
-1. **entwurf** - Bearbeitbar, löschbar
-2. **ausstehend** - Fertig, wartet auf Einreichung
-3. **eingereicht** - An AH²/HV geschickt
-4. **bezahlt** - Geld erhalten
-
-### Flexible Datum-Behandlung
-**Problem:** Belege kommen oft verspätet an  
-**Lösung:** Trennung von Rechnungsdatum und Eingabedatum
-
-**Beispiel:**
-- April-Rechnung kommt im Juni an
-- Belegnummer: `2024-04-15-001` (nach Rechnungsdatum)
-- Kann trotzdem in Juni-Abrechnung
-
----
-
-## VDSt-Design-System
-
-### Farbschema
-```css
---vdst-schwarz: #000000;
---vdst-weiss: #ffffff;
---vdst-rot: #dc143c;
---vdst-grau: #f8f9fa;
---vdst-dunkelgrau: #343a40;
-```
-
-### Design-Prinzipien
-- **Klassisch & Funktional** - keine modernen Spielereien
-- **VDSt-Tradition** - Schwarz/Weiß/Rot wie Kaiserreich 1881
-- **Desktop-First** - keine Mobile-Optimierung nötig
-- **Klarheit vor Schönheit** - Lesbarkeit wichtiger als Design
-
-### UI-Komponenten
-- **Navigation**: Schwarze Leiste mit weißer Schrift
-- **Buttons**: `.btn-vdst` (schwarz), `.btn-outline-vdst`
-- **Tables**: `.table-vdst` für Header
-- **Cards**: `.card-vdst` mit schwarzem Header
-- **Badges**: Status-abhängige Farben
-
----
-
-## Entwickler-Hinweise
-
-### Model-Struktur
-Jedes Model hat Standard-CRUD plus Business-Logic:
-- **Validation Rules** in Model definiert
-- **Custom Methods** für Business-Logic
-- **Relationships** über Foreign Keys
-- **Helper Methods** für Formatierung
-
-### Controller-Pattern
-```php
-// Standard-Struktur:
-public function index()     // Übersicht
-public function create()    // Formular
-public function store()     // Speichern + Validation
-public function show($id)   // Details
-public function edit($id)   // Bearbeiten
-public function update($id) // Änderungen speichern
-public function delete($id) // Löschen
-```
-
-### View-Pattern
-```php
-// Layout-Vererbung:
-<?= $this->extend('layouts/main') ?>
-<?= $this->section('title') ?>Titel<?= $this->endSection() ?>
-<?= $this->section('content') ?>Inhalt<?= $this->endSection() ?>
-<?= $this->section('scripts') ?>JS<?= $this->endSection() ?>
-```
-
-### Error Handling
-- **Model-Validation** mit deutschen Fehlermeldungen
-- **Controller Try-Catch** für kritische Operationen
-- **Flash-Messages** für User-Feedback
-- **Log-Ausgabe** für Debugging
+- **Master-Passwort** System (.env konfiguriert)
+- **Session-Timeout** mit Warnungen
+- **CSRF-Protection**
+- **Datei-Upload-Validierung**
 
 ---
 
 ## Installation & Setup
 
-### Anforderungen
-- PHP 8.0+
-- MySQL/MariaDB
-- Composer
-- CodeIgniter 4
-- PhpOffice/PhpSpreadsheet
-
-### Installation
+### Voraussetzungen
 ```bash
-# 1. Composer Dependencies
-composer require phpoffice/phpspreadsheet
-
-# 2. Upload-Ordner erstellen
-mkdir public/uploads/belege
-chmod 755 public/uploads -R
-
-# 3. Datenbank importieren
-mysql -u user -p database < kassensystem.sql
+- PHP 8.0+
+- MySQL/MariaDB 5.7+
+- Composer
+- Web-Server (Apache/Nginx)
+- Optional: Docker
 ```
 
-### Datei-Struktur erstellen
+### 1. Installation
+```bash
+# Repository klonen
+git clone [repository-url] vdst-kassensystem
+cd vdst-kassensystem
+
+# Dependencies installieren
+composer install
+
+# Umgebung konfigurieren
+cp env .env
 ```
-app/Controllers/ - Alle 5 Controller
-app/Models/ - Alle 5 Models  
-app/Views/ - Alle Views wie dokumentiert
-app/Helpers/ExcelHelper.php
-app/Config/Routes.php
+
+### 2. Konfiguration (.env)
+```ini
+# Datenbank
+database.default.hostname = localhost
+database.default.database = vdst_kassensystem
+database.default.username = your_username
+database.default.password = your_password
+
+# VDSt Spezifisch
+vdst.master_password = 1234
+vdst.kassenwart_name = "Max Mustermann"
+vdst.session_timeout = 28800
+
+# Upload-Einstellungen
+upload_max_filesize = 10M
+post_max_size = 10M
+```
+
+### 3. Datenbank Setup
+```bash
+# Datenbank erstellen
+mysql -u root -p -e "CREATE DATABASE vdst_kassensystem CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+# Migrationen ausführen
+php spark migrate
+
+# Basis-Daten laden (optional für Test-System)
+php spark migrate:refresh --seed
+```
+
+### 4. Verzeichnisse erstellen
+```bash
+# Upload-Ordner mit korrekten Rechten
+mkdir -p public/uploads/belege
+mkdir -p writable/temp/zip
+chmod -R 755 public/uploads
+chmod -R 755 writable
+```
+
+### 5. Web-Server Konfiguration
+
+#### Apache (.htaccess bereits vorhanden)
+```apache
+DocumentRoot /pfad/zum/projekt/public
+```
+
+#### Nginx
+```nginx
+server {
+    listen 80;
+    server_name kassensystem.vdst.local;
+    root /pfad/zum/projekt/public;
+    index index.php;
+    
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+    
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php8.0-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+}
+```
+
+### 6. Docker (Optional)
+```yaml
+# docker-compose.yml bereits im Projekt vorhanden
+docker-compose up -d
 ```
 
 ---
 
-## Testing & Debugging
+## Systemarchitektur
 
-### Test-Workflow
-1. **Dashboard** aufrufen - Grundfunktion
-2. **Beleg hochladen** - Datei-System testen
-3. **Buchung erstellen** - Kassenbuch testen
-4. **Abrechnung erstellen** - AJAX testen
-5. **Excel-Export** - PhpSpreadsheet testen
+### Datenbank-Design
 
-### Häufige Probleme
-- **Composer fehlt**: PhpSpreadsheet nicht installiert
-- **Upload-Rechte**: 755 Permissions auf uploads/
-- **SQL-Syntax**: ORDER BY ohne Tabellen-Präfix
-- **Views nicht gefunden**: Pfade in Controller prüfen
+#### Kern-Tabellen
+```sql
+belege              # Herzstück - alle Belege mit Dateien
+├── buchungen      # Kassenbuch-Einträge (optional mit beleg_id)
+├── ah_abrechnungen # AH² Monatsabrechnungen
+├── hv_abrechnungen # HV Abrechnungen mit Begründungen
+└── abrechnung_belege # Verknüpfungs-Tabelle (M:N)
+```
 
-### Debug-Tipps
+#### Automatische Features
+- **Trigger** für Gesamtsummen-Berechnung
+- **Views** für Performance-Optimierung
+- **Belegnummer-Generator** basierend auf Rechnungsdatum
+- **Datei-Organisation** nach `/uploads/belege/YYYY/MM/`
+
+### Controller-Struktur
+```
+DashboardController     # Übersicht + Schnellzugriff
+BuchungenController     # Kassenbuch + Excel-Export
+BelegeController        # Upload + Verwaltung + ZIP-Export
+AhAbrechnungenController # AH² Abrechnungen + Export
+HvAbrechnungenController # HV Abrechnungen + Begründungen
+AuthController          # Master-Passwort System
+```
+
+---
+
+## Nutzung
+
+### 1. Anmeldung
+- URL: `http://localhost/auth/login`
+- Master-Passwort: `1234` (konfigurierbar in .env)
+- Session-Timeout: 8 Stunden mit automatischer Verlängerung
+
+### 2. Belege verwalten
+```
+/belege/create
+├── Upload: PDF, JPG, PNG (max 10MB)
+├── Automatische Belegnummer: YYYY-MM-DD-001
+├── Kategorien: Normal, AH² berechtigt, HV berechtigt
+└── Status-Tracking: erfasst → in_abrechnung → abgerechnet → bezahlt
+```
+
+### 3. Kassenbuch führen
+```
+/buchungen
+├── 3 Konten: Aktivenkasse, Getränkekasse, Barkasse
+├── Ein-/Ausgaben mit optionaler Beleg-Verknüpfung
+├── Live-Kontostand-Berechnung
+└── Excel-Export im Original-Format
+```
+
+### 4. Abrechnungen erstellen
+
+#### AH² Abrechnungen (`/abrechnungen/ah`)
+1. **Neue Abrechnung** für Monat erstellen
+2. **Belege auswählen** (nur AH²-berechtigte)
+3. **AJAX-Management** ohne Seitenreload
+4. **Excel-Export** + ZIP mit allen Dateien
+
+#### HV Abrechnungen (`/abrechnungen/hv`)
+- Wie AH², aber mit **Begründungen**
+- Separate **Excel-Vorlage** für Heimverein
+
+### 5. Export-Funktionen
+
+#### Excel-Exporte
+- **Kassenbuch**: Original-Format mit 3 Konten
+- **Belege-Liste**: Filterfähige Übersicht
+- **AH²-Abrechnung**: Excel-Vorlage für Einreichung
+- **HV-Abrechnung**: Mit Begründungs-Spalte
+
+#### ZIP-Archive
+- **Komplette Belege**: Excel + alle Original-Dateien
+- **Aussagekräftige Dateinamen**: `01_2024-06-15-001_Beschreibung.pdf`
+- **Info-Datei**: Übersicht und Zusammenfassung
+
+---
+
+## Besondere Features
+
+### Automatische Belegnummer-Generierung
 ```php
-// In Controller für AJAX-Debug:
-log_message('error', 'DEBUG: ' . json_encode($data));
+// Beispiel: Rechnung vom 15.06.2024
+"2024-06-15-001"  // Erste Rechnung des Tages
+"2024-06-15-002"  // Zweite Rechnung des Tages
+```
 
-// SQL-Debug in Model:
-echo $this->db->getLastQuery();
+### Intelligente Beleg-Zuordnung
+- **Flexible Datum-Behandlung**: Rechnungsdatum ≠ Eingabedatum
+- **AJAX-Beleg-Auswahl** ohne Seitenreload
+- **Live-Summenberechnung** bei Zuordnung
+- **Status-Verfolgung** über gesamten Workflow
+
+### Session-Management
+- **Automatische Verlängerung** bei Aktivität
+- **Timeout-Warnungen** 15 Min vor Ablauf
+- **Aktivitäts-Erkennung** (Maus, Tastatur, Touch)
+- **Session-Zeit-Anzeige** in Navigation
+
+### Erweiterte Suche
+- **Volltext-Suche** in Beschreibungen, Notizen, Lieferanten
+- **Datum-Filter** mit Von/Bis
+- **Kategorie-Filter** für Beleg-Typen
+- **Status-Filter** für Workflow-Stufen
+- **Betrag-Filter** mit Min/Max
+
+---
+
+## Datei-Management
+
+### Upload-System
+```
+Erlaubte Typen: PDF, JPG, JPEG, PNG
+Maximale Größe: 10MB
+Organisation: /uploads/belege/YYYY/MM/
+Umbenennung: YYYY-MM-DD-001.ext
+```
+
+### Automatische Organisation
+```
+public/uploads/belege/
+├── 2024/
+│   ├── 01/ → Januar 2024
+│   ├── 02/ → Februar 2024
+│   └── ...
+└── 2025/
+    └── 01/ → Januar 2025
+```
+
+### Sicherheit
+- **Dateityp-Validierung** auf Server-Seite
+- **Größen-Limits** konfigurierbar
+- **Eindeutige Dateinamen** verhindern Kollisionen
+- **Virus-Scan** integration möglich
+
+---
+
+## Konfiguration
+
+### Wichtige .env Einstellungen
+```ini
+# VDSt Spezifisch
+vdst.master_password = "sicheres_passwort"
+vdst.kassenwart_name = "Max Mustermann"
+vdst.session_timeout = 28800  # 8 Stunden
+
+# Upload-Limits
+upload_max_filesize = 10M
+post_max_size = 10M
+max_execution_time = 300
+
+# Entwicklung
+CI_ENVIRONMENT = production
+app.forceGlobalSecureRequests = false
+```
+
+### System-Einstellungen (Datenbank)
+```sql
+-- Automatisch bei Migration erstellt
+max_upload_size: 10485760 (10MB)
+allowed_file_types: pdf,jpg,jpeg,png
+upload_path: uploads/belege/
+kassenwart_name: "Kassenwart VDStE"
 ```
 
 ---
 
-## Wartung & Erweiterung
+## Wartung & Backup
 
 ### Regelmäßige Aufgaben
-- **Upload-Ordner aufräumen** (alte Dateien archivieren)
-- **Datenbank-Backups** vor größeren Änderungen
-- **Log-Dateien** überwachen
+```bash
+# Datenbank-Backup
+mysqldump -u user -p vdst_kassensystem > backup_$(date +%Y%m%d).sql
 
-### Erweiterungsmöglichkeiten
-- **Benutzer-System** (aktuell Single-User)
-- **API-Endpoints** für externe Integration
-- **Automatische Backups**
-- **PDF-Generation** statt nur Excel
-- **E-Mail-Benachrichtigungen**
+# Upload-Ordner Backup
+tar -czf uploads_backup_$(date +%Y%m%d).tar.gz public/uploads/
 
-### Code-Qualität
-- **PSR-12** Coding Standards befolgen
-- **Kommentierung** in deutsch (passt zum Projekt)
-- **Model-Separation** für Business Logic
-- **View-Components** für Wiederverwendung
+# Log-Dateien prüfen
+tail -f writable/logs/log-$(date +%Y-%m-%d).log
+```
+
+### Cleanup-Befehle
+```bash
+# Temporäre ZIP-Dateien löschen (älter als 1 Tag)
+find writable/temp/zip/ -name "*.zip" -mtime +1 -delete
+
+# Alte Log-Dateien archivieren (älter als 30 Tage)
+find writable/logs/ -name "*.log" -mtime +30 -gzip
+```
 
 ---
 
-## Fazit
+## Troubleshooting
 
-Das VDSt Kassensystem ist ein **funktionales, klassisches Web-System** das die traditionellen Arbeitsabläufe des Kassenwarts digitalisiert ohne die bewährten Strukturen zu verändern. Es kombiniert moderne Web-Technologien mit dem klassischen VDSt-Design und fokussiert auf **Effizienz und Zuverlässigkeit** statt auf moderne UI-Trends.
+### Häufige Probleme
 
-**Kernstärken:**
-- Exakte Nachbildung der Excel-Kassenbuch-Struktur
-- Intelligente Beleg-Verwaltung mit flexibler Zuordnung
-- Automatisierte Arbeitsprozesse bei Beibehaltung der Kontrolle
-- Klassisches, zeitloses Design im VDSt-Stil
-- Einfache Wartung und Erweiterbarkeit
+#### Upload-Fehler
+```bash
+# Rechte prüfen
+ls -la public/uploads/
+chmod -R 755 public/uploads/
 
-**Zielgruppe:** Kassenwarte die Effizienz wollen aber ihre bewährten Arbeitsweisen beibehalten möchten.
+# PHP-Limits prüfen
+php -i | grep upload_max_filesize
+php -i | grep post_max_size
+```
+
+#### Excel-Export Fehler
+```bash
+# PhpSpreadsheet Installation prüfen
+composer show | grep phpoffice
+
+# Memory-Limit erhöhen (php.ini)
+memory_limit = 512M
+```
+
+#### Session-Probleme
+```bash
+# Session-Verzeichnis prüfen
+ls -la writable/session/
+chmod -R 755 writable/
+
+# .env Session-Config prüfen
+CI_ENCRYPTION_KEY = [32-Zeichen-Schlüssel]
+```
+
+#### Datenbank-Verbindung
+```bash
+# MySQL-Verbindung testen
+mysql -h localhost -u username -p database_name
+
+# CodeIgniter Debug aktivieren
+CI_ENVIRONMENT = development
+```
+
+---
+
+## Technische Details
+
+### Performance-Optimierungen
+- **MySQL Views** für komplexe Queries
+- **Database Indexes** auf häufig genutzte Spalten
+- **AJAX-Loading** für große Datenmengen
+- **Lazy Loading** für Datei-Previews
+
+### Sicherheits-Features
+- **CSRF Protection** auf allen Forms
+- **Input Validation** mit CodeIgniter Rules
+- **File Type Validation** mit MIME-Type Check
+- **SQL Injection Protection** durch Query Builder
+
+### Browser-Kompatibilität
+- **Chrome/Edge**: Vollständig unterstützt
+- **Firefox**: Vollständig unterstützt
+- **Safari**: Grundfunktionen unterstützt
+- **Mobile**: Grundfunktionen (Desktop-optimiert)
+
+---
+
+## Development
+
+### Lokale Entwicklung
+```bash
+# Development Server starten
+php spark serve
+
+# Database Reset (Vorsicht!)
+php spark migrate:refresh
+
+# Cache löschen
+php spark cache:clear
+```
+
+### Code-Struktur
+```
+app/
+├── Controllers/     # 5 Haupt-Controller
+├── Models/         # 5 Models + Relationships
+├── Views/          # Gemeinsame Views für AH²/HV
+├── Helpers/        # ExcelHelper, ZipHelper
+└── Filters/        # AuthFilter für Sicherheit
+```
+
+### Debugging
+```php
+// Log-Ausgabe in Controllern
+log_message('error', 'Debug Info: ' . json_encode($data));
+
+// SQL-Query Debug
+echo $this->db->getLastQuery();
+
+// CodeIgniter Toolbar aktivieren
+$routes->set404Override('App\Controllers\Home::index');
+```
+
+---
+
+## API-Dokumentation
+
+### AJAX-Endpoints
+```javascript
+POST /abrechnungen/{typ}/addBeleg/{id}     // Beleg hinzufügen
+POST /abrechnungen/{typ}/removeBeleg/{id}  // Beleg entfernen
+POST /auth/refresh                         // Session verlängern
+GET  /belege/preview/{id}                  // Datei-Vorschau
+```
+
+### Response-Format
+```json
+{
+  "success": true,
+  "message": "Beleg wurde hinzugefügt",
+  "neue_gesamtsumme": "1.234,56 €",
+  "csrf_hash": "new_token"
+}
+```
+
+---
+
+## Support & Kontakt
+
+### System-Info
+- **Version**: 1.0.8
+- **CodeIgniter**: 4.x
+- **PHP Version**: 8.0+
+- **Letzte Aktualisierung**: 2024
+
+### Bei Problemen
+1. **Logs prüfen**: `writable/logs/`
+2. **Browser-Konsole** auf JavaScript-Fehler
+3. **PHP Error Log** des Servers
+4. **Datenbank-Logs** bei MySQL-Problemen
+
+---
+
+## Changelog
+
+### Version 1.0.8
+- ✅ Vollständiges Kassenbuch-System
+- ✅ Beleg-Upload mit automatischer Nummerierung
+- ✅ AH²/HV-Abrechnungen mit Excel-Export
+- ✅ ZIP-Archive mit allen Dateien
+- ✅ Session-Management mit Timeout
+- ✅ Erweiterte Such- und Filterfunktionen
+- ✅ Master-Passwort Authentifizierung
+- ✅ Docker-Integration

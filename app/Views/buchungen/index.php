@@ -77,10 +77,30 @@
                         <a href="<?= base_url('/buchungen/create') ?>" class="btn btn-vdst btn-lg">
                             <strong>+ Neue Buchung</strong>
                         </a>
-                        <a href="<?= base_url('/buchungen/exportExcel') ?>?<?= http_build_query($filter) ?>"
-                           class="btn btn-outline-vdst">
-                            📊 Excel Export
-                        </a>
+
+                        <!-- Export-Dropdown -->
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-outline-vdst dropdown-toggle" data-bs-toggle="dropdown">
+                                📊 Export
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="<?= base_url('/buchungen/exportExcel?' . http_build_query($filter)) ?>">
+                                        📋 Kassenbuch (Original-Format)
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="<?= base_url('/buchungen/export/excel?' . http_build_query($filter)) ?>">
+                                        📝 Nur Buchungen-Liste
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="<?= base_url('/buchungen/export/zip?' . http_build_query($filter)) ?>">
+                                        📦 Kassenbuch + Buchungen + Belege (ZIP)
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
 
                     <!-- Quick Stats -->

@@ -173,6 +173,9 @@ class BelegModel extends Model
     /**
      * Sucht Belege nach verschiedenen Kriterien
      *
+     * ERWEITERT: Durchsucht jetzt auch das 'notizen' Feld (Zusatzbeschreibung)
+     * Wie ein intelligenter Aktensucher, der alle Textfelder durchgeht
+     *
      * @param array $filter
      * @return array
      */
@@ -180,12 +183,13 @@ class BelegModel extends Model
     {
         $builder = $this->select('*');
 
-        // Suchtext in Beschreibung oder Lieferant
+        // Suchtext in allen relevanten Textfeldern
         if (!empty($filter['suche'])) {
             $builder->groupStart()
                 ->like('beschreibung', $filter['suche'])
                 ->orLike('lieferant', $filter['suche'])
                 ->orLike('belegnummer', $filter['suche'])
+                ->orLike('notizen', $filter['suche'])  // *** HIER: Notizen hinzugefügt ***
                 ->groupEnd();
         }
 
@@ -297,7 +301,7 @@ class BelegModel extends Model
         return in_array(strtolower($dateityp), $erlaubteTypen);
     }
 
-    /**f
+    /**
      * Formatiert Betrag für Anzeige
      *
      * @param float $betrag

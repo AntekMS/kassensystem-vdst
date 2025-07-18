@@ -50,7 +50,10 @@ $routes->group('', ['filter' => 'auth'], function($routes) {
         $routes->get('delete/(:num)', 'BelegeController::delete/$1');
         $routes->get('download/(:num)', 'BelegeController::download/$1');
         $routes->get('preview/(:num)', 'BelegeController::preview/$1');
+        $routes->get('export/excel', 'BelegeController::exportExcel');
+        $routes->get('export/zip', 'BelegeController::exportZip');
     });
+
 
     // ==================== AH² ABRECHNUNGEN ====================
     $routes->group('abrechnungen/ah', function($routes) {

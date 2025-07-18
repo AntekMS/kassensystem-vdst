@@ -523,4 +523,410 @@ class BelegeController extends BaseController
             return round($size / 1024 / 1024);
         }
     }
+    /**
+     * Exportiert gefilterte Belege als Excel
+     */
+    public function exportExcel()
+    {
+        $filter = $this->getFilterFromRequest();
+        $belege = $this->belegModel->sucheBelege($filter);
+
+        if (empty($belege)) {
+            return redirect()->back()->with('error', 'Keine Belege zum Exportieren gefunden.');
+        }
+
+        // Excel mit ExcelHelper erstellen
+        $excel = $this->erstelleBelegeExcel($belege, $filter);
+
+        // Dateiname generieren
+        $filename = $this->generiereExcelFilename($filter);
+
+        // Download
+        \App\Helpers\ExcelHelper::downloadExcel($excel, $filename);
+    }
+
+    /**
+     * Exportiert gefilterte Belege als ZIP mit Excel-Datei UND allen Beleg-Dateien
+     */
+    public function exportZip()
+    {
+        $filter = $this->getFilterFromRequest();
+        $belege = $this->belegModel->sucheBelege($filter);
+
+        if (empty($belege)) {
+            return redirect()->back()->with('error', 'Keine Belege zum Exportieren gefunden.');
+        }
+
+        try {
+            // Temporäres Verzeichnis für ZIP
+            $tempDir = WRITEPATH . 'temp/zip/';
+            if (!is_dir($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+
+            $zipFilename = 'belege_komplett_' . time() . '.zip';
+            $zipPath = $tempDir . $zipFilename;
+
+            $zip = new \ZipArchive();
+            $result = $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+
+            if ($result !== true) {
+                throw new \Exception('ZIP-Archiv konnte nicht erstellt werden. Fehlercode: ' . $result);
+            }
+
+            // 1. EXCEL-DATEI ERSTELLEN UND HINZUFÜGEN
+            $excel = $this->erstelleBelegeExcel($belege, $filter);
+            $excelFilename = 'Belege_Liste_' . date('Y-m-d_H-i-s') . '.xlsx';
+
+            // Excel temporär speichern
+            $tempExcelPath = $tempDir . $excelFilename;
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($excel);
+            $writer->save($tempExcelPath);
+
+            // Excel zur ZIP hinzufügen
+            $zip->addFile($tempExcelPath, $excelFilename);
+
+            // 2. INFO-DATEI ERSTELLEN
+            $infoContent = $this->erstelleInfoDatei($belege, $filter);
+            $zip->addFromString('00_Export_Info.txt', $infoContent);
+
+            // 3. ALLE BELEG-DATEIEN HINZUFÜGEN
+            $erfolgreich = 0;
+            $fehlgeschlagen = 0;
+
+            foreach ($belege as $index => $beleg) {
+                $originalDatei = FCPATH . $beleg['dateipfad'];
+
+                if (!file_exists($originalDatei)) {
+                    log_message('warning', "Beleg-Datei nicht gefunden: {$originalDatei}");
+                    $fehlgeschlagen++;
+                    continue;
+                }
+
+                // Aussagekräftigen Dateinamen generieren
+                $neuerDateiname = $this->generiereZipDateiname($beleg, $index + 1);
+
+                if ($zip->addFile($originalDatei, 'Belege/' . $neuerDateiname)) {
+                    $erfolgreich++;
+                } else {
+                    log_message('error', "Beleg konnte nicht zur ZIP hinzugefügt werden: {$beleg['belegnummer']}");
+                    $fehlgeschlagen++;
+                }
+            }
+
+            // 4. ZUSAMMENFASSUNG HINZUFÜGEN
+            if ($fehlgeschlagen > 0) {
+                $fehlerInfo = "=== EXPORT-HINWEISE ===\n";
+                $fehlerInfo .= "Erfolgreich exportiert: {$erfolgreich} Beleg-Dateien\n";
+                $fehlerInfo .= "Fehlgeschlagen: {$fehlgeschlagen} Beleg-Dateien\n";
+                $fehlerInfo .= "Fehlgeschlagene Belege wurden übersprungen.\n";
+                $fehlerInfo .= "Die Excel-Liste enthält trotzdem alle Belege.\n";
+
+                $zip->addFromString('00_Export_Hinweise.txt', $fehlerInfo);
+            }
+
+            $zip->close();
+
+            // Temporäre Excel-Datei löschen
+            if (file_exists($tempExcelPath)) {
+                unlink($tempExcelPath);
+            }
+
+            if ($erfolgreich === 0 && count($belege) > 0) {
+                throw new \Exception('Keine Beleg-Dateien konnten hinzugefügt werden, aber Excel-Liste wurde erstellt.');
+            }
+
+            // ZIP-Datei zum Download anbieten
+            $filename = $this->generiereZipFilename($filter);
+
+            return $this->response->download($zipPath, null, true)
+                ->setFileName($filename)
+                ->setHeader('Content-Type', 'application/zip');
+
+        } catch (\Exception $e) {
+            log_message('error', 'Belege ZIP-Export Fehler: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Fehler beim Erstellen der ZIP-Datei: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Erstellt Excel-Datei für Belege-Export
+     */
+    private function erstelleBelegeExcel($belege, $filter)
+    {
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Belege Export');
+
+        // Header setzen
+        $headers = [
+            'A1' => 'Belegnummer',
+            'B1' => 'Rechnungsdatum',
+            'C1' => 'Eingabedatum',
+            'D1' => 'Beschreibung',
+            'E1' => 'Betrag',
+            'F1' => 'Bezugsquelle',
+            'G1' => 'Kategorie',
+            'H1' => 'Status',
+            'I1' => 'Notizen',
+            'J1' => 'Dateityp'
+        ];
+
+        foreach ($headers as $cell => $header) {
+            $sheet->setCellValue($cell, $header);
+        }
+
+        // Daten eintragen
+        $row = 2;
+        foreach ($belege as $beleg) {
+            $sheet->setCellValue('A' . $row, $beleg['belegnummer']);
+            $sheet->setCellValue('B' . $row,
+                \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel(strtotime($beleg['rechnungsdatum'])));
+            $sheet->setCellValue('C' . $row,
+                \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel(strtotime($beleg['eingabedatum'])));
+            $sheet->setCellValue('D' . $row, $beleg['beschreibung']);
+            $sheet->setCellValue('E' . $row, $beleg['betrag']);
+            $sheet->setCellValue('F' . $row, $beleg['lieferant'] ?: '-');
+            $sheet->setCellValue('G' . $row, $this->getKategorieLabel($beleg['kategorie']));
+            $sheet->setCellValue('H' . $row, $this->getStatusLabel($beleg['status']));
+            $sheet->setCellValue('I' . $row, $beleg['notizen'] ?: '-');
+            $sheet->setCellValue('J' . $row, strtoupper($beleg['dateityp']));
+            $row++;
+        }
+
+        // Formatierung
+        $this->formatiereBelegeExcel($sheet, $row - 1);
+
+        return $spreadsheet;
+    }
+
+    /**
+     * Formatiert Excel-Tabelle für Belege
+     */
+    private function formatiereBelegeExcel($sheet, $lastRow)
+    {
+        // Spaltenbreiten
+        $sheet->getColumnDimension('A')->setWidth(18); // Belegnummer
+        $sheet->getColumnDimension('B')->setWidth(12); // Rechnungsdatum
+        $sheet->getColumnDimension('C')->setWidth(12); // Eingabedatum
+        $sheet->getColumnDimension('D')->setWidth(40); // Beschreibung
+        $sheet->getColumnDimension('E')->setWidth(12); // Betrag
+        $sheet->getColumnDimension('F')->setWidth(25); // Bezugsquelle
+        $sheet->getColumnDimension('G')->setWidth(15); // Kategorie
+        $sheet->getColumnDimension('H')->setWidth(15); // Status
+        $sheet->getColumnDimension('I')->setWidth(30); // Notizen
+        $sheet->getColumnDimension('J')->setWidth(10); // Dateityp
+
+        // Header-Formatierung
+        $sheet->getStyle('A1:J1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:J1')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('A1:J1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+        $sheet->getStyle('A1:J1')->getFill()->getStartColor()->setRGB('DDDDDD');
+
+        // Datum-Formatierung
+        $sheet->getStyle('B2:C' . $lastRow)->getNumberFormat()->setFormatCode('DD.MM.YYYY');
+
+        // Betrag-Formatierung
+        $sheet->getStyle('E2:E' . $lastRow)->getNumberFormat()->setFormatCode('#,##0.00 "€"');
+
+        // Rahmen
+        $sheet->getStyle('A1:J' . $lastRow)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+
+        // Gesamtsumme hinzufügen
+        $gesamtRow = $lastRow + 2;
+        $sheet->setCellValue('D' . $gesamtRow, 'GESAMTSUMME:');
+        $sheet->setCellValue('E' . $gesamtRow, '=SUM(E2:E' . $lastRow . ')');
+        $sheet->getStyle('D' . $gesamtRow . ':E' . $gesamtRow)->getFont()->setBold(true);
+        $sheet->getStyle('E' . $gesamtRow)->getNumberFormat()->setFormatCode('#,##0.00 "€"');
+    }
+
+    /**
+     * Generiert Excel-Dateiname basierend auf Filter
+     */
+    private function generiereExcelFilename($filter)
+    {
+        $prefix = 'Belege_Export';
+        $parts = [];
+
+        if (!empty($filter['datum_von']) && !empty($filter['datum_bis'])) {
+            $parts[] = date('Y-m-d', strtotime($filter['datum_von'])) . '_bis_' . date('Y-m-d', strtotime($filter['datum_bis']));
+        } elseif (!empty($filter['datum_von'])) {
+            $parts[] = 'ab_' . date('Y-m-d', strtotime($filter['datum_von']));
+        } elseif (!empty($filter['datum_bis'])) {
+            $parts[] = 'bis_' . date('Y-m-d', strtotime($filter['datum_bis']));
+        }
+
+        if (!empty($filter['kategorie'])) {
+            $parts[] = $filter['kategorie'];
+        }
+
+        if (!empty($filter['status'])) {
+            $parts[] = $filter['status'];
+        }
+
+        if (!empty($filter['suche'])) {
+            $suchbegriff = preg_replace('/[^a-zA-Z0-9]/', '_', $filter['suche']);
+            $parts[] = 'suche_' . substr($suchbegriff, 0, 20);
+        }
+
+        if (!empty($parts)) {
+            $filename = $prefix . '_' . implode('_', $parts);
+        } else {
+            $filename = $prefix . '_alle';
+        }
+
+        return $filename . '_' . date('Y-m-d_H-i-s') . '.xlsx';
+    }
+
+    /**
+     * Generiert ZIP-Dateiname basierend auf Filter
+     */
+    private function generiereZipFilename($filter)
+    {
+        $prefix = 'Belege_mit_Dateien';
+        $parts = [];
+
+        if (!empty($filter['datum_von']) && !empty($filter['datum_bis'])) {
+            $parts[] = date('Y-m', strtotime($filter['datum_von'])) . '_bis_' . date('Y-m', strtotime($filter['datum_bis']));
+        } elseif (!empty($filter['datum_von'])) {
+            $parts[] = 'ab_' . date('Y-m', strtotime($filter['datum_von']));
+        } elseif (!empty($filter['datum_bis'])) {
+            $parts[] = 'bis_' . date('Y-m', strtotime($filter['datum_bis']));
+        }
+
+        if (!empty($filter['kategorie'])) {
+            $parts[] = $filter['kategorie'];
+        }
+
+        if (!empty($parts)) {
+            $filename = $prefix . '_' . implode('_', $parts);
+        } else {
+            $filename = $prefix . '_alle';
+        }
+
+        return $filename . '_' . date('Y-m-d') . '.zip';
+    }
+
+    /**
+     * Erstellt Info-Datei für gefilterte Belege
+     */
+    private function erstelleInfoDatei($belege, $filter)
+    {
+        $info = "==============================================\n";
+        $info .= "BELEGE-EXPORT - KOMPLETTARCHIV\n";
+        $info .= "==============================================\n\n";
+
+        $info .= "Export erstellt:    " . date('d.m.Y H:i:s') . "\n";
+        $info .= "Anzahl Belege:      " . count($belege) . "\n";
+        $info .= "Gesamtsumme:        " . number_format(array_sum(array_column($belege, 'betrag')), 2, ',', '.') . " €\n\n";
+
+        // Filter-Informationen
+        $info .= "ANGEWENDETE FILTER:\n";
+        $info .= str_repeat('-', 50) . "\n";
+        if (!empty($filter['datum_von'])) {
+            $info .= "Von Datum:          " . date('d.m.Y', strtotime($filter['datum_von'])) . "\n";
+        }
+        if (!empty($filter['datum_bis'])) {
+            $info .= "Bis Datum:          " . date('d.m.Y', strtotime($filter['datum_bis'])) . "\n";
+        }
+        if (!empty($filter['kategorie'])) {
+            $info .= "Kategorie:          " . $this->getKategorieLabel($filter['kategorie']) . "\n";
+        }
+        if (!empty($filter['status'])) {
+            $info .= "Status:             " . $this->getStatusLabel($filter['status']) . "\n";
+        }
+        if (!empty($filter['suche'])) {
+            $info .= "Suchbegriff:        " . $filter['suche'] . "\n";
+        }
+        if (empty(array_filter($filter))) {
+            $info .= "Keine Filter aktiv - Alle Belege exportiert\n";
+        }
+
+        $info .= "\nBELEG-ÜBERSICHT:\n";
+        $info .= str_repeat('=', 80) . "\n";
+        $info .= sprintf("%-15s %-12s %-30s %-12s %s\n",
+            "Belegnummer", "Datum", "Beschreibung", "Betrag", "Bezugsquelle");
+        $info .= str_repeat('-', 80) . "\n";
+
+        foreach ($belege as $beleg) {
+            $beschreibung = strlen($beleg['beschreibung']) > 30 ?
+                substr($beleg['beschreibung'], 0, 27) . '...' :
+                $beleg['beschreibung'];
+
+            $info .= sprintf("%-15s %-12s %-30s %10s € %s\n",
+                $beleg['belegnummer'],
+                date('d.m.Y', strtotime($beleg['rechnungsdatum'])),
+                $beschreibung,
+                number_format($beleg['betrag'], 2, ',', '.'),
+                $beleg['lieferant'] ?: '-');
+        }
+
+        $info .= str_repeat('-', 80) . "\n";
+        $info .= sprintf("%58s %10s €\n", "GESAMTSUMME:",
+            number_format(array_sum(array_column($belege, 'betrag')), 2, ',', '.'));
+
+        $info .= "\n\nDATEI-STRUKTUR:\n";
+        $info .= str_repeat('=', 50) . "\n";
+        $info .= "- Belege_Liste_[Datum].xlsx (Excel mit allen Daten)\n";
+        $info .= "- 00_Export_Info.txt (diese Datei)\n";
+        $info .= "- Belege/ (Ordner mit allen Beleg-Dateien)\n";
+        foreach ($belege as $index => $beleg) {
+            $dateiname = $this->generiereZipDateiname($beleg, $index + 1);
+            $info .= "  - {$dateiname}\n";
+        }
+
+        return $info;
+    }
+
+    /**
+     * Generiert aussagekräftigen Dateinamen für ZIP
+     */
+    private function generiereZipDateiname($beleg, $laufendeNummer)
+    {
+        // Format: 01_2024-06-15-001_Beschreibung.pdf
+        $prefix = str_pad($laufendeNummer, 2, '0', STR_PAD_LEFT);
+        $belegnummer = $beleg['belegnummer'];
+
+        // Beschreibung für Dateiname vorbereiten (max 30 Zeichen, nur sichere Zeichen)
+        $beschreibung = preg_replace('/[^a-zA-Z0-9äöüÄÖÜß\s]/', '', $beleg['beschreibung']);
+        $beschreibung = preg_replace('/\s+/', '_', trim($beschreibung));
+        $beschreibung = substr($beschreibung, 0, 30);
+        $beschreibung = rtrim($beschreibung, '_');
+
+        $extension = $beleg['dateityp'];
+
+        if (!empty($beschreibung)) {
+            return "{$prefix}_{$belegnummer}_{$beschreibung}.{$extension}";
+        } else {
+            return "{$prefix}_{$belegnummer}.{$extension}";
+        }
+    }
+
+    /**
+     * Konvertiert Kategorie zu Label
+     */
+    private function getKategorieLabel($kategorie)
+    {
+        $labels = [
+            'normal' => 'Normal',
+            'ah_berechtigt' => 'AH² berechtigt',
+            'hv_berechtigt' => 'HV berechtigt'
+        ];
+        return $labels[$kategorie] ?? $kategorie;
+    }
+
+    /**
+     * Konvertiert Status zu Label
+     */
+    private function getStatusLabel($status)
+    {
+        $labels = [
+            'erfasst' => 'Erfasst',
+            'in_abrechnung' => 'In Abrechnung',
+            'abgerechnet' => 'Abgerechnet',
+            'bezahlt' => 'Bezahlt'
+        ];
+        return $labels[$status] ?? $status;
+    }
 }

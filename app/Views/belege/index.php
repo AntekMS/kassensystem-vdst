@@ -90,7 +90,7 @@
                     <div class="col-md-3">
                         <label class="form-label">Suche</label>
                         <input type="text" name="suche" value="<?= esc($filter['suche'] ?? '') ?>"
-                               placeholder="Beschreibung, Bezugsquelle, Belegnummer..." class="form-control">
+                               placeholder="Beschreibung, Bezugsquelle, Belegnummer, Notizen..." class="form-control">
                     </div>
                     <div class="col-md-1">
                         <label class="form-label">&nbsp;</label>
@@ -111,8 +111,27 @@
 
         <!-- Belege-Tabelle -->
         <div class="card">
-            <div class="card-header table-vdst">
+            <div class="card-header table-vdst d-flex justify-content-between align-items-center">
                 <strong>Belege (<?= count($belege) ?> Einträge)</strong>
+                <?php if (!empty($belege)): ?>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-outline-light btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                            📊 Export
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item" href="<?= base_url('/belege/export/excel?' . http_build_query($filter)) ?>">
+                                    📋 Nur Excel-Liste
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="<?= base_url('/belege/export/zip?' . http_build_query($filter)) ?>">
+                                    📦 Excel + alle Beleg-Dateien (ZIP)
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                <?php endif; ?>
             </div>
             <div class="card-body p-0">
                 <?php if (empty($belege)): ?>
@@ -134,6 +153,7 @@
                                 <th class="text-end">Betrag</th>
                                 <th>Kategorie</th>
                                 <th>Status</th>
+                                <th>Notizen</th> <!-- NEU: Notizen-Spalte -->
                                 <th>Abrechnungen</th>
                                 <th class="text-center">Aktionen</th>
                             </tr>
@@ -160,8 +180,8 @@
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <strong><?= esc(substr($beleg['beschreibung'], 0, 50)) ?></strong>
-                                        <?= strlen($beleg['beschreibung']) > 50 ? '...' : '' ?>
+                                        <strong><?= esc(substr($beleg['beschreibung'], 0, 40)) ?></strong>
+                                        <?= strlen($beleg['beschreibung']) > 40 ? '...' : '' ?>
                                     </td>
                                     <td>
                                         <?= $beleg['lieferant'] ? esc($beleg['lieferant']) : '<span class="text-muted">-</span>' ?>
@@ -193,6 +213,18 @@
                                         echo $status_labels[$beleg['status']] ?? $beleg['status'];
                                         ?>
                                     </span>
+                                    </td>
+                                    <td style="max-width: 150px;"> <!-- NEU: Notizen-Spalte mit Größenbegrenzung -->
+                                        <?php if (!empty($beleg['notizen'])): ?>
+                                            <span class="text-muted"
+                                                  title="<?= esc($beleg['notizen']) ?>"
+                                                  style="cursor: help;">
+                                                <?= esc(substr($beleg['notizen'], 0, 30)) ?>
+                                                <?= strlen($beleg['notizen']) > 30 ? '...' : '' ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="text-muted">-</span>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <?php if (!empty($beleg['abrechnungen'])): ?>
@@ -243,7 +275,7 @@
                                     echo '<strong>' . number_format($gesamtbetrag, 2, ',', '.') . ' €</strong>';
                                     ?>
                                 </th>
-                                <th colspan="4"></th>
+                                <th colspan="5"></th>
                             </tr>
                             </tfoot>
                         </table>

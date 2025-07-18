@@ -35,8 +35,12 @@ $routes->group('', ['filter' => 'auth'], function($routes) {
         $routes->get('edit/(:num)', 'BuchungenController::edit/$1');
         $routes->post('update/(:num)', 'BuchungenController::update/$1');
         $routes->get('delete/(:num)', 'BuchungenController::delete/$1');
-        $routes->get('exportExcel', 'BuchungenController::exportExcel');
         $routes->get('getBelegDetails/(:num)', 'BuchungenController::getBelegDetails/$1');
+        // Export-Routen
+        $routes->get('exportExcel', 'BuchungenController::exportExcel');
+        $routes->get('export/excel', 'BuchungenController::exportExcelListe');
+        $routes->get('export/zip', 'BuchungenController::exportZip');
+
     });
 
     // ==================== BELEGE ====================

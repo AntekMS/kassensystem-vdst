@@ -11,8 +11,12 @@
         <div class="row mb-4">
             <?php
             $gesamtsaldo = 0;
+            $banksaldo = 0; // Ohne Barkasse
             foreach($kontostaende as $konto => $daten):
                 $gesamtsaldo += $daten['saldo'];
+                if ($konto !== 'barkasse') {
+                    $banksaldo += $daten['saldo'];
+                }
                 ?>
                 <div class="col-md-3">
                     <div class="card kontostand-card">
@@ -53,16 +57,26 @@
                 </div>
             <?php endforeach; ?>
 
-            <!-- Gesamtsaldo -->
+            <!-- Gesamtsaldo mit Toggle -->
             <div class="col-md-3">
                 <div class="card border-3" style="border-color: var(--vdst-rot) !important;">
-                    <div class="card-header text-center" style="background-color: var(--vdst-rot); color: white;">
-                        <strong>GESAMTSALDO</strong>
+                    <div class="card-header text-center" style="background-color: var(--vdst-rot); color: white; padding: 0.5rem;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong id="saldo-title">BANK-SALDO</strong>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="barkasse-toggle"
+                                       style="background-color: rgba(255,255,255,0.3); border-color: white;">
+                                <label class="form-check-label text-white" for="barkasse-toggle" style="font-size: 0.75em;">
+                                    +Bar
+                                </label>
+                            </div>
+                        </div>
                     </div>
                     <div class="card-body text-center">
-                        <h2 class="<?= $gesamtsaldo >= 0 ? 'saldo-positiv' : 'saldo-negativ' ?>">
-                            <?= number_format($gesamtsaldo, 2, ',', '.') ?> €
+                        <h2 id="saldo-betrag" class="<?= $banksaldo >= 0 ? 'saldo-positiv' : 'saldo-negativ' ?>">
+                            <?= number_format($banksaldo, 2, ',', '.') ?> €
                         </h2>
+                        <small class="text-muted" id="saldo-untertitel">Ohne Barkasse</small>
                     </div>
                 </div>
             </div>
@@ -72,7 +86,6 @@
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="d-flex justify-content-between align-items-center">
-
                     <!-- Neue Buchung Button -->
                     <div>
                         <a href="<?= base_url('/buchungen/create') ?>" class="btn btn-vdst btn-lg">
@@ -163,7 +176,7 @@
                     <div class="col-md-3">
                         <label class="form-label">Suche</label>
                         <input type="text" name="suche" value="<?= esc($filter['suche'] ?? '') ?>"
-                               placeholder="Beschreibung, Lieferant..." class="form-control">
+                               placeholder="Beschreibung, Lieferant, Belegnummer, Notizen..." class="form-control">
                     </div>
                     <div class="col-md-1">
                         <label class="form-label">&nbsp;</label>
@@ -304,6 +317,17 @@
             </div>
         </div>
     </div>
+
+    <!-- JavaScript-Daten -->
+    <script>
+        // Saldo-Daten für JavaScript
+        const saldoDaten = {
+            banksaldo: <?= $banksaldo ?>,
+            gesamtsaldo: <?= $gesamtsaldo ?>,
+            banksaldoFormatiert: '<?= number_format($banksaldo, 2, ',', '.') ?> €',
+            gesamtsaldoFormatiert: '<?= number_format($gesamtsaldo, 2, ',', '.') ?> €'
+        };
+    </script>
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
@@ -323,6 +347,37 @@
                     this.form.submit();
                 });
             });
+
+            // Barkasse-Toggle Funktionalität
+            const barkasseToggle = document.getElementById('barkasse-toggle');
+            const saldoTitle = document.getElementById('saldo-title');
+            const saldoBetrag = document.getElementById('saldo-betrag');
+            const saldoUntertitel = document.getElementById('saldo-untertitel');
+
+            if (barkasseToggle && saldoTitle && saldoBetrag && saldoUntertitel) {
+                barkasseToggle.addEventListener('change', function() {
+                    if (this.checked) {
+                        // Gesamtsaldo anzeigen (mit Barkasse)
+                        saldoTitle.textContent = 'GESAMTSALDO';
+                        saldoBetrag.textContent = saldoDaten.gesamtsaldoFormatiert;
+                        saldoUntertitel.textContent = 'Mit Barkasse';
+
+                        // Saldo-Farbe anpassen
+                        saldoBetrag.className = saldoDaten.gesamtsaldo >= 0 ? 'saldo-positiv' : 'saldo-negativ';
+                    } else {
+                        // Bank-Saldo anzeigen (ohne Barkasse)
+                        saldoTitle.textContent = 'BANK-SALDO';
+                        saldoBetrag.textContent = saldoDaten.banksaldoFormatiert;
+                        saldoUntertitel.textContent = 'Ohne Barkasse';
+
+                        // Saldo-Farbe anpassen
+                        saldoBetrag.className = saldoDaten.banksaldo >= 0 ? 'saldo-positiv' : 'saldo-negativ';
+                    }
+                });
+
+                // Tooltip für bessere UX
+                barkasseToggle.setAttribute('title', 'Barkasse in Gesamtsaldo ein-/ausblenden');
+            }
         });
     </script>
 <?= $this->endSection() ?>

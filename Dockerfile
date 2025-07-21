@@ -11,7 +11,12 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libzip-dev \
     libicu-dev \
+    git \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
+
+# Installiere Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 # Konfiguriere GD Extension (für Bildbearbeitung)
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg
@@ -44,6 +49,11 @@ RUN a2enmod rewrite
 
 # Kopiere deine Projektdateien in den Container
 COPY . /var/www/html/
+
+# Installiere Composer Dependencies (falls composer.json existiert)
+RUN if [ -f /var/www/html/composer.json ]; then \
+        cd /var/www/html && composer install --no-dev --optimize-autoloader; \
+    fi
 
 # Setze die richtigen Berechtigungen für CodeIgniter 4
 RUN chown -R www-data:www-data /var/www/html/

@@ -1,0 +1,19 @@
+# Directory Browsing deaktivieren
+Options -Indexes
+
+# Zusätzlicher Schutz für sensible Dateien
+<Files "composer.json">
+    Require all denied
+</Files>
+
+<Files "composer.lock">
+    Require all denied
+</Files>
+
+<Files ".env">
+    Require all denied
+</Files>
+
+<Files "README.md">
+    Require all denied
+</Files>

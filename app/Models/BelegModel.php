@@ -250,7 +250,7 @@ class BelegModel extends Model
         $jahr = date('Y', strtotime($rechnungsdatum));
         $monat = date('m', strtotime($rechnungsdatum));
 
-        return "uploads/belege/{$jahr}/{$monat}/";
+        return "public/uploads/belege/{$jahr}/{$monat}/";
     }
 
     /**

@@ -90,11 +90,9 @@ class BelegeController extends BaseController
 
     /**
      * Speichert neuen Beleg mit Datei-Upload
-     * Wie das Einheften eines neuen Dokuments
      */
     /**
      * Speichert neuen Beleg mit Datei-Upload - KORRIGIERTE VERSION
-     * Problem gelöst: Datei-Informationen werden VOR dem Verschieben gesammelt
      */
     public function store()
     {

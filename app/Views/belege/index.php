@@ -193,9 +193,9 @@
                                     <span class="badge bg-<?= $beleg['kategorie'] === 'normal' ? 'secondary' : 'primary' ?> badge-sm">
                                         <?php
                                         $kat_labels = [
-                                            'normal' => 'Normal',
-                                            'ah_berechtigt' => 'AH²',
-                                            'hv_berechtigt' => 'HV'
+                                                'normal' => 'Normal',
+                                                'ah_berechtigt' => 'AH²',
+                                                'hv_berechtigt' => 'HV'
                                         ];
                                         echo $kat_labels[$beleg['kategorie']] ?? $beleg['kategorie'];
                                         ?>
@@ -205,10 +205,10 @@
                                     <span class="badge bg-<?= $beleg['status'] === 'erfasst' ? 'secondary' : 'info' ?> badge-sm">
                                         <?php
                                         $status_labels = [
-                                            'erfasst' => 'Erfasst',
-                                            'in_abrechnung' => 'In Abrechnung',
-                                            'abgerechnet' => 'Abgerechnet',
-                                            'bezahlt' => 'Bezahlt'
+                                                'erfasst' => 'Erfasst',
+                                                'in_abrechnung' => 'In Abrechnung',
+                                                'abgerechnet' => 'Abgerechnet',
+                                                'bezahlt' => 'Bezahlt'
                                         ];
                                         echo $status_labels[$beleg['status']] ?? $beleg['status'];
                                         ?>

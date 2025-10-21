@@ -85,7 +85,11 @@
                                     <tr>
                                         <td><strong>Status:</strong></td>
                                         <td>
-                                        <span class="badge bg-<?= $abrechnung['status'] === 'entwurf' ? 'secondary' : 'warning' ?>">
+                                        <span class="badge bg-<?=
+                                        $abrechnung['status'] === 'entwurf' ? 'secondary' :
+                                                ($abrechnung['status'] === 'ausstehend' ? 'warning' :
+                                                        ($abrechnung['status'] === 'eingereicht' ? 'info' : 'success'))
+                                        ?>">
                                             <?= ucfirst($abrechnung['status']) ?>
                                         </span>
                                         </td>
@@ -119,7 +123,7 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <!-- Status-Änderung -->
+                <!-- Status-Änderung - KORRIGIERT -->
                 <?php if ($abrechnung['status'] !== 'bezahlt'): ?>
                     <div class="card">
                         <div class="card-header bg-warning text-dark">
@@ -127,24 +131,41 @@
                         </div>
                         <div class="card-body">
                             <form method="post" action="<?= base_url('/abrechnungen/' . $typ . '/changeStatus/' . $abrechnung['id']) ?>">
+                                <?= csrf_field() ?>
                                 <div class="mb-3">
                                     <select name="status" class="form-control" required>
                                         <option value="entwurf" <?= $abrechnung['status'] === 'entwurf' ? 'selected' : '' ?>>
-                                            Entwurf
+                                            📝 Entwurf
                                         </option>
                                         <option value="ausstehend" <?= $abrechnung['status'] === 'ausstehend' ? 'selected' : '' ?>>
-                                            Ausstehend
+                                            ⏳ Ausstehend
                                         </option>
                                         <option value="eingereicht" <?= $abrechnung['status'] === 'eingereicht' ? 'selected' : '' ?>>
-                                            Eingereicht
+                                            📤 Eingereicht
                                         </option>
                                         <option value="bezahlt" <?= $abrechnung['status'] === 'bezahlt' ? 'selected' : '' ?>>
-                                            Bezahlt
+                                            ✅ Bezahlt
                                         </option>
                                     </select>
+                                    <small class="text-muted mt-1 d-block">
+                                        Aktuell: <strong><?= ucfirst($abrechnung['status']) ?></strong>
+                                    </small>
                                 </div>
-                                <button type="submit" class="btn btn-warning w-100">Status ändern</button>
+                                <button type="submit" class="btn btn-warning w-100" onclick="return confirmStatusChange()">
+                                    Status ändern
+                                </button>
                             </form>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <strong>✅ Abrechnung bezahlt</strong>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-0">
+                                Diese Abrechnung wurde als bezahlt markiert und kann nicht mehr bearbeitet werden.
+                            </p>
                         </div>
                     </div>
                 <?php endif; ?>
@@ -314,8 +335,7 @@ function schaetzeArchivGroesse($belege) {
         if (isset($beleg['dateigroesse']) && $beleg['dateigroesse'] > 0) {
             $gesamtgroesse += $beleg['dateigroesse'];
         } else {
-            // Schätzung basierend auf Dateityp
-            $schaetzung = $beleg['dateityp'] === 'pdf' ? 200000 : 500000; // 200KB für PDF, 500KB für Bilder
+            $schaetzung = $beleg['dateityp'] === 'pdf' ? 200000 : 500000;
             $gesamtgroesse += $schaetzung;
         }
     }
@@ -331,6 +351,23 @@ function schaetzeArchivGroesse($belege) {
 
 <?= $this->section('scripts') ?>
     <script>
+        // Status-Änderungs-Bestätigung
+        function confirmStatusChange() {
+            const select = document.querySelector('select[name="status"]');
+            const neuerStatus = select.options[select.selectedIndex].text.trim();
+            const alterStatus = '<?= ucfirst($abrechnung['status']) ?>';
+
+            if (neuerStatus === alterStatus) {
+                alert('Der Status wurde nicht geändert.');
+                return false;
+            }
+
+            const message = `Status von "${alterStatus}" zu "${neuerStatus}" ändern?\n\n` +
+                `Diese Änderung kann Auswirkungen auf die Bearbeitbarkeit haben.`;
+
+            return confirm(message);
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             // Beleg-Links in neuem Tab öffnen
             const belegLinks = document.querySelectorAll('a[href*="/belege/show/"]');
@@ -346,7 +383,6 @@ function schaetzeArchivGroesse($belege) {
         });
 
         function initializeExportFeedback() {
-            // ZIP-Download mit Loading-Indikator
             const zipLinks = document.querySelectorAll('a[href*="/downloadZip/"]');
 
             zipLinks.forEach(link => {
@@ -360,7 +396,6 @@ function schaetzeArchivGroesse($belege) {
                 });
             });
 
-            // Excel-Download Feedback
             const excelLinks = document.querySelectorAll('a[href*="/exportExcel/"]');
 
             excelLinks.forEach(link => {

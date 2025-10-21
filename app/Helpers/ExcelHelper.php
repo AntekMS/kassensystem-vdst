@@ -132,7 +132,7 @@ class ExcelHelper
     }
 
     /**
-     * Erstellt AH²-Abrechnung Excel wie dein Format
+     * Erstellt AH²-Abrechnung Excel
      */
     public static function erstelleAhAbrechnung($abrechnung, $belege)
     {
@@ -142,39 +142,47 @@ class ExcelHelper
 
         // Titel der Abrechnung
         $sheet->setCellValue('A1', $abrechnung['titel'] ?? 'Abrechnung Alt-Herren-Bund');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->mergeCells('A1:E1');
 
-        // Header gemäß Excel-Vorlage: Beschreibung | Datum | Beleg | Betrag | Bezugsquelle
+        // Header: Beschreibung | Datum | Beleg | Betrag | Bezugsquelle
         $sheet->setCellValue('A2', 'Beschreibung');
         $sheet->setCellValue('B2', 'Datum');
         $sheet->setCellValue('C2', 'Beleg');
         $sheet->setCellValue('D2', 'Betrag');
         $sheet->setCellValue('E2', 'Bezugsquelle');
 
+        // Header-Formatierung
+        $sheet->getStyle('A2:E2')->getFont()->setBold(true);
+        $sheet->getStyle('A2:E2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('A2:E2')->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('DDDDDD');
+
         // Belege eintragen – ab Zeile 3
         $zeile = 3;
         foreach ($belege as $beleg) {
-            // A: Beschreibung
             $sheet->setCellValue('A' . $zeile, $beleg['beschreibung']);
-            // B: Datum (Excel-Datum)
             $sheet->setCellValue('B' . $zeile,
                 \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel(
                     strtotime($beleg['rechnungsdatum'])
                 )
             );
-            // C: Belegnummer (wenn vorhanden)
             $sheet->setCellValue('C' . $zeile, $beleg['belegnummer'] ?? '');
-            // D: Betrag
             $sheet->setCellValue('D' . $zeile, $beleg['betrag']);
-            // E: Bezugsquelle (Lieferant oder Kassenwart)
             $sheet->setCellValue('E' . $zeile, $beleg['lieferant'] ?: 'Kassenwart');
             $zeile++;
         }
 
-        // Formatierung
-        // Spaltenbreiten wie in Excel
-        $sheet->getColumnDimension('A')->setWidth(30);
+        // Gesamtsumme
+        $sheet->setCellValue('C' . $zeile, 'GESAMTSUMME:');
+        $sheet->setCellValue('D' . $zeile, $abrechnung['gesamtsumme']);
+        $sheet->getStyle('C' . $zeile . ':D' . $zeile)->getFont()->setBold(true);
+
+        // Spaltenbreiten
+        $sheet->getColumnDimension('A')->setWidth(35);
         $sheet->getColumnDimension('B')->setWidth(12);
-        $sheet->getColumnDimension('C')->setWidth(15);
+        $sheet->getColumnDimension('C')->setWidth(18);
         $sheet->getColumnDimension('D')->setWidth(12);
         $sheet->getColumnDimension('E')->setWidth(25);
 
@@ -182,21 +190,112 @@ class ExcelHelper
         $sheet->getStyle('B3:B' . ($zeile - 1))
             ->getNumberFormat()
             ->setFormatCode('DD.MM.YYYY');
+
         // Beträge formatieren
-        $sheet->getStyle('D2:D' . ($zeile - 1))
+        $sheet->getStyle('D3:D' . $zeile)
             ->getNumberFormat()
             ->setFormatCode('#,##0.00 "€"');
 
-        // Gesamt unten anzeigen
-        $sheet->setCellValue('C' . $zeile, 'Gesamtsumme:');
-        $sheet->setCellValue('D' . $zeile, $abrechnung['gesamtsumme']);
-        $sheet->getStyle('D' . $zeile)
-            ->getNumberFormat()
-            ->setFormatCode('#,##0.00 "€"');
+        // Rahmen
+        $sheet->getStyle('A2:E' . $zeile)
+            ->getBorders()
+            ->getAllBorders()
+            ->setBorderStyle(Border::BORDER_THIN);
 
         return $spreadsheet;
     }
 
+    /**
+     * Erstellt HV-Abrechnung Excel mit Begründungen
+     */
+    public static function erstelleHvAbrechnung($abrechnung, $belege)
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('HV Abrechnung');
+
+        // Titel der Abrechnung
+        $sheet->setCellValue('A1', $abrechnung['titel'] ?? 'Heimverein Abrechnung');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->mergeCells('A1:F1');
+
+        // Allgemeine Begründung falls vorhanden
+        if (!empty($abrechnung['begruendung'])) {
+            $sheet->setCellValue('A2', 'Begründung:');
+            $sheet->setCellValue('B2', $abrechnung['begruendung']);
+            $sheet->getStyle('A2')->getFont()->setBold(true);
+            $sheet->mergeCells('B2:F2');
+            $headerZeile = 3;
+        } else {
+            $headerZeile = 2;
+        }
+
+        // Header: Beschreibung | Datum | Beleg | Betrag | Bezugsquelle | Begründung
+        $sheet->setCellValue('A' . $headerZeile, 'Beschreibung');
+        $sheet->setCellValue('B' . $headerZeile, 'Datum');
+        $sheet->setCellValue('C' . $headerZeile, 'Beleg');
+        $sheet->setCellValue('D' . $headerZeile, 'Betrag');
+        $sheet->setCellValue('E' . $headerZeile, 'Bezugsquelle');
+        $sheet->setCellValue('F' . $headerZeile, 'Begründung');
+
+        // Header-Formatierung
+        $sheet->getStyle('A' . $headerZeile . ':F' . $headerZeile)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $headerZeile . ':F' . $headerZeile)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('A' . $headerZeile . ':F' . $headerZeile)->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('FFE4B5'); // Hellgelb für HV
+
+        // Belege eintragen
+        $zeile = $headerZeile + 1;
+        foreach ($belege as $beleg) {
+            $sheet->setCellValue('A' . $zeile, $beleg['beschreibung']);
+            $sheet->setCellValue('B' . $zeile,
+                \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel(
+                    strtotime($beleg['rechnungsdatum'])
+                )
+            );
+            $sheet->setCellValue('C' . $zeile, $beleg['belegnummer'] ?? '');
+            $sheet->setCellValue('D' . $zeile, $beleg['betrag']);
+            $sheet->setCellValue('E' . $zeile, $beleg['lieferant'] ?: 'Kassenwart');
+
+            // Automatische Begründung generieren
+            $begruendung = self::generiereHvBegruendung($beleg['beschreibung']);
+            $sheet->setCellValue('F' . $zeile, $begruendung);
+
+            $zeile++;
+        }
+
+        // Gesamtsumme
+        $sheet->setCellValue('C' . $zeile, 'GESAMTSUMME:');
+        $sheet->setCellValue('D' . $zeile, $abrechnung['gesamtsumme']);
+        $sheet->getStyle('C' . $zeile . ':D' . $zeile)->getFont()->setBold(true);
+
+        // Spaltenbreiten
+        $sheet->getColumnDimension('A')->setWidth(35);
+        $sheet->getColumnDimension('B')->setWidth(12);
+        $sheet->getColumnDimension('C')->setWidth(18);
+        $sheet->getColumnDimension('D')->setWidth(12);
+        $sheet->getColumnDimension('E')->setWidth(25);
+        $sheet->getColumnDimension('F')->setWidth(40);
+
+        // Datum formatieren
+        $sheet->getStyle('B' . ($headerZeile + 1) . ':B' . ($zeile - 1))
+            ->getNumberFormat()
+            ->setFormatCode('DD.MM.YYYY');
+
+        // Beträge formatieren
+        $sheet->getStyle('D' . ($headerZeile + 1) . ':D' . $zeile)
+            ->getNumberFormat()
+            ->setFormatCode('#,##0.00 "€"');
+
+        // Rahmen
+        $sheet->getStyle('A' . $headerZeile . ':F' . $zeile)
+            ->getBorders()
+            ->getAllBorders()
+            ->setBorderStyle(Border::BORDER_THIN);
+
+        return $spreadsheet;
+    }
 
     /**
      * Speichert Excel und gibt Download-Response zurück
@@ -226,18 +325,49 @@ class ExcelHelper
             'farbe' => 'Renovierung und Instandhaltung der Hausräume',
             'pinsel' => 'Renovierung und Instandhaltung der Hausräume',
             'streichen' => 'Renovierung und Instandhaltung der Hausräume',
+            'tapete' => 'Renovierung und Instandhaltung der Hausräume',
+            'spachtel' => 'Renovierung und Instandhaltung der Hausräume',
+
             'regal' => 'Möblierung und Ausstattung der Gemeinschaftsräume',
             'schrank' => 'Möblierung und Ausstattung der Gemeinschaftsräume',
             'möbel' => 'Möblierung und Ausstattung der Gemeinschaftsräume',
+            'tisch' => 'Möblierung und Ausstattung der Gemeinschaftsräume',
+            'stuhl' => 'Möblierung und Ausstattung der Gemeinschaftsräume',
+            'sofa' => 'Möblierung und Ausstattung der Gemeinschaftsräume',
+
             'lampe' => 'Beleuchtung und elektrische Ausstattung',
             'glühbirne' => 'Beleuchtung und elektrische Ausstattung',
+            'leuchte' => 'Beleuchtung und elektrische Ausstattung',
+            'steckdose' => 'Beleuchtung und elektrische Ausstattung',
+
             'reinigung' => 'Reinigung und Hygiene der Hausräume',
             'putz' => 'Reinigung und Hygiene der Hausräume',
+            'sauber' => 'Reinigung und Hygiene der Hausräume',
+            'waschmittel' => 'Reinigung und Hygiene der Hausräume',
+
             'werkzeug' => 'Wartung und Reparatur der Hausausstattung',
             'schrauben' => 'Wartung und Reparatur der Hausausstattung',
             'reparatur' => 'Wartung und Reparatur der Hausausstattung',
+            'bohren' => 'Wartung und Reparatur der Hausausstattung',
+            'hammer' => 'Wartung und Reparatur der Hausausstattung',
+
             'küche' => 'Küchenausstattung und -wartung',
-            'geschirr' => 'Küchenausstattung und -wartung'
+            'geschirr' => 'Küchenausstattung und -wartung',
+            'topf' => 'Küchenausstattung und -wartung',
+            'pfanne' => 'Küchenausstattung und -wartung',
+            'besteck' => 'Küchenausstattung und -wartung',
+
+            'garten' => 'Außenanlagen und Gartenpflege',
+            'rasen' => 'Außenanlagen und Gartenpflege',
+            'pflanze' => 'Außenanlagen und Gartenpflege',
+
+            'heizung' => 'Heizung und Klimatechnik',
+            'thermostat' => 'Heizung und Klimatechnik',
+
+            'sanitär' => 'Sanitäranlagen und Wasserleitungen',
+            'bad' => 'Sanitäranlagen und Wasserleitungen',
+            'dusche' => 'Sanitäranlagen und Wasserleitungen',
+            'wc' => 'Sanitäranlagen und Wasserleitungen'
         ];
 
         foreach ($begruendungen as $schluesselwort => $begruendung) {

@@ -12,6 +12,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 /**
  * BuchungenController - Kassenbuch-Verwaltung
  * ERWEITERT um Export-Funktionen für gefilterte Buchungen
+ * ERWEITERT um direkten Beleg-Upload bei Buchungserstellung
  */
 class BuchungenController extends BaseController
 {
@@ -62,7 +63,7 @@ class BuchungenController extends BaseController
     }
 
     /**
-     * Buchung speichern
+     * Buchung speichern - ERWEITERT: Mit direktem Beleg-Upload
      */
     public function store()
     {
@@ -78,8 +79,45 @@ class BuchungenController extends BaseController
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
+        $belegOption = $this->request->getPost('beleg_option');
+        $belegId = null;
+
+        // BELEG-UPLOAD VERARBEITEN (wenn Option "beleg_upload" gewählt)
+        if ($belegOption === 'beleg_upload' && $this->request->getFile('beleg_datei')) {
+            $file = $this->request->getFile('beleg_datei');
+
+            // Prüfe ob Datei hochgeladen wurde
+            if ($file->isValid() && !$file->hasMoved()) {
+                // Validierung für Upload
+                $uploadRules = [
+                    'beleg_datei' => 'uploaded[beleg_datei]|max_size[beleg_datei,10240]|ext_in[beleg_datei,pdf,jpg,jpeg,png]',
+                    'beleg_rechnungsdatum' => 'required|valid_date'
+                ];
+
+                if (!$this->validate($uploadRules)) {
+                    return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+                }
+
+                // Beleg erstellen
+                try {
+                    $belegId = $this->erstelleNeuenBeleg($file);
+
+                    if (!$belegId) {
+                        return redirect()->back()->withInput()->with('error', 'Fehler beim Erstellen des Belegs.');
+                    }
+                } catch (\Exception $e) {
+                    log_message('error', 'Beleg-Upload bei Buchung fehlgeschlagen: ' . $e->getMessage());
+                    return redirect()->back()->withInput()->with('error', 'Fehler beim Beleg-Upload: ' . $e->getMessage());
+                }
+            }
+        } elseif ($belegOption === 'beleg_waehlen') {
+            // Bestehenden Beleg verwenden
+            $belegId = $this->request->getPost('beleg_id') ?: null;
+        }
+
+        // Buchungs-Daten zusammenstellen
         $data = [
-            'beleg_id' => $this->request->getPost('beleg_id') ?: null,
+            'beleg_id' => $belegId,
             'buchungsdatum' => $this->request->getPost('buchungsdatum'),
             'beschreibung' => $this->request->getPost('beschreibung'),
             'betrag' => $this->request->getPost('betrag'),
@@ -92,6 +130,104 @@ class BuchungenController extends BaseController
             return redirect()->to('/buchungen')->with('success', 'Buchung wurde erfolgreich erstellt!');
         } else {
             return redirect()->back()->withInput()->with('errors', $this->buchungModel->errors());
+        }
+    }
+
+    /**
+     * Erstellt einen neuen Beleg aus Datei-Upload
+     * Ähnlich wie BelegeController::store(), aber vereinfacht
+     *
+     * @param \CodeIgniter\Files\File $file
+     * @return int|false Beleg-ID oder false bei Fehler
+     */
+    private function erstelleNeuenBeleg($file)
+    {
+        // Datei-Informationen VOR dem Verschieben sammeln
+        $originalName = $file->getName();
+        $fileSize = $file->getSize();
+        $extension = $file->getExtension();
+
+        // MIME-Type bestimmen
+        try {
+            $mimeType = $file->getMimeType();
+        } catch (\Exception $e) {
+            $mimeTypes = [
+                'pdf' => 'application/pdf',
+                'jpg' => 'image/jpeg',
+                'jpeg' => 'image/jpeg',
+                'png' => 'image/png'
+            ];
+            $mimeType = $mimeTypes[strtolower($extension)] ?? 'application/octet-stream';
+        }
+
+        // Beleg-Daten aus Formular
+        $rechnungsdatum = $this->request->getPost('beleg_rechnungsdatum');
+        $lieferant = $this->request->getPost('beleg_lieferant') ?: null;
+        $kategorie = $this->request->getPost('beleg_kategorie') ?: 'normal';
+
+        // Beschreibung und Betrag von der Buchung übernehmen
+        $beschreibung = $this->request->getPost('beschreibung');
+        $betrag = $this->request->getPost('betrag');
+
+        // Belegnummer generieren
+        $belegnummer = $this->belegModel->generiereNaechsteBelegnummer($rechnungsdatum);
+
+        if ($this->belegModel->belegnummerExistiert($belegnummer)) {
+            throw new \Exception('Belegnummer existiert bereits. Bitte versuchen Sie es erneut.');
+        }
+
+        // Dateipfad und Namen generieren
+        $dateipfad = $this->belegModel->generiereDateipfad($rechnungsdatum);
+        $systemDateiname = $this->belegModel->generiereSystemDateiname($belegnummer, $extension);
+        $vollstaendigerPfad = $dateipfad . $systemDateiname;
+
+        // Verzeichnis erstellen falls nicht vorhanden
+        $this->erstelleVerzeichnisStruktur($dateipfad);
+
+        // Datei verschieben
+        $file->move(FCPATH . $dateipfad, $systemDateiname);
+
+        // Beleg-Daten für Datenbank
+        $belegData = [
+            'belegnummer' => $belegnummer,
+            'rechnungsdatum' => $rechnungsdatum,
+            'eingabedatum' => date('Y-m-d'),
+            'beschreibung' => $beschreibung,
+            'betrag' => $betrag,
+            'lieferant' => $lieferant,
+            'dateiname_original' => $originalName,
+            'dateiname_system' => $systemDateiname,
+            'dateipfad' => $vollstaendigerPfad,
+            'dateityp' => strtolower($extension),
+            'dateigroesse' => $fileSize,
+            'kategorie' => $kategorie,
+            'status' => 'erfasst',
+            'notizen' => 'Automatisch erstellt bei Buchung'
+        ];
+
+        // In Datenbank speichern
+        $belegId = $this->belegModel->insert($belegData);
+
+        if (!$belegId) {
+            // Datei wieder löschen bei DB-Fehler
+            if (file_exists(FCPATH . $vollstaendigerPfad)) {
+                unlink(FCPATH . $vollstaendigerPfad);
+            }
+            return false;
+        }
+
+        return $belegId;
+    }
+
+    /**
+     * Erstellt Verzeichnisstruktur (Helper)
+     */
+    private function erstelleVerzeichnisStruktur($pfad)
+    {
+        $vollstaendigerPfad = FCPATH . $pfad;
+
+        if (!is_dir($vollstaendigerPfad)) {
+            mkdir($vollstaendigerPfad, 0755, true);
         }
     }
 

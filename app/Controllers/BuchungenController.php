@@ -849,20 +849,28 @@ class BuchungenController extends BaseController
      */
     public function importAnalyse()
     {
+        // Prüfe ob POST-Request
+        if (!$this->request->is('post')) {
+            return redirect()->to('/buchungen/import')
+                ->with('error', 'Bitte laden Sie eine Backup-Datei hoch.');
+        }
+
+        // Validierung
         $rules = [
             'import_datei' => 'uploaded[import_datei]|max_size[import_datei,512000]|ext_in[import_datei,zip]'
         ];
 
         if (!$this->validate($rules)) {
-            return redirect()->back()
+            return redirect()->to('/buchungen/import')
                 ->withInput()
                 ->with('errors', $this->validator->getErrors());
         }
 
         $file = $this->request->getFile('import_datei');
 
-        if (!$file->isValid()) {
-            return redirect()->back()->with('error', 'Ungültige Datei.');
+        if (!$file || !$file->isValid()) {
+            return redirect()->to('/buchungen/import')
+                ->with('error', 'Ungültige Datei. Bitte wählen Sie eine ZIP-Datei aus.');
         }
 
         try {
@@ -881,8 +889,12 @@ class BuchungenController extends BaseController
             $vorschau = \App\Helpers\KassenbuchImportExportHelper::analysiereImportArchiv($zipPath);
 
             if (!$vorschau) {
-                unlink($zipPath);
-                return redirect()->back()->with('error', 'Keine gültige Backup-Datei.');
+                // Temporäre Datei löschen
+                if (file_exists($zipPath)) {
+                    unlink($zipPath);
+                }
+                return redirect()->to('/buchungen/import')
+                    ->with('error', 'Keine gültige Backup-Datei. Bitte stellen Sie sicher, dass die Datei vom VDSt Kassensystem erstellt wurde.');
             }
 
             // ZIP-Pfad in Session speichern für späteren Import
@@ -897,8 +909,14 @@ class BuchungenController extends BaseController
             return view('buchungen/import_vorschau', $data);
 
         } catch (\Exception $e) {
+            // Aufräumen bei Fehler
+            if (isset($zipPath) && file_exists($zipPath)) {
+                unlink($zipPath);
+            }
+
             log_message('error', 'Import-Analyse Fehler: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Fehler bei der Analyse: ' . $e->getMessage());
+            return redirect()->to('/buchungen/import')
+                ->with('error', 'Fehler bei der Analyse: ' . $e->getMessage());
         }
     }
 
@@ -907,6 +925,12 @@ class BuchungenController extends BaseController
      */
     public function importDurchfuehren()
     {
+        // Prüfe ob POST-Request
+        if (!$this->request->is('post')) {
+            return redirect()->to('/buchungen/import')
+                ->with('error', 'Ungültiger Zugriff. Bitte starten Sie den Import-Prozess neu.');
+        }
+
         $extractDir = session()->get('import_extract_dir');
         $zipPath = session()->get('import_zip_path');
 
@@ -973,29 +997,6 @@ class BuchungenController extends BaseController
             return redirect()->to('/buchungen/import')
                 ->with('error', 'Fehler beim Import: ' . $e->getMessage());
         }
-    }
-
-    /**
-     * Import abbrechen
-     */
-    public function importAbbrechen()
-    {
-        $extractDir = session()->get('import_extract_dir');
-        $zipPath = session()->get('import_zip_path');
-
-        // Aufräumen
-        if ($extractDir && is_dir($extractDir)) {
-            $this->deleteDirectory($extractDir);
-        }
-
-        if ($zipPath && file_exists($zipPath)) {
-            unlink($zipPath);
-        }
-
-        session()->remove('import_zip_path');
-        session()->remove('import_extract_dir');
-
-        return redirect()->to('/buchungen')->with('info', 'Import abgebrochen.');
     }
 
     /**

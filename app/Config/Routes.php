@@ -36,18 +36,23 @@ $routes->group('', ['filter' => 'auth'], function($routes) {
         $routes->post('update/(:num)', 'BuchungenController::update/$1');
         $routes->get('delete/(:num)', 'BuchungenController::delete/$1');
         $routes->get('getBelegDetails/(:num)', 'BuchungenController::getBelegDetails/$1');
-        // Export-Routen
+
+        // Export-Routen (normal)
         $routes->get('exportExcel', 'BuchungenController::exportExcel');
         $routes->get('export/excel', 'BuchungenController::exportExcelListe');
         $routes->get('export/zip', 'BuchungenController::exportZip');
 
         // ==================== KASSENBUCH IMPORT/EXPORT ====================
+        // WICHTIG: Keine zusätzlichen Filter hier - auth-Filter ist bereits aktiv!
 
-        $routes->get('backup/export', 'BuchungenController::exportKomplettBackup', ['filter' => 'auth']);
-        $routes->get('import', 'BuchungenController::import', ['filter' => 'auth']);
-        $routes->post('import/analyse', 'BuchungenController::importAnalyse', ['filter' => 'auth']);
-        $routes->post('import/durchfuehren', 'BuchungenController::importDurchfuehren', ['filter' => 'auth']);
-        $routes->get('import/abbrechen', 'BuchungenController::importAbbrechen', ['filter' => 'auth']);
+        // Backup Export
+        $routes->get('backup/export', 'BuchungenController::exportKomplettBackup');
+
+        // Import Workflow
+        $routes->get('import', 'BuchungenController::import');
+        $routes->post('import/analyse', 'BuchungenController::importAnalyse');
+        $routes->post('import/durchfuehren', 'BuchungenController::importDurchfuehren');
+        $routes->get('import/abbrechen', 'BuchungenController::importAbbrechen');
     });
 
     // ==================== BELEGE ====================
@@ -77,6 +82,7 @@ $routes->group('', ['filter' => 'auth'], function($routes) {
         $routes->get('preview/(:num)', 'AhAbrechnungenController::preview/$1');
         $routes->post('changeStatus/(:num)', 'AhAbrechnungenController::changeStatus/$1');
         $routes->get('exportExcel/(:num)', 'AhAbrechnungenController::exportExcel/$1');
+        $routes->get('downloadZip/(:num)', 'AhAbrechnungenController::downloadBelegeZip/$1');
         $routes->get('delete/(:num)', 'AhAbrechnungenController::delete/$1');
     });
 
@@ -93,6 +99,7 @@ $routes->group('', ['filter' => 'auth'], function($routes) {
         $routes->get('preview/(:num)', 'HvAbrechnungenController::preview/$1');
         $routes->post('changeStatus/(:num)', 'HvAbrechnungenController::changeStatus/$1');
         $routes->get('exportExcel/(:num)', 'HvAbrechnungenController::exportExcel/$1');
+        $routes->get('downloadZip/(:num)', 'HvAbrechnungenController::downloadBelegeZip/$1');
         $routes->get('delete/(:num)', 'HvAbrechnungenController::delete/$1');
     });
 
@@ -123,21 +130,3 @@ if (is_cli()) {
     $routes->cli('kassensystem/backup', 'CLIController::backup');
     $routes->cli('kassensystem/cleanup', 'CLIController::cleanup');
 }
-
-// ZIP-Downloads für Abrechnungen
-$routes->get('abrechnungen/ah/downloadZip/(:num)', 'AhAbrechnungenController::downloadBelegeZip/$1');
-$routes->get('abrechnungen/hv/downloadZip/(:num)', 'HvAbrechnungenController::downloadBelegeZip/$1');
-
-// Beleg-Management AJAX-Routen
-$routes->post('abrechnungen/ah/addBeleg/(:num)', 'AhAbrechnungenController::addBeleg/$1');
-$routes->post('abrechnungen/ah/removeBeleg/(:num)', 'AhAbrechnungenController::removeBeleg/$1');
-$routes->post('abrechnungen/hv/addBeleg/(:num)', 'HvAbrechnungenController::addBeleg/$1');
-$routes->post('abrechnungen/hv/removeBeleg/(:num)', 'HvAbrechnungenController::removeBeleg/$1');
-
-// Lösch-Routen
-$routes->get('abrechnungen/ah/delete/(:num)', 'AhAbrechnungenController::delete/$1');
-$routes->get('abrechnungen/hv/delete/(:num)', 'HvAbrechnungenController::delete/$1');
-
-// ZIP-Download Routen
-$routes->get('abrechnungen/ah/downloadZip/(:num)', 'AhAbrechnungenController::downloadBelegeZip/$1');
-$routes->get('abrechnungen/hv/downloadZip/(:num)', 'HvAbrechnungenController::downloadBelegeZip/$1');

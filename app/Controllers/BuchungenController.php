@@ -805,6 +805,247 @@ class BuchungenController extends BaseController
         ]);
     }
 
+    /**
+     * Komplettes Kassenbuch-Backup exportieren
+     */
+    public function exportKomplettBackup()
+    {
+        try {
+            require_once APPPATH . 'Helpers/KassenbuchImportExportHelper.php';
+
+            $zipPath = \App\Helpers\KassenbuchImportExportHelper::erstelleKomplettBackup();
+
+            if (!$zipPath || !file_exists($zipPath)) {
+                return redirect()->back()->with('error', 'Fehler beim Erstellen des Backups.');
+            }
+
+            $filename = basename($zipPath);
+
+            return $this->response->download($zipPath, null, true)
+                ->setFileName($filename)
+                ->setHeader('Content-Type', 'application/zip');
+
+        } catch (\Exception $e) {
+            log_message('error', 'Backup-Export Fehler: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Fehler beim Backup-Export: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Import-Seite anzeigen
+     */
+    public function import()
+    {
+        $data = [
+            'title' => 'Kassenbuch importieren',
+            'max_upload_size' => $this->getMaxUploadSize()
+        ];
+
+        return view('buchungen/import', $data);
+    }
+
+    /**
+     * Import-Datei analysieren und Vorschau anzeigen
+     */
+    public function importAnalyse()
+    {
+        $rules = [
+            'import_datei' => 'uploaded[import_datei]|max_size[import_datei,512000]|ext_in[import_datei,zip]'
+        ];
+
+        if (!$this->validate($rules)) {
+            return redirect()->back()
+                ->withInput()
+                ->with('errors', $this->validator->getErrors());
+        }
+
+        $file = $this->request->getFile('import_datei');
+
+        if (!$file->isValid()) {
+            return redirect()->back()->with('error', 'Ungültige Datei.');
+        }
+
+        try {
+            // Datei temporär speichern
+            $tempDir = WRITEPATH . 'temp/import/';
+            if (!is_dir($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+
+            $tempFilename = 'import_' . uniqid() . '.zip';
+            $file->move($tempDir, $tempFilename);
+            $zipPath = $tempDir . $tempFilename;
+
+            // Archiv analysieren
+            require_once APPPATH . 'Helpers/KassenbuchImportExportHelper.php';
+            $vorschau = \App\Helpers\KassenbuchImportExportHelper::analysiereImportArchiv($zipPath);
+
+            if (!$vorschau) {
+                unlink($zipPath);
+                return redirect()->back()->with('error', 'Keine gültige Backup-Datei.');
+            }
+
+            // ZIP-Pfad in Session speichern für späteren Import
+            session()->set('import_zip_path', $zipPath);
+            session()->set('import_extract_dir', $vorschau['extract_dir']);
+
+            $data = [
+                'title' => 'Import-Vorschau',
+                'vorschau' => $vorschau
+            ];
+
+            return view('buchungen/import_vorschau', $data);
+
+        } catch (\Exception $e) {
+            log_message('error', 'Import-Analyse Fehler: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Fehler bei der Analyse: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Import durchführen
+     */
+    public function importDurchfuehren()
+    {
+        $extractDir = session()->get('import_extract_dir');
+        $zipPath = session()->get('import_zip_path');
+
+        if (!$extractDir || !is_dir($extractDir)) {
+            return redirect()->to('/buchungen/import')
+                ->with('error', 'Keine Import-Daten gefunden. Bitte laden Sie die Datei erneut hoch.');
+        }
+
+        try {
+            // Import-Optionen aus Form
+            $optionen = [
+                'modus' => $this->request->getPost('import_modus') ?: 'merge',
+                'belegnummern_beibehalten' => true,
+                'datumsstempel_original' => true,
+                'beleg_dateien_kopieren' => $this->request->getPost('beleg_dateien_kopieren') === '1'
+            ];
+
+            // SICHERHEITS-BACKUP VOR IMPORT ERSTELLEN
+            require_once APPPATH . 'Helpers/KassenbuchImportExportHelper.php';
+            $sicherungsBackup = \App\Helpers\KassenbuchImportExportHelper::erstelleKomplettBackup();
+
+            if ($sicherungsBackup) {
+                log_message('info', 'Sicherungs-Backup vor Import erstellt: ' . basename($sicherungsBackup));
+            }
+
+            // Import durchführen
+            $protokoll = \App\Helpers\KassenbuchImportExportHelper::importiereKassenbuch($extractDir, $optionen);
+
+            // Aufräumen
+            if (file_exists($zipPath)) {
+                unlink($zipPath);
+            }
+            session()->remove('import_zip_path');
+            session()->remove('import_extract_dir');
+
+            if ($protokoll['erfolg']) {
+                // Erfolgs-Meldung mit Details
+                $message = sprintf(
+                    'Import erfolgreich abgeschlossen! Neu: %d Buchungen, %d Belege | Aktualisiert: %d Buchungen, %d Belege',
+                    $protokoll['buchungen']['neu'],
+                    $protokoll['belege']['neu'],
+                    $protokoll['buchungen']['aktualisiert'],
+                    $protokoll['belege']['aktualisiert']
+                );
+
+                // Protokoll in Session für Anzeige
+                session()->setFlashdata('import_protokoll', $protokoll);
+
+                return redirect()->to('/buchungen')->with('success', $message);
+            } else {
+                $fehler = implode(', ', $protokoll['fehler']);
+                return redirect()->to('/buchungen/import')
+                    ->with('error', 'Import fehlgeschlagen: ' . $fehler);
+            }
+
+        } catch (\Exception $e) {
+            log_message('error', 'Import-Durchführung Fehler: ' . $e->getMessage());
+
+            // Aufräumen bei Fehler
+            if (isset($zipPath) && file_exists($zipPath)) {
+                unlink($zipPath);
+            }
+
+            return redirect()->to('/buchungen/import')
+                ->with('error', 'Fehler beim Import: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Import abbrechen
+     */
+    public function importAbbrechen()
+    {
+        $extractDir = session()->get('import_extract_dir');
+        $zipPath = session()->get('import_zip_path');
+
+        // Aufräumen
+        if ($extractDir && is_dir($extractDir)) {
+            $this->deleteDirectory($extractDir);
+        }
+
+        if ($zipPath && file_exists($zipPath)) {
+            unlink($zipPath);
+        }
+
+        session()->remove('import_zip_path');
+        session()->remove('import_extract_dir');
+
+        return redirect()->to('/buchungen')->with('info', 'Import abgebrochen.');
+    }
+
+    /**
+     * Maximale Upload-Größe ermitteln
+     */
+    private function getMaxUploadSize()
+    {
+        $max_upload = ini_get('upload_max_filesize');
+        $max_post = ini_get('post_max_size');
+
+        $upload_mb = $this->parseSize($max_upload);
+        $post_mb = $this->parseSize($max_post);
+
+        return min($upload_mb, $post_mb);
+    }
+
+    /**
+     * Größenangaben parsen
+     */
+    private function parseSize($size)
+    {
+        $unit = preg_replace('/[^bkmgtpezy]/i', '', $size);
+        $size = preg_replace('/[^0-9\.]/', '', $size);
+
+        if ($unit) {
+            return round($size * pow(1024, stripos('bkmgtpezy', $unit[0])) / 1024 / 1024);
+        } else {
+            return round($size / 1024 / 1024);
+        }
+    }
+
+    /**
+     * Verzeichnis rekursiv löschen
+     */
+    private function deleteDirectory($dir)
+    {
+        if (!is_dir($dir)) {
+            return;
+        }
+
+        $files = array_diff(scandir($dir), ['.', '..']);
+
+        foreach ($files as $file) {
+            $path = $dir . '/' . $file;
+            is_dir($path) ? $this->deleteDirectory($path) : unlink($path);
+        }
+
+        rmdir($dir);
+    }
+
     // ==================== PRIVATE METHODS ====================
 
     /**

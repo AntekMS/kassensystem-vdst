@@ -86,36 +86,107 @@
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="d-flex justify-content-between align-items-center">
-                    <!-- Neue Buchung Button -->
-                    <div>
-                        <a href="<?= base_url('/buchungen/create') ?>" class="btn btn-vdst btn-lg">
-                            <strong>+ Neue Buchung</strong>
-                        </a>
+                    <!-- Aktionen und Filter -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <!-- Neue Buchung Button -->
+                                <div>
+                                    <a href="<?= base_url('/buchungen/create') ?>" class="btn btn-vdst btn-lg">
+                                        <strong>+ Neue Buchung</strong>
+                                    </a>
 
-                        <!-- Export-Dropdown -->
-                        <div class="btn-group">
-                            <button type="button" class="btn btn-outline-vdst dropdown-toggle" data-bs-toggle="dropdown">
-                                📊 Export
-                            </button>
-                            <ul class="dropdown-menu">
-                                <li>
-                                    <a class="dropdown-item" href="<?= base_url('/buchungen/exportExcel?' . http_build_query($filter)) ?>">
-                                        📋 Kassenbuch (Original-Format)
+                                    <!-- Export-Dropdown -->
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-outline-vdst dropdown-toggle" data-bs-toggle="dropdown">
+                                            📊 Export
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><h6 class="dropdown-header">Gefilterte Daten</h6></li>
+                                            <li>
+                                                <a class="dropdown-item" href="<?= base_url('/buchungen/exportExcel?' . http_build_query($filter)) ?>">
+                                                    📋 Kassenbuch (Original-Format)
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="<?= base_url('/buchungen/export/excel?' . http_build_query($filter)) ?>">
+                                                    📝 Nur Buchungen-Liste
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="<?= base_url('/buchungen/export/zip?' . http_build_query($filter)) ?>">
+                                                    📦 Kassenbuch + Buchungen + Belege (ZIP)
+                                                </a>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><h6 class="dropdown-header">Komplettes Backup</h6></li>
+                                            <li>
+                                                <a class="dropdown-item text-primary fw-bold"
+                                                   href="<?= base_url('/buchungen/backup/export') ?>"
+                                                   onclick="return confirm('Komplettes Backup erstellen?\n\nEnthält:\n• Alle Buchungen\n• Alle Belege + Dateien\n• Alle Abrechnungen\n• Alle Verknüpfungen\n• System-Einstellungen')">
+                                                    💾 Komplettes Backup erstellen
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    <!-- Import Button -->
+                                    <a href="<?= base_url('/buchungen/import') ?>" class="btn btn-outline-success">
+                                        📥 Kassenbuch importieren
                                     </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="<?= base_url('/buchungen/export/excel?' . http_build_query($filter)) ?>">
-                                        📝 Nur Buchungen-Liste
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="<?= base_url('/buchungen/export/zip?' . http_build_query($filter)) ?>">
-                                        📦 Kassenbuch + Buchungen + Belege (ZIP)
-                                    </a>
-                                </li>
-                            </ul>
+                                </div>
+
+                                <!-- Quick Stats -->
+                                <div class="text-end">
+                                    <small class="text-muted">
+                                        Buchungen heute: <strong><?= $stats['buchungen_heute'] ?></strong> |
+                                        Diesen Monat: <strong><?= $stats['buchungen_monat'] ?></strong> |
+                                        Ohne Beleg: <strong><?= $stats['ohne_beleg'] ?></strong>
+                                    </small>
+                                </div>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- OPTIONAL: Import-Protokoll-Anzeige (falls vorhanden nach Import) -->
+                    <?php if (session()->getFlashdata('import_protokoll')): ?>
+                        <?php $protokoll = session()->getFlashdata('import_protokoll'); ?>
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <h5 class="alert-heading">✅ Import erfolgreich abgeschlossen!</h5>
+                            <hr>
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <strong>Buchungen:</strong><br>
+                                    <span class="text-success">+<?= $protokoll['buchungen']['neu'] ?> neu</span><br>
+                                    <span class="text-info">↻<?= $protokoll['buchungen']['aktualisiert'] ?> aktualisiert</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Belege:</strong><br>
+                                    <span class="text-success">+<?= $protokoll['belege']['neu'] ?> neu</span><br>
+                                    <span class="text-info">↻<?= $protokoll['belege']['aktualisiert'] ?> aktualisiert</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Beleg-Dateien:</strong><br>
+                                    <span class="text-success">📁 <?= $protokoll['beleg_dateien']['kopiert'] ?> kopiert</span><br>
+                                    <?php if ($protokoll['beleg_dateien']['fehlend'] > 0): ?>
+                                        <span class="text-warning">⚠️ <?= $protokoll['beleg_dateien']['fehlend'] ?> fehlend</span>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Abrechnungen:</strong><br>
+                                    <span class="text-info">AH²: +<?= $protokoll['ah_abrechnungen']['neu'] ?></span><br>
+                                    <span class="text-info">HV: +<?= $protokoll['hv_abrechnungen']['neu'] ?></span>
+                                </div>
+                            </div>
+                            <hr>
+                            <p class="mb-0">
+                                <small class="text-muted">
+                                    Zeitraum: <?= $protokoll['start'] ?> bis <?= $protokoll['ende'] ?>
+                                </small>
+                            </p>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    <?php endif; ?>
 
                     <!-- Quick Stats -->
                     <div class="text-end">

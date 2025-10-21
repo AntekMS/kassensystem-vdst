@@ -308,8 +308,8 @@
 <script>
     // Session Management
     let sessionStartTime = <?= session('login_time') ?? time() ?> * 1000; // Convert to milliseconds
-    const sessionTimeout = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
-    const warningTime = 15 * 60 * 1000; // Show warning 15 minutes before timeout
+    const sessionTimeout = 0.5 * 60 * 60 * 1000; // 0.5 hours in milliseconds
+    const warningTime = 5 * 60 * 1000; // Show warning 5 minutes before timeout
 
     // Einfache Bestätigungsdialoge
     function confirmDelete(message = 'Sind Sie sicher, dass Sie diesen Eintrag löschen möchten?') {
@@ -410,7 +410,7 @@
             if (alertDiv.parentNode) {
                 alertDiv.remove();
             }
-        }, 3000);
+        }, 20000);
     }
 
     // Auto-hide alerts after 5 seconds
@@ -429,7 +429,7 @@
                         bsAlert.close();
                     }
                 }
-            }, 5000);
+            }, 20000);
         });
 
         // Activity Detection für automatische Session-Verlängerung

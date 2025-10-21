@@ -41,6 +41,13 @@ $routes->group('', ['filter' => 'auth'], function($routes) {
         $routes->get('export/excel', 'BuchungenController::exportExcelListe');
         $routes->get('export/zip', 'BuchungenController::exportZip');
 
+        // ==================== KASSENBUCH IMPORT/EXPORT ====================
+
+        $routes->get('backup/export', 'BuchungenController::exportKomplettBackup', ['filter' => 'auth']);
+        $routes->get('import', 'BuchungenController::import', ['filter' => 'auth']);
+        $routes->post('import/analyse', 'BuchungenController::importAnalyse', ['filter' => 'auth']);
+        $routes->post('import/durchfuehren', 'BuchungenController::importDurchfuehren', ['filter' => 'auth']);
+        $routes->get('import/abbrechen', 'BuchungenController::importAbbrechen', ['filter' => 'auth']);
     });
 
     // ==================== BELEGE ====================

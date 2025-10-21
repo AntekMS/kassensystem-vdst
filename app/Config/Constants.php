@@ -77,3 +77,28 @@ defined('EXIT_USER_INPUT')     || define('EXIT_USER_INPUT', 7);     // invalid u
 defined('EXIT_DATABASE')       || define('EXIT_DATABASE', 8);       // database error
 defined('EXIT__AUTO_MIN')      || define('EXIT__AUTO_MIN', 9);      // lowest automatically-assigned error code
 defined('EXIT__AUTO_MAX')      || define('EXIT__AUTO_MAX', 125);    // highest automatically-assigned error code
+
+
+/*
+ |--------------------------------------------------------------------------
+ | VDSt Kassensystem Version
+ |--------------------------------------------------------------------------
+ */
+defined('VDST_VERSION')       || define('VDST_VERSION', '1.0.x');
+defined('VDST_VERSION_DATE')  || define('VDST_VERSION_DATE', '2025-21-10');
+defined('VDST_SYSTEM_NAME')   || define('VDST_SYSTEM_NAME', 'VDSt Kassensystem');
+
+/*
+ |--------------------------------------------------------------------------
+ | Verwendung in der Anwendung:
+ |--------------------------------------------------------------------------
+ */
+
+// In Views:
+// <?= VDST_VERSION
+
+// In Controllern:
+// $version = VDST_VERSION;
+
+// In Helper:
+// 'kassensystem_version' => VDST_VERSION,

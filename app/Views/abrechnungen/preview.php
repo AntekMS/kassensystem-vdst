@@ -319,6 +319,7 @@
                             <a href="<?= base_url('/abrechnungen/' . $typ . '/downloadZip/' . $abrechnung['id']) ?>"
                                class="btn btn-dark w-100">
                                 📁 ZIP-Archiv herunterladen
+
                             </a>
                         </div>
                     </div>

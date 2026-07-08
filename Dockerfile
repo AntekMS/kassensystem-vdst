@@ -76,8 +76,8 @@ RUN echo '<Directory /var/www/html/>\n\
 
 RUN a2enconf codeigniter
 
-# Setze DocumentRoot auf Hauptverzeichnis (falls kein public/ Ordner)
-RUN sed -i 's|/var/www/html/public|/var/www/html|g' /etc/apache2/sites-available/000-default.conf
+# Setze DocumentRoot auf den CodeIgniter public/ Ordner (Front-Controller)
+RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
 
 # Setze ServerName für korrekte Base URL Erkennung
 RUN echo "ServerName localhost:8080" >> /etc/apache2/apache2.conf

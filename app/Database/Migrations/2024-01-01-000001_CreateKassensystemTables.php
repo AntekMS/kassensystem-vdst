@@ -3,6 +3,7 @@
 namespace App\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
+use CodeIgniter\Database\RawSql;
 
 /**
  * VDStE Kassensystem - Database Migration
@@ -89,17 +90,18 @@ class CreateKassensystemTables extends Migration
             ],
             'created_at' => [
                 'type' => 'TIMESTAMP',
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => new RawSql('CURRENT_TIMESTAMP'),
             ],
             'updated_at' => [
                 'type' => 'TIMESTAMP',
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => new RawSql('CURRENT_TIMESTAMP'),
                 'on_update' => 'CURRENT_TIMESTAMP',
             ],
         ]);
 
         $this->forge->addPrimaryKey('id');
-        $this->forge->addKey('belegnummer');
+        // belegnummer already has a UNIQUE index from 'unique' => true above;
+        // a plain addKey('belegnummer') here would create a duplicate index name.
         $this->forge->addKey('rechnungsdatum');
         $this->forge->addKey('status');
         $this->forge->addKey('kategorie');
@@ -148,11 +150,11 @@ class CreateKassensystemTables extends Migration
             ],
             'created_at' => [
                 'type' => 'TIMESTAMP',
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => new RawSql('CURRENT_TIMESTAMP'),
             ],
             'updated_at' => [
                 'type' => 'TIMESTAMP',
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => new RawSql('CURRENT_TIMESTAMP'),
                 'on_update' => 'CURRENT_TIMESTAMP',
             ],
         ]);
@@ -212,11 +214,11 @@ class CreateKassensystemTables extends Migration
             ],
             'created_at' => [
                 'type' => 'TIMESTAMP',
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => new RawSql('CURRENT_TIMESTAMP'),
             ],
             'updated_at' => [
                 'type' => 'TIMESTAMP',
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => new RawSql('CURRENT_TIMESTAMP'),
                 'on_update' => 'CURRENT_TIMESTAMP',
             ],
         ]);
@@ -280,11 +282,11 @@ class CreateKassensystemTables extends Migration
             ],
             'created_at' => [
                 'type' => 'TIMESTAMP',
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => new RawSql('CURRENT_TIMESTAMP'),
             ],
             'updated_at' => [
                 'type' => 'TIMESTAMP',
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => new RawSql('CURRENT_TIMESTAMP'),
                 'on_update' => 'CURRENT_TIMESTAMP',
             ],
         ]);
@@ -321,7 +323,7 @@ class CreateKassensystemTables extends Migration
             ],
             'hinzugefuegt_am' => [
                 'type' => 'TIMESTAMP',
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => new RawSql('CURRENT_TIMESTAMP'),
             ],
         ]);
 
@@ -357,7 +359,7 @@ class CreateKassensystemTables extends Migration
             ],
             'updated_at' => [
                 'type' => 'TIMESTAMP',
-                'default' => 'CURRENT_TIMESTAMP',
+                'default' => new RawSql('CURRENT_TIMESTAMP'),
                 'on_update' => 'CURRENT_TIMESTAMP',
             ],
         ]);

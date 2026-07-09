@@ -1,12 +1,12 @@
 <?= $this->extend('layouts/main') ?>
 
-<?= $this->section('title') ?>Beleg bearbeiten: <?= $beleg['belegnummer'] ?><?= $this->endSection() ?>
+<?= $this->section('title') ?>Beleg bearbeiten: <?= esc($beleg['belegnummer']) ?><?= $this->endSection() ?>
 
 <?= $this->section('content') ?>
     <div class="container-fluid">
         <!-- Page Title -->
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="page-title">Beleg bearbeiten: <?= $beleg['belegnummer'] ?></h1>
+            <h1 class="page-title">Beleg bearbeiten: <?= esc($beleg['belegnummer']) ?></h1>
             <div>
                 <a href="<?= base_url('/belege/show/' . $beleg['id']) ?>" class="btn btn-outline-vdst">
                     👁️ Ansicht
@@ -46,7 +46,7 @@
                                            value="<?= old('rechnungsdatum', $beleg['rechnungsdatum']) ?>"
                                            required>
                                     <?php if (isset($errors['rechnungsdatum'])): ?>
-                                        <div class="invalid-feedback"><?= $errors['rechnungsdatum'] ?></div>
+                                        <div class="invalid-feedback"><?= esc($errors['rechnungsdatum']) ?></div>
                                     <?php endif; ?>
                                     <small class="text-muted">
                                         Aktuell: <?= date('d.m.Y', strtotime($beleg['rechnungsdatum'])) ?>
@@ -67,7 +67,7 @@
                                                required>
                                         <span class="input-group-text">€</span>
                                         <?php if (isset($errors['betrag'])): ?>
-                                            <div class="invalid-feedback"><?= $errors['betrag'] ?></div>
+                                            <div class="invalid-feedback"><?= esc($errors['betrag']) ?></div>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -83,7 +83,7 @@
                                            class="form-control"
                                            id="lieferant"
                                            name="lieferant"
-                                           value="<?= old('lieferant', $beleg['lieferant']) ?>"
+                                           value="<?= esc(old('lieferant', $beleg['lieferant'] ?? ''), 'attr') ?>"
                                            placeholder="z.B. Amazon, Metro, Netto">
                                 </div>
                                 <div class="col-md-6">
@@ -101,7 +101,7 @@
                                         <?php endforeach; ?>
                                     </select>
                                     <?php if (isset($errors['kategorie'])): ?>
-                                        <div class="invalid-feedback"><?= $errors['kategorie'] ?></div>
+                                        <div class="invalid-feedback"><?= esc($errors['kategorie']) ?></div>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -115,9 +115,9 @@
                                           id="beschreibung"
                                           name="beschreibung"
                                           rows="3"
-                                          required><?= old('beschreibung', $beleg['beschreibung']) ?></textarea>
+                                          required><?= esc(old('beschreibung', $beleg['beschreibung'])) ?></textarea>
                                 <?php if (isset($errors['beschreibung'])): ?>
-                                    <div class="invalid-feedback"><?= $errors['beschreibung'] ?></div>
+                                    <div class="invalid-feedback"><?= esc($errors['beschreibung']) ?></div>
                                 <?php endif; ?>
                             </div>
 
@@ -129,7 +129,7 @@
                                 <textarea class="form-control"
                                           id="notizen"
                                           name="notizen"
-                                          rows="2"><?= old('notizen', $beleg['notizen']) ?></textarea>
+                                          rows="2"><?= esc(old('notizen', $beleg['notizen'] ?? '')) ?></textarea>
                             </div>
                         </div>
                     </div>
@@ -145,7 +145,7 @@
                             <table class="table table-sm">
                                 <tr>
                                     <td><strong>Belegnummer:</strong></td>
-                                    <td><?= $beleg['belegnummer'] ?></td>
+                                    <td><?= esc($beleg['belegnummer']) ?></td>
                                 </tr>
                                 <tr>
                                     <td><strong>Eingabedatum:</strong></td>
@@ -155,7 +155,7 @@
                                     <td><strong>Status:</strong></td>
                                     <td>
                                     <span class="badge bg-secondary">
-                                        <?= ucfirst($beleg['status']) ?>
+                                        <?= beleg_status_label($beleg['status']) ?>
                                     </span>
                                     </td>
                                 </tr>

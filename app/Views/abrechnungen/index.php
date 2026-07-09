@@ -5,7 +5,7 @@
 <?= $this->section('content') ?>
     <div class="container-fluid">
         <!-- Page Title -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
             <h1 class="page-title">
                 <?= $typ === 'ah' ? 'AH² Abrechnungen' : 'Heimverein Abrechnungen' ?>
             </h1>
@@ -112,15 +112,9 @@
                                             'eingereicht' => 'info',
                                             'bezahlt' => 'success'
                                         ];
-                                        $statusLabels = [
-                                            'entwurf' => 'Entwurf',
-                                            'ausstehend' => 'Ausstehend',
-                                            'eingereicht' => 'Eingereicht',
-                                            'bezahlt' => 'Bezahlt'
-                                        ];
                                         ?>
                                         <span class="badge bg-<?= $statusColors[$abrechnung['status']] ?> badge-sm">
-                                        <?= $statusLabels[$abrechnung['status']] ?>
+                                        <?= abrechnung_status_label($abrechnung['status']) ?>
                                     </span>
                                     </td>
                                     <td class="text-center">
@@ -167,12 +161,14 @@
                                             <?php endif; ?>
 
                                             <?php if (in_array($abrechnung['status'], ['entwurf', 'ausstehend'])): ?>
-                                                <a href="<?= base_url('/abrechnungen/' . $typ . '/delete/' . $abrechnung['id']) ?>"
-                                                   class="btn btn-outline-danger btn-sm"
-                                                   onclick="return confirmDelete('<?= esc($abrechnung['titel']) ?>', '<?= $abrechnung['status'] ?>')"
-                                                   title="Abrechnung löschen">
-                                                    🗑️ Löschen
-                                                </a>
+                                                <form method="post" class="d-inline"
+                                                      action="<?= base_url('/abrechnungen/' . $typ . '/delete/' . $abrechnung['id']) ?>"
+                                                      onsubmit="return confirmDelete('Abrechnung <?= esc($abrechnung['titel'], 'js') ?> wirklich löschen? Die Beleg-Zuordnungen werden entfernt, die Belege bleiben erhalten.')">
+                                                    <?= csrf_field() ?>
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Abrechnung löschen">
+                                                        🗑️ Löschen
+                                                    </button>
+                                                </form>
                                             <?php endif; ?>
                                         </div>
                                     </td>
@@ -197,212 +193,5 @@
             </div>
         </div>
 
-        <!-- Status-Change Modal für Quick-Updates -->
-        <div class="modal fade" id="statusModal" tabindex="-1">
-            <div class="modal-dialog modal-sm">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Status ändern</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <form id="statusForm" method="post">
-                        <div class="modal-body">
-                            <input type="hidden" id="statusAbrechnungId" name="abrechnung_id">
-                            <div class="mb-3">
-                                <label class="form-label">Neuer Status:</label>
-                                <select name="status" class="form-control" required>
-                                    <option value="entwurf">Entwurf</option>
-                                    <option value="ausstehend">Ausstehend</option>
-                                    <option value="eingereicht">Eingereicht</option>
-                                    <option value="bezahlt">Bezahlt</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                            <button type="submit" class="btn btn-vdst">Status ändern</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
     </div>
-<?= $this->endSection() ?>
-
-<?= $this->section('scripts') ?>
-    <script>
-        // Status-Change Modal
-        function changeStatus(abrechnungId, currentStatus) {
-            document.getElementById('statusAbrechnungId').value = abrechnungId;
-            document.getElementById('statusForm').action =
-                '<?= base_url('/abrechnungen/' . $typ . '/changeStatus/') ?>' + abrechnungId;
-
-            // Aktuellen Status vorauswählen
-            const statusSelect = document.querySelector('#statusModal select[name="status"]');
-            statusSelect.value = currentStatus;
-
-            // Modal anzeigen
-            const modal = new bootstrap.Modal(document.getElementById('statusModal'));
-            modal.show();
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            // Status-Badge Klicks für Quick-Change
-            document.querySelectorAll('.badge[data-status]').forEach(badge => {
-                badge.style.cursor = 'pointer';
-                badge.addEventListener('click', function() {
-                    const abrechnungId = this.dataset.abrechnungId;
-                    const currentStatus = this.dataset.status;
-                    changeStatus(abrechnungId, currentStatus);
-                });
-            });
-
-            // Export-Download Feedback
-            initializeExportFeedback();
-        });
-
-        function initializeExportFeedback() {
-            // ZIP-Download mit Loading-Indikator
-            const zipLinks = document.querySelectorAll('a[href*="/downloadZip/"]');
-
-            zipLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    showLoadingToast('ZIP-Archiv wird erstellt...', 'Das kann einen Moment dauern.');
-
-                    setTimeout(() => {
-                        hideLoadingToast();
-                        showSuccessToast('ZIP-Download gestartet!', 'Das Archiv wurde erstellt und der Download gestartet.');
-                    }, 2000);
-                });
-            });
-
-            // Excel-Download Feedback
-            const excelLinks = document.querySelectorAll('a[href*="/exportExcel/"]');
-
-            excelLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    showSuccessToast('Excel-Export gestartet!', 'Die Datei wird heruntergeladen.');
-                });
-            });
-        }
-
-        function showLoadingToast(title, message) {
-            const toastHtml = `
-                <div class="toast-container position-fixed top-0 end-0 p-3">
-                    <div id="loadingToast" class="toast show" role="alert">
-                        <div class="toast-header bg-info text-white">
-                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                            <strong class="me-auto">${title}</strong>
-                        </div>
-                        <div class="toast-body">${message}</div>
-                    </div>
-                </div>
-            `;
-
-            document.body.insertAdjacentHTML('beforeend', toastHtml);
-        }
-
-        function hideLoadingToast() {
-            const loadingToast = document.getElementById('loadingToast');
-            if (loadingToast) {
-                loadingToast.remove();
-            }
-        }
-
-        function showSuccessToast(title, message) {
-            const toastHtml = `
-                <div class="toast-container position-fixed top-0 end-0 p-3">
-                    <div class="toast show" role="alert" data-bs-autohide="true" data-bs-delay="3000">
-                        <div class="toast-header bg-success text-white">
-                            <strong class="me-auto">${title}</strong>
-                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-                        </div>
-                        <div class="toast-body">${message}</div>
-                    </div>
-                </div>
-            `;
-
-            document.body.insertAdjacentHTML('beforeend', toastHtml);
-        }
-            // Verbesserte Lösch-Bestätigung
-            function confirmDelete(titel, status) {
-            const statusText = status === 'entwurf' ? 'Entwurf' : 'Ausstehende Abrechnung';
-            const message = `${statusText} "${titel}" wirklich löschen?\n\n` +
-            `⚠️ ACHTUNG:\n` +
-            `• Alle Beleg-Zuordnungen werden entfernt\n` +
-            `• Die Belege selbst bleiben erhalten\n` +
-            `• Diese Aktion kann nicht rückgängig gemacht werden\n\n` +
-            `Fortfahren?`;
-
-            return confirm(message);
-        }
-
-            // Zusätzliche Debugging-Funktion für AJAX-Requests
-            function debugRemoveBeleg(belegId, abrechnungId, typ) {
-            console.log('removeBeleg Debug:', {
-                belegId: belegId,
-                abrechnungId: abrechnungId,
-                typ: typ,
-                url: `${baseUrl}/abrechnungen/${typ}/removeBeleg/${abrechnungId}`
-            });
-        }
-
-            // Erweiterte removeBelegFromAbrechnung Funktion mit besserem Error-Handling
-            function removeBelegFromAbrechnung(belegId) {
-            // Debug-Info
-            debugRemoveBeleg(belegId, abrechnungId, abrechnungTyp);
-
-            const formData = new FormData();
-            formData.append('beleg_id', belegId);
-            // CSRF-Token falls verfügbar
-            if (typeof csrfToken !== 'undefined' && typeof csrfHash !== 'undefined') {
-            formData.append(csrfToken, csrfHash);
-        }
-
-            const url = `${baseUrl}/abrechnungen/${abrechnungTyp}/removeBeleg/${abrechnungId}`;
-
-            fetch(url, {
-            method: 'POST',
-            body: formData,
-            headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-        })
-            .then(response => {
-            console.log('Response Status:', response.status);
-            if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-            return response.json();
-        })
-            .then(data => {
-            console.log('Response Data:', data);
-
-            if (data.success) {
-            // Beleg aus DOM entfernen
-            const belegElement = document.querySelector(`.zugeordneter-beleg[data-beleg-id="${belegId}"]`);
-            if (belegElement) {
-            belegElement.remove();
-        }
-
-            // UI aktualisieren
-            updateGesamtsumme(data.neue_gesamtsumme);
-            updateBelegAnzahl();
-
-            showMessage(data.message, 'success');
-
-            // Seite nach kurzer Verzögerung neu laden um verfügbare Belege zu aktualisieren
-            setTimeout(() => {
-            location.reload();
-        }, 1000);
-        } else {
-            showMessage(data.message || 'Unbekannter Fehler beim Entfernen', 'error');
-        }
-        })
-            .catch(error => {
-            console.error('Fetch Error:', error);
-            showMessage(`Fehler beim Entfernen des Belegs: ${error.message}`, 'error');
-        });
-        }
-    </script>
 <?= $this->endSection() ?>

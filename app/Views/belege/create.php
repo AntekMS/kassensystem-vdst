@@ -60,7 +60,7 @@
                                    required>
 
                             <?php if (isset($errors['beleg_datei'])): ?>
-                                <div class="invalid-feedback d-block"><?= $errors['beleg_datei'] ?></div>
+                                <div class="invalid-feedback d-block"><?= esc($errors['beleg_datei']) ?></div>
                             <?php endif; ?>
 
                             <!-- Upload-Hinweise -->
@@ -97,7 +97,7 @@
                                            value="<?= old('rechnungsdatum', date('Y-m-d')) ?>"
                                            required>
                                     <?php if (isset($errors['rechnungsdatum'])): ?>
-                                        <div class="invalid-feedback"><?= $errors['rechnungsdatum'] ?></div>
+                                        <div class="invalid-feedback"><?= esc($errors['rechnungsdatum']) ?></div>
                                     <?php endif; ?>
                                     <small class="text-muted">Datum auf der Rechnung (bestimmt die Belegnummer)</small>
                                 </div>
@@ -117,7 +117,7 @@
                                                required>
                                         <span class="input-group-text">€</span>
                                         <?php if (isset($errors['betrag'])): ?>
-                                            <div class="invalid-feedback"><?= $errors['betrag'] ?></div>
+                                            <div class="invalid-feedback"><?= esc($errors['betrag']) ?></div>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -133,7 +133,7 @@
                                            class="form-control"
                                            id="lieferant"
                                            name="lieferant"
-                                           value="<?= old('lieferant') ?>"
+                                           value="<?= esc(old('lieferant') ?? '', 'attr') ?>"
                                            placeholder="z.B. Amazon, Rewe, Baumarkt...">
                                     <small class="text-muted">Name des Geschäfts oder Anbieters</small>
                                 </div>
@@ -153,7 +153,7 @@
                                         <?php endforeach; ?>
                                     </select>
                                     <?php if (isset($errors['kategorie'])): ?>
-                                        <div class="invalid-feedback"><?= $errors['kategorie'] ?></div>
+                                        <div class="invalid-feedback"><?= esc($errors['kategorie']) ?></div>
                                     <?php endif; ?>
                                     <small class="text-muted">Bestimmt, für welche Abrechnungen der Beleg verfügbar ist</small>
                                 </div>
@@ -169,9 +169,9 @@
                                           name="beschreibung"
                                           rows="3"
                                           placeholder="Was wurde gekauft oder bezahlt? (z.B. Büromaterial, Verpflegung für Veranstaltung...)"
-                                          required><?= old('beschreibung') ?></textarea>
+                                          required><?= esc(old('beschreibung') ?? '') ?></textarea>
                                 <?php if (isset($errors['beschreibung'])): ?>
-                                    <div class="invalid-feedback"><?= $errors['beschreibung'] ?></div>
+                                    <div class="invalid-feedback"><?= esc($errors['beschreibung']) ?></div>
                                 <?php endif; ?>
                                 <small class="text-muted">Kurze, aber aussagekräftige Beschreibung der Ausgabe</small>
                             </div>
@@ -185,7 +185,7 @@
                                           id="notizen"
                                           name="notizen"
                                           rows="2"
-                                          placeholder="Weitere Informationen, Anmerkungen oder Besonderheiten..."><?= old('notizen') ?></textarea>
+                                          placeholder="Weitere Informationen, Anmerkungen oder Besonderheiten..."><?= esc(old('notizen') ?? '') ?></textarea>
                             </div>
 
                             <!-- Info-Box -->
@@ -361,52 +361,6 @@
                 }, 5000);
             });
 
-            // Keyboard Shortcuts
-            document.addEventListener('keydown', function(e) {
-                // Ctrl+S = Form speichern
-                if (e.ctrlKey && e.key === 's') {
-                    e.preventDefault();
-                    form.submit();
-                }
-
-                // Escape = Zurück zur Übersicht
-                if (e.key === 'Escape') {
-                    if (confirm('Eingabe abbrechen und zur Übersicht zurückkehren?')) {
-                        window.location.href = '<?= base_url('/belege') ?>';
-                    }
-                }
-            });
-
-            // Automatische Beschreibung basierend auf Bezugsquelle
-            const lieferantInput = document.getElementById('lieferant');
-            const beschreibungInput = document.getElementById('beschreibung');
-
-            lieferantInput.addEventListener('blur', function() {
-                if (this.value && !beschreibungInput.value) {
-                    // Vorschlag basierend auf häufigen Bezugsquellen
-                    const suggestions = {
-                        'amazon': 'Büromaterial',
-                        'rewe': 'Verpflegung',
-                        'baumarkt': 'Handwerksmaterial',
-                        'tankstelle': 'Kraftstoff',
-                        'post': 'Porto/Versand',
-                        'bahn': 'Fahrtkosten',
-                        'hotel': 'Übernachtung'
-                    };
-
-                    const suggestion = Object.keys(suggestions).find(key =>
-                        this.value.toLowerCase().includes(key)
-                    );
-
-                    if (suggestion) {
-                        beschreibungInput.value = suggestions[suggestion];
-                        beschreibungInput.focus();
-                    }
-                }
-            });
-
-            console.log('📄 Beleg-Upload-Formular geladen');
-            console.log('⌨️ Shortcuts: Ctrl+S (Speichern), ESC (Abbrechen)');
         });
     </script>
 <?= $this->endSection() ?>

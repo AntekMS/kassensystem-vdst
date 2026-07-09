@@ -1,12 +1,12 @@
 <?= $this->extend('layouts/main') ?>
 
-<?= $this->section('title') ?>Beleg <?= $beleg['belegnummer'] ?><?= $this->endSection() ?>
+<?= $this->section('title') ?>Beleg <?= esc($beleg['belegnummer']) ?><?= $this->endSection() ?>
 
 <?= $this->section('content') ?>
     <div class="container-fluid">
         <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="page-title">Beleg: <?= $beleg['belegnummer'] ?></h1>
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+            <h1 class="page-title">Beleg: <?= esc($beleg['belegnummer']) ?></h1>
             <div>
                 <a href="<?= base_url('/belege') ?>" class="btn btn-outline-vdst">
                     ← Zurück zur Übersicht
@@ -20,12 +20,14 @@
                     📥 Download
                 </a>
                 <?php if (empty($abrechnungen) && $beleg['status'] === 'erfasst'): ?>
-                    <a href="<?= base_url('/belege/delete/' . $beleg['id']) ?>"
-                       class="btn btn-danger"
-                       onclick="return confirmDelete('Beleg <?= $beleg['belegnummer'] ?> wirklich löschen? Die Datei wird ebenfalls unwiderruflich gelöscht!')"
-                       title="Beleg und Datei löschen">
-                        🗑️ Löschen
-                    </a>
+                    <form method="post" class="d-inline"
+                          action="<?= base_url('/belege/delete/' . $beleg['id']) ?>"
+                          onsubmit="return confirmDelete('Beleg <?= esc($beleg['belegnummer'], 'js') ?> wirklich löschen? Die Datei wird ebenfalls unwiderruflich gelöscht!')">
+                        <?= csrf_field() ?>
+                        <button type="submit" class="btn btn-danger" title="Beleg und Datei löschen">
+                            🗑️ Löschen
+                        </button>
+                    </form>
                 <?php endif; ?>
             </div>
         </div>
@@ -41,7 +43,7 @@
                         <table class="table table-sm">
                             <tr>
                                 <td><strong>Belegnummer:</strong></td>
-                                <td><?= $beleg['belegnummer'] ?></td>
+                                <td><?= esc($beleg['belegnummer']) ?></td>
                             </tr>
                             <tr>
                                 <td><strong>Rechnungsdatum:</strong></td>
@@ -61,20 +63,13 @@
                             </tr>
                             <tr>
                                 <td><strong>Bezugsquelle:</strong></td>
-                                <td><?= $beleg['lieferant'] ?: '<span class="text-muted">Nicht angegeben</span>' ?></td>
+                                <td><?= $beleg['lieferant'] ? esc($beleg['lieferant']) : '<span class="text-muted">Nicht angegeben</span>' ?></td>
                             </tr>
                             <tr>
                                 <td><strong>Kategorie:</strong></td>
                                 <td>
                                 <span class="badge bg-<?= $beleg['kategorie'] === 'normal' ? 'secondary' : 'primary' ?>">
-                                    <?php
-                                    $kategorien = [
-                                        'normal' => 'Normal',
-                                        'ah_berechtigt' => 'AH² berechtigt',
-                                        'hv_berechtigt' => 'HV berechtigt'
-                                    ];
-                                    echo $kategorien[$beleg['kategorie']] ?? $beleg['kategorie'];
-                                    ?>
+                                    <?= kategorie_label($beleg['kategorie']) ?>
                                 </span>
                                 </td>
                             </tr>
@@ -82,15 +77,7 @@
                                 <td><strong>Status:</strong></td>
                                 <td>
                                 <span class="badge bg-<?= $beleg['status'] === 'erfasst' ? 'secondary' : 'info' ?>">
-                                    <?php
-                                    $status = [
-                                        'erfasst' => 'Erfasst',
-                                        'in_abrechnung' => 'In Abrechnung',
-                                        'abgerechnet' => 'Abgerechnet',
-                                        'bezahlt' => 'Bezahlt'
-                                    ];
-                                    echo $status[$beleg['status']] ?? $beleg['status'];
-                                    ?>
+                                    <?= beleg_status_label($beleg['status']) ?>
                                 </span>
                                 </td>
                             </tr>
@@ -164,7 +151,7 @@
                             </span>
                                     <strong><?= esc($abrechnung['titel']) ?></strong><br>
                                     <small class="text-muted">
-                                        Status: <?= $abrechnung['status'] ?> |
+                                        Status: <?= abrechnung_status_label($abrechnung['status']) ?> |
                                         Hinzugefügt: <?= date('d.m.Y H:i', strtotime($abrechnung['hinzugefuegt_am'])) ?>
                                     </small>
                                 </div>
@@ -290,16 +277,5 @@
             document.getElementById('modalImage').src = imageSrc;
             modal.show();
         }
-
-        // Tastatur-Navigation
-        document.addEventListener('keydown', function(e) {
-            // ESC zum Schließen der Modals
-            if (e.key === 'Escape') {
-                const modals = document.querySelectorAll('.modal.show');
-                modals.forEach(modal => {
-                    bootstrap.Modal.getInstance(modal)?.hide();
-                });
-            }
-        });
     </script>
 <?= $this->endSection() ?>

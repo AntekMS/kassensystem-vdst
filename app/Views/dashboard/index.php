@@ -17,15 +17,7 @@
                 <div class="col-md-3">
                     <div class="card kontostand-card">
                         <div class="card-header">
-                            <?php
-                            // Direkte Konto-Namen-Zuordnung (Test)
-                            $kontoNamen = [
-                                'aktivenkasse' => 'Aktivenkasse',
-                                'getraenkekasse' => 'Getränkekasse',
-                                'barkasse' => 'Barkasse'
-                            ];
-                            echo $kontoNamen[$konto] ?? ucfirst($konto);
-                            ?>
+                            <?= konto_label($konto) ?>
                         </div>
                         <div class="card-body text-center">
                             <h3 class="<?= $daten['saldo'] >= 0 ? 'saldo-positiv' : 'saldo-negativ' ?>">
@@ -43,7 +35,7 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <strong id="saldo-titel">GESAMTSALDO</strong>
                             <button class="btn btn-sm btn-outline-light" id="toggle-barkasse" title="Mit/Ohne Barkasse">
-                                <i class="fas fa-exchange-alt"></i>
+                                ⇄
                             </button>
                         </div>
                     </div>
@@ -214,7 +206,7 @@
                                         </td>
                                         <td class="text-end" style="width: 80px;">
                                     <span class="<?= $buchung['buchungsart'] === 'einnahme' ? 'text-success' : 'text-danger' ?>">
-                                        <?= $buchung['buchungsart'] === 'einnahme' ? '+' : '-' ?><?= number_format($buchung['betrag'], 0, ',', '.') ?> €
+                                        <?= $buchung['buchungsart'] === 'einnahme' ? '+' : '-' ?><?= number_format($buchung['betrag'], 2, ',', '.') ?> €
                                     </span>
                                         </td>
                                     </tr>
@@ -245,17 +237,17 @@
                                 <?php foreach($neueste_belege as $beleg): ?>
                                     <tr>
                                         <td style="width: 100px;">
-                                            <small><?= $beleg['belegnummer'] ?></small>
+                                            <small><?= esc($beleg['belegnummer']) ?></small>
                                         </td>
                                         <td>
                                             <?= esc(substr($beleg['beschreibung'], 0, 30)) ?><?= strlen($beleg['beschreibung']) > 30 ? '...' : '' ?>
                                         </td>
                                         <td class="text-end" style="width: 80px;">
-                                            <?= number_format($beleg['betrag'], 0, ',', '.') ?> €
+                                            <?= number_format($beleg['betrag'], 2, ',', '.') ?> €
                                         </td>
                                         <td style="width: 60px;">
                                     <span class="badge bg-<?= $beleg['status'] === 'erfasst' ? 'secondary' : 'primary' ?> badge-sm">
-                                        <?= $beleg['status'] ?>
+                                        <?= beleg_status_label($beleg['status']) ?>
                                     </span>
                                         </td>
                                     </tr>
@@ -336,11 +328,6 @@
                 mitBarkasse = gespeicherteEinstellung === 'true';
                 updateAnzeige();
             }
-
-            // Auto-Refresh der Zahlen alle 5 Minuten (optional)
-            // setInterval(function() {
-            //     location.reload();
-            // }, 300000);
         });
     </script>
 <?= $this->endSection() ?>

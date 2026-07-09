@@ -57,6 +57,12 @@ class HvAbrechnungModel extends Model
      */
     public function erstelleAbrechnung($data)
     {
+        // Prüfe ob für diesen Monat bereits eine Abrechnung existiert
+        if ($this->abrechnungsmonatExistiert($data['abrechnungsmonat'])) {
+            $this->errors = ['abrechnungsmonat' => 'Für diesen Monat existiert bereits eine HV-Abrechnung.'];
+            return false;
+        }
+
         // Standard-Werte setzen
         $data['erstellt_am'] = $data['erstellt_am'] ?? date('Y-m-d');
         $data['status'] = 'entwurf';
@@ -103,85 +109,6 @@ class HvAbrechnungModel extends Model
             ->groupBy('hv_abrechnungen.id')
             ->orderBy('hv_abrechnungen.abrechnungsmonat', 'DESC')
             ->findAll();
-    }
-
-    /**
-     * Fügt einen Beleg zur HV-Abrechnung hinzu
-     *
-     * @param int $abrechnungsId
-     * @param int $belegId
-     * @return bool
-     */
-    public function fuegeBelegHinzu($abrechnungsId, $belegId)
-    {
-        $db = \Config\Database::connect();
-
-        // Prüfe ob Beleg bereits in einer anderen HV-Abrechnung ist
-        $builder = $db->table('abrechnung_belege');
-        $existiert = $builder->where('beleg_id', $belegId)
-                ->where('abrechnung_typ', 'hv')
-                ->countAllResults() > 0;
-
-        if ($existiert) {
-            return false;
-        }
-
-        // Prüfe ob Beleg HV-berechtigt ist
-        $belegModel = new BelegModel();
-        $beleg = $belegModel->find($belegId);
-
-        if (!$beleg || $beleg['kategorie'] !== 'hv_berechtigt') {
-            return false;
-        }
-
-        // Füge zur Abrechnung hinzu
-        $data = [
-            'beleg_id' => $belegId,
-            'abrechnung_typ' => 'hv',
-            'abrechnung_id' => $abrechnungsId
-        ];
-
-        $inserted = $builder->insert($data);
-
-        if ($inserted) {
-            // Beleg-Status aktualisieren
-            $belegModel->update($belegId, ['status' => 'in_abrechnung']);
-
-            // Gesamtsumme neu berechnen
-            $this->berechneGesamtsumme($abrechnungsId);
-        }
-
-        return $inserted;
-    }
-
-    /**
-     * Entfernt einen Beleg aus der HV-Abrechnung
-     *
-     * @param int $abrechnungsId
-     * @param int $belegId
-     * @return bool
-     */
-    public function entferneBeleg($abrechnungsId, $belegId)
-    {
-        $db = \Config\Database::connect();
-
-        // Entferne aus Abrechnung
-        $builder = $db->table('abrechnung_belege');
-        $deleted = $builder->where('beleg_id', $belegId)
-            ->where('abrechnung_typ', 'hv')
-            ->where('abrechnung_id', $abrechnungsId)
-            ->delete();
-
-        if ($deleted) {
-            // Beleg-Status zurücksetzen
-            $belegModel = new BelegModel();
-            $belegModel->update($belegId, ['status' => 'erfasst']);
-
-            // Gesamtsumme neu berechnen
-            $this->berechneGesamtsumme($abrechnungsId);
-        }
-
-        return $deleted;
     }
 
     /**
@@ -234,6 +161,9 @@ class HvAbrechnungModel extends Model
             return false;
         }
 
+        $aktuelle = $this->find($abrechnungsId);
+        $alterStatus = $aktuelle['status'] ?? null;
+
         $updateData = ['status' => $neuerStatus];
 
         // Datum-Felder setzen je nach Status
@@ -244,27 +174,33 @@ class HvAbrechnungModel extends Model
             case 'bezahlt':
                 $updateData['bezahlt_am'] = date('Y-m-d');
                 // Belege als abgerechnet markieren
-                $this->markiereBelegeAlsAbgerechnet($abrechnungsId);
+                $this->setzeBelegeStatus($abrechnungsId, 'abgerechnet');
                 break;
+        }
+
+        // Wird eine bezahlte Abrechnung zurückgestuft, zugeordnete Belege wieder freigeben
+        if ($alterStatus === 'bezahlt' && $neuerStatus !== 'bezahlt') {
+            $this->setzeBelegeStatus($abrechnungsId, 'in_abrechnung');
         }
 
         return $this->update($abrechnungsId, $updateData);
     }
 
     /**
-     * Markiert alle Belege einer HV-Abrechnung als abgerechnet
+     * Setzt den Status aller Belege einer HV-Abrechnung.
      *
      * @param int $abrechnungsId
+     * @param string $status Ziel-Status (z.B. 'abgerechnet', 'in_abrechnung')
      * @return bool
      */
-    private function markiereBelegeAlsAbgerechnet($abrechnungsId)
+    private function setzeBelegeStatus($abrechnungsId, $status)
     {
         $belege = $this->getBelege($abrechnungsId);
         $belegIds = array_column($belege, 'id');
 
         if (!empty($belegIds)) {
             $belegModel = new BelegModel();
-            return $belegModel->updateStatus($belegIds, 'abgerechnet');
+            return $belegModel->updateStatus($belegIds, $status);
         }
 
         return true;
@@ -279,80 +215,6 @@ class HvAbrechnungModel extends Model
     {
         $belegModel = new BelegModel();
         return $belegModel->getBelegeVerfuegbar('hv_berechtigt');
-    }
-
-    /**
-     * Erstellt Excel-Export-Daten für HV
-     *
-     * @param int $abrechnungsId
-     * @return array
-     */
-    public function getExportDaten($abrechnungsId)
-    {
-        $abrechnung = $this->find($abrechnungsId);
-        $belege = $this->getBelege($abrechnungsId);
-
-        if (!$abrechnung) {
-            return null;
-        }
-
-        $exportDaten = [
-            'abrechnung' => $abrechnung,
-            'belege' => [],
-            'gesamtsumme' => 0
-        ];
-
-        foreach ($belege as $beleg) {
-            $exportDaten['belege'][] = [
-                'Belegnummer' => $beleg['belegnummer'],
-                'Datum' => date('d.m.Y', strtotime($beleg['rechnungsdatum'])),
-                'Beschreibung' => $beleg['beschreibung'],
-                'Lieferant' => $beleg['lieferant'] ?? '',
-                'Betrag' => $beleg['betrag'],
-                'Dateipfad' => $beleg['dateipfad'],
-                'Begründung' => $this->generiereHausBegründung($beleg)
-            ];
-            $exportDaten['gesamtsumme'] += $beleg['betrag'];
-        }
-
-        return $exportDaten;
-    }
-
-    /**
-     * Generiert eine Haus-spezifische Begründung für einen Beleg
-     *
-     * @param array $beleg
-     * @return string
-     */
-    private function generiereHausBegründung($beleg)
-    {
-        $beschreibung = strtolower($beleg['beschreibung']);
-
-        // Schlüsselwörter für automatische Begründungen
-        $begruendungen = [
-            'farbe' => 'Renovierung und Instandhaltung der Hausräume',
-            'pinsel' => 'Renovierung und Instandhaltung der Hausräume',
-            'streichen' => 'Renovierung und Instandhaltung der Hausräume',
-            'regal' => 'Möblierung und Ausstattung der Gemeinschaftsräume',
-            'schrank' => 'Möblierung und Ausstattung der Gemeinschaftsräume',
-            'lampe' => 'Beleuchtung und elektrische Ausstattung',
-            'glühbirne' => 'Beleuchtung und elektrische Ausstattung',
-            'reinigung' => 'Reinigung und Hygiene der Hausräume',
-            'putz' => 'Reinigung und Hygiene der Hausräume',
-            'werkzeug' => 'Wartung und Reparatur der Hausausstattung',
-            'schrauben' => 'Wartung und Reparatur der Hausausstattung',
-            'küche' => 'Küchenausstattung und -wartung',
-            'geschirr' => 'Küchenausstattung und -wartung'
-        ];
-
-        foreach ($begruendungen as $schluesselwort => $begruendung) {
-            if (strpos($beschreibung, $schluesselwort) !== false) {
-                return $begruendung;
-            }
-        }
-
-        // Standard-Begründung falls kein Schlüsselwort gefunden
-        return 'Notwendige Ausgabe für das Vereinshaus';
     }
 
     /**
@@ -391,100 +253,4 @@ class HvAbrechnungModel extends Model
         return $monate[$monat] . ' ' . $jahr;
     }
 
-    /**
-     * Formatiert Status für Anzeige
-     *
-     * @param string $status
-     * @return string
-     */
-    public function formatiereStatus($status)
-    {
-        $mapping = [
-            'entwurf' => 'Entwurf',
-            'ausstehend' => 'Ausstehend',
-            'eingereicht' => 'Eingereicht',
-            'bezahlt' => 'Bezahlt'
-        ];
-
-        return $mapping[$status] ?? $status;
-    }
-
-    /**
-     * Holt Status-Badge-Klasse für Bootstrap
-     *
-     * @param string $status
-     * @return string
-     */
-    public function getStatusBadgeClass($status)
-    {
-        $mapping = [
-            'entwurf' => 'badge-secondary',
-            'ausstehend' => 'badge-warning',
-            'eingereicht' => 'badge-info',
-            'bezahlt' => 'badge-success'
-        ];
-
-        return $mapping[$status] ?? 'badge-secondary';
-    }
-
-    /**
-     * Formatiert Betrag für Anzeige
-     *
-     * @param float $betrag
-     * @return string
-     */
-    public function formatiereBetrag($betrag)
-    {
-        return number_format($betrag, 2, ',', '.') . ' €';
-    }
-
-    /**
-     * Holt HV-spezifische Begründungs-Vorlagen
-     *
-     * @return array
-     */
-    public function getBegruendungsVorlagen()
-    {
-        return [
-            'Renovierung und Instandhaltung der Hausräume',
-            'Möblierung und Ausstattung der Gemeinschaftsräume',
-            'Beleuchtung und elektrische Ausstattung',
-            'Reinigung und Hygiene der Hausräume',
-            'Wartung und Reparatur der Hausausstattung',
-            'Küchenausstattung und -wartung',
-            'Sicherheitsmaßnahmen für das Vereinshaus',
-            'Garten- und Außenbereichspflege',
-            'Heizung und Warmwasserversorgung',
-            'Notwendige Ausgabe für das Vereinshaus'
-        ];
-    }
-
-    /**
-     * Sucht HV-Abrechnungen nach Kriterien
-     *
-     * @param array $filter
-     * @return array
-     */
-    public function sucheAbrechnungen($filter = [])
-    {
-        $builder = $this->select('*');
-
-        if (!empty($filter['suche'])) {
-            $builder->groupStart()
-                ->like('titel', $filter['suche'])
-                ->orLike('begruendung', $filter['suche'])
-                ->orLike('abrechnungsmonat', $filter['suche'])
-                ->groupEnd();
-        }
-
-        if (!empty($filter['status'])) {
-            $builder->where('status', $filter['status']);
-        }
-
-        if (!empty($filter['jahr'])) {
-            $builder->like('abrechnungsmonat', $filter['jahr'], 'after');
-        }
-
-        return $builder->orderBy('abrechnungsmonat', 'DESC')->findAll();
-    }
 }

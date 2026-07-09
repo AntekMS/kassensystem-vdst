@@ -1,11 +1,11 @@
 <?= $this->extend('layouts/main') ?>
 
-<?= $this->section('title') ?>Vorschau: <?= $abrechnung['titel'] ?><?= $this->endSection() ?>
+<?= $this->section('title') ?>Vorschau: <?= esc($abrechnung['titel']) ?><?= $this->endSection() ?>
 
 <?= $this->section('content') ?>
     <div class="container-fluid">
         <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
             <div>
                 <h1 class="page-title">Abrechnungs-Vorschau</h1>
                 <h4 class="text-muted"><?= esc($abrechnung['titel']) ?></h4>
@@ -90,7 +90,7 @@
                                                 ($abrechnung['status'] === 'ausstehend' ? 'warning' :
                                                         ($abrechnung['status'] === 'eingereicht' ? 'info' : 'success'))
                                         ?>">
-                                            <?= ucfirst($abrechnung['status']) ?>
+                                            <?= abrechnung_status_label($abrechnung['status']) ?>
                                         </span>
                                         </td>
                                     </tr>
@@ -148,7 +148,7 @@
                                         </option>
                                     </select>
                                     <small class="text-muted mt-1 d-block">
-                                        Aktuell: <strong><?= ucfirst($abrechnung['status']) ?></strong>
+                                        Aktuell: <strong><?= abrechnung_status_label($abrechnung['status']) ?></strong>
                                     </small>
                                 </div>
                                 <button type="submit" class="btn btn-warning w-100" onclick="return confirmStatusChange()">
@@ -196,9 +196,6 @@
                                 <th>Beschreibung</th>
                                 <th>Bezugsquelle</th>
                                 <th class="text-end">Betrag</th>
-                                <?php if ($typ === 'hv'): ?>
-                                    <th>Begründung</th>
-                                <?php endif; ?>
                                 <th class="text-center">Aktionen</th>
                             </tr>
                             </thead>
@@ -206,7 +203,7 @@
                             <?php foreach($belege as $beleg): ?>
                                 <tr>
                                     <td>
-                                        <strong><?= $beleg['belegnummer'] ?></strong>
+                                        <strong><?= esc($beleg['belegnummer']) ?></strong>
                                         <br>
                                         <small class="text-muted"><?= strtoupper($beleg['dateityp']) ?></small>
                                     </td>
@@ -222,27 +219,6 @@
                                     <td class="text-end">
                                         <strong><?= number_format($beleg['betrag'], 2, ',', '.') ?> €</strong>
                                     </td>
-                                    <?php if ($typ === 'hv'): ?>
-                                        <td>
-                                            <small class="text-muted">
-                                                <?php
-                                                // Automatische Begründung basierend auf Beschreibung
-                                                $beschreibung = strtolower($beleg['beschreibung']);
-                                                if (strpos($beschreibung, 'farbe') !== false || strpos($beschreibung, 'streichen') !== false) {
-                                                    echo 'Renovierung und Instandhaltung';
-                                                } elseif (strpos($beschreibung, 'regal') !== false || strpos($beschreibung, 'möbel') !== false) {
-                                                    echo 'Möblierung der Räume';
-                                                } elseif (strpos($beschreibung, 'werkzeug') !== false || strpos($beschreibung, 'reparatur') !== false) {
-                                                    echo 'Wartung und Reparatur';
-                                                } elseif (strpos($beschreibung, 'küche') !== false || strpos($beschreibung, 'geschirr') !== false) {
-                                                    echo 'Küchenausstattung';
-                                                } else {
-                                                    echo 'Vereinshaus-Ausgabe';
-                                                }
-                                                ?>
-                                            </small>
-                                        </td>
-                                    <?php endif; ?>
                                     <td class="text-center">
                                         <div class="btn-group btn-group-sm">
                                             <a href="<?= base_url('/belege/show/' . $beleg['id']) ?>"
@@ -261,13 +237,13 @@
                             </tbody>
                             <tfoot class="table-light">
                             <tr>
-                                <th colspan="<?= $typ === 'hv' ? '4' : '4' ?>" class="text-end">Gesamtsumme:</th>
+                                <th colspan="4" class="text-end">Gesamtsumme:</th>
                                 <th class="text-end">
                                     <strong style="font-size: 1.1em;">
                                         <?= number_format($abrechnung['gesamtsumme'], 2, ',', '.') ?> €
                                     </strong>
                                 </th>
-                                <th colspan="<?= $typ === 'hv' ? '2' : '1' ?>"></th>
+                                <th></th>
                             </tr>
                             </tfoot>
                         </table>
@@ -290,9 +266,6 @@
                                 <li>Belegnummern und Rechnungsdaten</li>
                                 <li>Bezugsquellen und Beschreibungen</li>
                                 <li>Beträge und Gesamtsumme</li>
-                                <?php if ($typ === 'hv'): ?>
-                                    <li>Automatische HV-Begründungen</li>
-                                <?php endif; ?>
                             </ul>
                             <a href="<?= base_url('/abrechnungen/' . $typ . '/exportExcel/' . $abrechnung['id']) ?>"
                                class="btn btn-success w-100">
@@ -356,93 +329,14 @@ function schaetzeArchivGroesse($belege) {
         function confirmStatusChange() {
             const select = document.querySelector('select[name="status"]');
             const neuerStatus = select.options[select.selectedIndex].text.trim();
-            const alterStatus = '<?= ucfirst($abrechnung['status']) ?>';
+            const alterStatus = '<?= abrechnung_status_label($abrechnung['status']) ?>';
 
-            if (neuerStatus === alterStatus) {
+            if (neuerStatus.includes(alterStatus)) {
                 alert('Der Status wurde nicht geändert.');
                 return false;
             }
 
-            const message = `Status von "${alterStatus}" zu "${neuerStatus}" ändern?\n\n` +
-                `Diese Änderung kann Auswirkungen auf die Bearbeitbarkeit haben.`;
-
-            return confirm(message);
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            // Beleg-Links in neuem Tab öffnen
-            const belegLinks = document.querySelectorAll('a[href*="/belege/show/"]');
-            belegLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    window.open(this.href, '_blank');
-                });
-            });
-
-            // Export-Download Feedback initialisieren
-            initializeExportFeedback();
-        });
-
-        function initializeExportFeedback() {
-            const zipLinks = document.querySelectorAll('a[href*="/downloadZip/"]');
-
-            zipLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    showLoadingToast('ZIP-Archiv wird erstellt...', 'Das kann einen Moment dauern.');
-
-                    setTimeout(() => {
-                        hideLoadingToast();
-                        showSuccessToast('ZIP-Download gestartet!', 'Das Archiv wurde erstellt und der Download gestartet.');
-                    }, 2000);
-                });
-            });
-
-            const excelLinks = document.querySelectorAll('a[href*="/exportExcel/"]');
-
-            excelLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    showSuccessToast('Excel-Export gestartet!', 'Die Datei wird heruntergeladen.');
-                });
-            });
-        }
-
-        function showLoadingToast(title, message) {
-            const toastHtml = `
-                <div class="toast-container position-fixed top-0 end-0 p-3">
-                    <div id="loadingToast" class="toast show" role="alert">
-                        <div class="toast-header bg-info text-white">
-                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                            <strong class="me-auto">${title}</strong>
-                        </div>
-                        <div class="toast-body">${message}</div>
-                    </div>
-                </div>
-            `;
-
-            document.body.insertAdjacentHTML('beforeend', toastHtml);
-        }
-
-        function hideLoadingToast() {
-            const loadingToast = document.getElementById('loadingToast');
-            if (loadingToast) {
-                loadingToast.remove();
-            }
-        }
-
-        function showSuccessToast(title, message) {
-            const toastHtml = `
-                <div class="toast-container position-fixed top-0 end-0 p-3">
-                    <div class="toast show" role="alert" data-bs-autohide="true" data-bs-delay="3000">
-                        <div class="toast-header bg-success text-white">
-                            <strong class="me-auto">${title}</strong>
-                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-                        </div>
-                        <div class="toast-body">${message}</div>
-                    </div>
-                </div>
-            `;
-
-            document.body.insertAdjacentHTML('beforeend', toastHtml);
+            return confirm(`Status von "${alterStatus}" zu "${neuerStatus}" ändern?`);
         }
     </script>
 <?= $this->endSection() ?>

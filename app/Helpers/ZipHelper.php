@@ -46,9 +46,6 @@ class ZipHelper
             $excelFilename = strtoupper($typ) . '_Abrechnung_' .
                 $abrechnung['abrechnungsmonat'] . '.xlsx';
 
-            // Excel mit ExcelHelper erstellen
-            require_once APPPATH . 'Helpers/ExcelHelper.php';
-
             if ($typ === 'ah') {
                 $spreadsheet = \App\Helpers\ExcelHelper::erstelleAhAbrechnung($abrechnung, $belege);
             } else {
@@ -63,11 +60,7 @@ class ZipHelper
             // Excel zur ZIP hinzufügen
             $zip->addFile($tempExcelPath, $excelFilename);
 
-            // ===== 2. INFO-DATEI ERSTELLEN =====
-            $infoContent = self::erstelleInfoDatei($abrechnung, $belege, $typ);
-            $zip->addFromString('00_Lesen_Zuerst.txt', $infoContent);
-
-            // ===== 3. ALLE BELEG-DATEIEN HINZUFÜGEN =====
+            // ===== 2. ALLE BELEG-DATEIEN HINZUFÜGEN =====
             $erfolgreich = 0;
             $fehlgeschlagen = 0;
             $fehlgeschlageneListe = [];
@@ -94,9 +87,8 @@ class ZipHelper
                 }
             }
 
-            // ===== 4. STATUS-BERICHT HINZUFÜGEN =====
-            $statusBericht = self::erstelleStatusBericht($erfolgreich, $fehlgeschlagen, $fehlgeschlageneListe, $abrechnung, $typ);
-            $zip->addFromString('00_Export_Status.txt', $statusBericht);
+            // ===== 3. INFO-DATEI HINZUFÜGEN =====
+            $zip->addFromString('00_Info.txt', self::erstelleInfoDatei($abrechnung, $belege, $typ, $fehlgeschlageneListe));
 
             // ZIP schließen
             $zip->close();
@@ -144,140 +136,33 @@ class ZipHelper
     }
 
     /**
-     * Erstellt ausführliche Info-Datei für das ZIP-Archiv
+     * Erstellt eine kompakte Info-Datei für das ZIP-Archiv
      */
-    private static function erstelleInfoDatei($abrechnung, $belege, $typ)
+    private static function erstelleInfoDatei($abrechnung, $belege, $typ, array $fehlgeschlageneListe = [])
     {
         $typName = $typ === 'ah' ? 'AH²' : 'Heimverein';
 
-        $info = "╔════════════════════════════════════════════════════════════════╗\n";
-        $info .= "║  VDSt KASSENSYSTEM - {$typName} ABRECHNUNG (KOMPLETT-ARCHIV)  ║\n";
-        $info .= "╚════════════════════════════════════════════════════════════════╝\n\n";
-
-        $info .= "ABRECHNUNGS-INFORMATION:\n";
-        $info .= str_repeat('─', 70) . "\n";
-        $info .= sprintf("%-20s %s\n", "Titel:", $abrechnung['titel']);
-        $info .= sprintf("%-20s %s\n", "Abrechnungsmonat:", $abrechnung['abrechnungsmonat']);
-        $info .= sprintf("%-20s %s\n", "Status:", ucfirst($abrechnung['status']));
-        $info .= sprintf("%-20s %s\n", "Erstellt am:", date('d.m.Y H:i', strtotime($abrechnung['erstellt_am'])));
-        $info .= sprintf("%-20s %s\n", "Export erstellt:", date('d.m.Y H:i:s'));
-        $info .= "\n";
-
-        $info .= "FINANZIELLE ÜBERSICHT:\n";
-        $info .= str_repeat('─', 70) . "\n";
-        $info .= sprintf("%-20s %d Belege\n", "Anzahl Belege:", count($belege));
-        $info .= sprintf("%-20s %s €\n", "Gesamtsumme:", number_format($abrechnung['gesamtsumme'], 2, ',', '.'));
-        $info .= "\n";
+        $info = "VDSt Kassensystem - {$typName} Abrechnung\n";
+        $info .= str_repeat('=', 60) . "\n\n";
+        $info .= sprintf("%-20s %s\n", 'Titel:', $abrechnung['titel']);
+        $info .= sprintf("%-20s %s\n", 'Abrechnungsmonat:', $abrechnung['abrechnungsmonat']);
+        $info .= sprintf("%-20s %s\n", 'Status:', ucfirst($abrechnung['status']));
+        $info .= sprintf("%-20s %s\n", 'Export erstellt:', date('d.m.Y H:i'));
+        $info .= sprintf("%-20s %d\n", 'Anzahl Belege:', count($belege));
+        $info .= sprintf("%-20s %s €\n", 'Gesamtsumme:', number_format($abrechnung['gesamtsumme'], 2, ',', '.'));
 
         if ($typ === 'hv' && !empty($abrechnung['begruendung'])) {
-            $info .= "BEGRÜNDUNG FÜR HEIMVEREIN:\n";
-            $info .= str_repeat('─', 70) . "\n";
-            $info .= wordwrap($abrechnung['begruendung'], 68) . "\n\n";
+            $info .= "\nBegründung:\n" . wordwrap($abrechnung['begruendung'], 58) . "\n";
         }
 
-        $info .= "INHALT DIESES ARCHIVS:\n";
-        $info .= str_repeat('═', 70) . "\n";
-        $info .= "📊 " . strtoupper($typ) . "_Abrechnung_{$abrechnung['abrechnungsmonat']}.xlsx\n";
-        $info .= "   → Excel-Tabelle mit allen Beleg-Details und Gesamtsumme\n";
-        $info .= "   → Kann direkt zur Einreichung verwendet werden\n\n";
-        $info .= "📁 Belege/ (Ordner mit allen Original-Dateien)\n";
-        $info .= "   → " . count($belege) . " nummerierte Beleg-Dateien\n";
-        $info .= "   → Aussagekräftige Dateinamen (Nummer_Belegnr_Beschreibung)\n\n";
-        $info .= "📄 00_Lesen_Zuerst.txt (diese Datei)\n";
-        $info .= "   → Informationen über den Inhalt des Archivs\n\n";
-        $info .= "📄 00_Export_Status.txt\n";
-        $info .= "   → Technischer Status-Bericht des Exports\n\n";
+        $info .= "\nInhalt: Excel-Abrechnung + Ordner 'Belege/' mit allen Original-Dateien.\n";
 
-        $info .= "\nBELEG-LISTE (DETAILLIERT):\n";
-        $info .= str_repeat('═', 80) . "\n";
-        $info .= sprintf("%-4s %-15s %-12s %-30s %12s  %-15s\n",
-            "Nr.", "Belegnummer", "Datum", "Beschreibung", "Betrag", "Bezugsquelle");
-        $info .= str_repeat('─', 80) . "\n";
-
-        foreach ($belege as $index => $beleg) {
-            $nr = str_pad($index + 1, 2, '0', STR_PAD_LEFT);
-            $beschreibung = strlen($beleg['beschreibung']) > 30 ?
-                substr($beleg['beschreibung'], 0, 27) . '...' :
-                $beleg['beschreibung'];
-
-            $info .= sprintf("%-4s %-15s %-12s %-30s %10s €  %-15s\n",
-                $nr,
-                $beleg['belegnummer'],
-                date('d.m.Y', strtotime($beleg['rechnungsdatum'])),
-                $beschreibung,
-                number_format($beleg['betrag'], 2, ',', '.'),
-                $beleg['lieferant'] ?: 'Kassenwart');
+        if (!empty($fehlgeschlageneListe)) {
+            $info .= "\nACHTUNG - folgende Beleg-Dateien wurden nicht gefunden und fehlen im Archiv:\n- "
+                . implode("\n- ", $fehlgeschlageneListe) . "\n";
         }
-
-        $info .= str_repeat('─', 80) . "\n";
-        $info .= sprintf("%62s %10s €\n", "GESAMTSUMME:",
-            number_format($abrechnung['gesamtsumme'], 2, ',', '.'));
-
-        $info .= "\n\nVERWENDUNG:\n";
-        $info .= str_repeat('═', 70) . "\n";
-        $info .= "1. Öffnen Sie die Excel-Datei zur Übersicht\n";
-        $info .= "2. Im Ordner 'Belege/' finden Sie alle Original-Dateien\n";
-        $info .= "3. Die Dateinamen sind durchnummeriert und beschreibend\n";
-        $info .= "4. Einreichung: Excel + Belege-Ordner komplett verwenden\n\n";
 
         return $info;
-    }
-
-    /**
-     * Erstellt Status-Bericht für den Export
-     */
-    private static function erstelleStatusBericht($erfolgreich, $fehlgeschlagen, $fehlgeschlageneListe, $abrechnung, $typ)
-    {
-        $bericht = "╔══════════════════════════════════════════════════════════╗\n";
-        $bericht .= "║           EXPORT-STATUS-BERICHT                          ║\n";
-        $bericht .= "╚══════════════════════════════════════════════════════════╝\n\n";
-
-        $bericht .= "Export-Details:\n";
-        $bericht .= str_repeat('─', 60) . "\n";
-        $bericht .= sprintf("%-25s %s\n", "Abrechnung:", $abrechnung['titel']);
-        $bericht .= sprintf("%-25s %s\n", "Typ:", strtoupper($typ));
-        $bericht .= sprintf("%-25s %s\n", "Export-Zeitpunkt:", date('d.m.Y H:i:s'));
-        $bericht .= sprintf("%-25s %s\n", "System-Version:", '1.0.8');
-        $bericht .= "\n";
-
-        $bericht .= "Export-Statistik:\n";
-        $bericht .= str_repeat('─', 60) . "\n";
-        $bericht .= sprintf("%-25s %d\n", "✅ Excel-Datei:", 1);
-        $bericht .= sprintf("%-25s %d\n", "✅ Belege erfolgreich:", $erfolgreich);
-        $bericht .= sprintf("%-25s %d\n", "❌ Belege fehlgeschlagen:", $fehlgeschlagen);
-        $bericht .= sprintf("%-25s %d\n", "📊 Gesamt-Dateien:", $erfolgreich + 1);
-        $bericht .= "\n";
-
-        if ($fehlgeschlagen > 0) {
-            $bericht .= "⚠️  FEHLGESCHLAGENE BELEGE:\n";
-            $bericht .= str_repeat('─', 60) . "\n";
-            foreach ($fehlgeschlageneListe as $belegnr) {
-                $bericht .= "   - Belegnummer: {$belegnr}\n";
-            }
-            $bericht .= "\nHinweis: Diese Belege wurden übersprungen, da die Original-\n";
-            $bericht .= "Dateien nicht gefunden wurden. Die Excel-Liste enthält aber\n";
-            $bericht .= "trotzdem alle Beleg-Daten zur Übersicht.\n\n";
-        } else {
-            $bericht .= "✅ VOLLSTÄNDIGER EXPORT\n";
-            $bericht .= str_repeat('─', 60) . "\n";
-            $bericht .= "Alle Belege wurden erfolgreich exportiert!\n";
-            $bericht .= "Excel-Datei + alle " . $erfolgreich . " Beleg-Dateien sind enthalten.\n\n";
-        }
-
-        $bericht .= "Inhalt des Archivs:\n";
-        $bericht .= str_repeat('─', 60) . "\n";
-        $bericht .= "✅ " . strtoupper($typ) . "_Abrechnung_{$abrechnung['abrechnungsmonat']}.xlsx\n";
-        $bericht .= "✅ 00_Lesen_Zuerst.txt (Übersicht)\n";
-        $bericht .= "✅ 00_Export_Status.txt (diese Datei)\n";
-        $bericht .= "✅ Belege/ (Ordner mit {$erfolgreich} Dateien)\n\n";
-
-        $bericht .= "System-Information:\n";
-        $bericht .= str_repeat('─', 60) . "\n";
-        $bericht .= "VDSt Kassensystem - Version 1.0.8\n";
-        $bericht .= "Digitales Kassenbuch und Abrechnungssystem\n";
-        $bericht .= "Verein deutscher Studenten\n\n";
-
-        return $bericht;
     }
 
     /**

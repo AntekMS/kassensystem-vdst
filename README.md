@@ -21,7 +21,7 @@
 
 ### Backend
 - **PHP 8+** mit CodeIgniter 4
-- **MySQL/MariaDB** mit Triggern und Views
+- **MySQL/MariaDB**
 - **PhpOffice/PhpSpreadsheet** für Excel-Export
 - **Automatische Datei-Organisation** nach Datum
 
@@ -72,7 +72,7 @@ database.default.username = your_username
 database.default.password = your_password
 
 # VDSt Spezifisch
-vdst.master_password = 1234
+vdst.master_password = hier_ein_starkes_passwort
 vdst.kassenwart_name = "Max Mustermann"
 vdst.session_timeout = 28800
 
@@ -152,10 +152,9 @@ belege              # Herzstück - alle Belege mit Dateien
 ```
 
 #### Automatische Features
-- **Trigger** für Gesamtsummen-Berechnung
-- **Views** für Performance-Optimierung
+- **Gesamtsummen-Berechnung** in PHP bei jeder Beleg-Zuordnung
 - **Belegnummer-Generator** basierend auf Rechnungsdatum
-- **Datei-Organisation** nach `/uploads/belege/YYYY/MM/`
+- **Datei-Organisation** nach `public/uploads/belege/YYYY/MM/`
 
 ### Controller-Struktur
 ```
@@ -173,8 +172,8 @@ AuthController          # Master-Passwort System
 
 ### 1. Anmeldung
 - URL: `http://localhost/auth/login`
-- Master-Passwort: `1234` (konfigurierbar in .env)
-- Session-Timeout: 8 Stunden mit automatischer Verlängerung
+- Master-Passwort aus `.env` (`vdst.master_password`) — **unbedingt ein starkes Passwort setzen!**
+- Session-Timeout: 8 Stunden (wird bei Aktivität verlängert)
 
 ### 2. Belege verwalten
 ```
@@ -203,7 +202,7 @@ AuthController          # Master-Passwort System
 4. **Excel-Export** + ZIP mit allen Dateien
 
 #### HV Abrechnungen (`/abrechnungen/hv`)
-- Wie AH², aber mit **Begründungen**
+- Wie AH², aber mit **Freitext-Begründung** für den Heimverein
 - Separate **Excel-Vorlage** für Heimverein
 
 ### 5. Export-Funktionen
@@ -212,7 +211,7 @@ AuthController          # Master-Passwort System
 - **Kassenbuch**: Original-Format mit 3 Konten
 - **Belege-Liste**: Filterfähige Übersicht
 - **AH²-Abrechnung**: Excel-Vorlage für Einreichung
-- **HV-Abrechnung**: Mit Begründungs-Spalte
+- **HV-Abrechnung**: Mit Freitext-Begründung
 
 #### ZIP-Archive
 - **Komplette Belege**: Excel + alle Original-Dateien
@@ -237,10 +236,7 @@ AuthController          # Master-Passwort System
 - **Status-Verfolgung** über gesamten Workflow
 
 ### Session-Management
-- **Automatische Verlängerung** bei Aktivität
-- **Timeout-Warnungen** 15 Min vor Ablauf
-- **Aktivitäts-Erkennung** (Maus, Tastatur, Touch)
-- **Session-Zeit-Anzeige** in Navigation
+- **8 Stunden Laufzeit**, wird bei jeder Server-Anfrage verlängert (Idle-Timeout)
 
 ### Erweiterte Suche
 - **Volltext-Suche** in Beschreibungen, Notizen, Lieferanten
@@ -294,18 +290,8 @@ upload_max_filesize = 10M
 post_max_size = 10M
 max_execution_time = 300
 
-# Entwicklung
+# Für den Produktivbetrieb unbedingt setzen:
 CI_ENVIRONMENT = production
-app.forceGlobalSecureRequests = false
-```
-
-### System-Einstellungen (Datenbank)
-```sql
--- Automatisch bei Migration erstellt
-max_upload_size: 10485760 (10MB)
-allowed_file_types: pdf,jpg,jpeg,png
-upload_path: uploads/belege/
-kassenwart_name: "Kassenwart VDStE"
 ```
 
 ---
@@ -383,7 +369,6 @@ CI_ENVIRONMENT = development
 ## Technische Details
 
 ### Performance-Optimierungen
-- **MySQL Views** für komplexe Queries
 - **Database Indexes** auf häufig genutzte Spalten
 - **AJAX-Loading** für große Datenmengen
 - **Lazy Loading** für Datei-Previews
@@ -446,7 +431,6 @@ $routes->set404Override('App\Controllers\Home::index');
 ```javascript
 POST /abrechnungen/{typ}/addBeleg/{id}     // Beleg hinzufügen
 POST /abrechnungen/{typ}/removeBeleg/{id}  // Beleg entfernen
-POST /auth/refresh                         // Session verlängern
 GET  /belege/preview/{id}                  // Datei-Vorschau
 ```
 
@@ -479,6 +463,16 @@ GET  /belege/preview/{id}                  // Datei-Vorschau
 ---
 
 ## Changelog
+
+### Version 1.1.0 (Aufräum-Release)
+- 🐛 Upload-Pfad-Bug behoben (Dateien landeten in `public/public/uploads/`; Migration verschiebt Bestandsdaten)
+- 🐛 Deutsche Komma-Beträge (`10,50`) werden akzeptiert
+- 🐛 „Ausstehend markieren“ und HV-Begründungs-Schnellspeichern funktionieren (CSRF/Titel fehlten)
+- 🔒 XSS-Escaping in allen Views, Löschen nur noch per POST, Login gehärtet
+- 🧹 Entfernt: Session-Timeout-Warnsystem, Keyboard-Shortcuts, HV-Auto-Begründungen,
+  Dashboard-Quick-Upload, Buchungen-Listen-Excel, DB-Trigger/-Views, `system_einstellungen`
+- ♻️ AH²/HV-Controller zusammengelegt, gemeinsame Upload-Logik, zentrale Label-Helper,
+  geteiltes JS in `public/js/app.js`
 
 ### Version 1.0.8
 - ✅ Vollständiges Kassenbuch-System

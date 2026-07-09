@@ -158,15 +158,6 @@
             margin-bottom: 1.5rem;
         }
 
-        /* Session Timeout Warning */
-        .session-warning {
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            z-index: 1050;
-            max-width: 300px;
-        }
-
         /* Mobile Responsive */
         @media (max-width: 768px) {
             .session-info {
@@ -195,8 +186,10 @@
             VDSt Kassensystem
         </a>
 
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" style="border-color: var(--vdst-rot);">
-            <span style="color: var(--vdst-weiss);">☰</span>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Navigation ein-/ausblenden"
+                style="border-color: var(--vdst-rot);">
+            <span style="color: var(--vdst-weiss);" aria-hidden="true">☰</span>
         </button>
 
         <div class="collapse navbar-collapse" id="navbarNav">
@@ -234,40 +227,25 @@
             <!-- Session Info und Logout -->
             <div class="session-info">
                 <span class="navbar-text text-white">
-                    <strong>👤 <?= session('kassenwart_name') ?? 'VDSt Kassenwart' ?></strong>
+                    <strong>👤 <?= esc(session('kassenwart_name') ?? 'VDSt Kassenwart') ?></strong>
                 </span>
-                <span class="session-time" id="sessionTime">
-                    <!-- Wird per JavaScript gefüllt -->
-                </span>
-                <a href="<?= base_url('/auth/logout') ?>"
-                   class="btn btn-logout"
-                   onclick="return confirm('Wirklich abmelden?')">
-                    🚪 Abmelden
-                </a>
+                <form action="<?= base_url('/auth/logout') ?>" method="post" class="d-inline"
+                      onsubmit="return confirm('Wirklich abmelden?')">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-logout">
+                        🚪 Abmelden
+                    </button>
+                </form>
             </div>
         </div>
     </div>
 </nav>
 
-<!-- Session Timeout Warning -->
-<div id="sessionWarning" class="session-warning" style="display: none;">
-    <div class="alert alert-warning alert-dismissible">
-        <strong>⏰ Session läuft ab!</strong><br>
-        Ihre Sitzung läuft in <span id="warningTime"></span> Minuten ab.
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        <div class="mt-2">
-            <button class="btn btn-sm btn-warning" onclick="refreshSession()">
-                🔄 Session verlängern
-            </button>
-        </div>
-    </div>
-</div>
-
 <!-- Flash Messages -->
 <?php if (session()->getFlashdata('success')): ?>
     <div class="container-fluid mt-3">
         <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <strong>✅ Erfolg!</strong> <?= session()->getFlashdata('success') ?>
+            <strong>✅ Erfolg!</strong> <?= esc(session()->getFlashdata('success')) ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     </div>
@@ -276,7 +254,7 @@
 <?php if (session()->getFlashdata('error')): ?>
     <div class="container-fluid mt-3">
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <strong>❌ Fehler!</strong> <?= session()->getFlashdata('error') ?>
+            <strong>❌ Fehler!</strong> <?= esc(session()->getFlashdata('error')) ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     </div>
@@ -288,7 +266,7 @@
             <strong>❌ Validierungsfehler:</strong>
             <ul class="mb-0 mt-2">
                 <?php foreach (session()->getFlashdata('errors') as $error): ?>
-                    <li><?= $error ?></li>
+                    <li><?= esc($error) ?></li>
                 <?php endforeach; ?>
             </ul>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -304,215 +282,8 @@
 <!-- Bootstrap 5 JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-<!-- Custom JS -->
-<script>
-    // Session Management
-    let sessionStartTime = <?= session('login_time') ?? time() ?> * 1000; // Convert to milliseconds
-    const sessionTimeout = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
-    const warningTime = 15 * 60 * 1000; // Show warning 15 minutes before timeout
-
-    // Einfache Bestätigungsdialoge
-    function confirmDelete(message = 'Sind Sie sicher, dass Sie diesen Eintrag löschen möchten?') {
-        return confirm(message);
-    }
-
-    // Session-Zeit anzeigen
-    function updateSessionTime() {
-        const now = new Date().getTime();
-        const elapsed = now - sessionStartTime;
-        const remaining = sessionTimeout - elapsed;
-
-        if (remaining <= 0) {
-            // Session abgelaufen
-            alert('Ihre Sitzung ist abgelaufen. Sie werden zur Anmeldung weitergeleitet.');
-            window.location.href = '<?= base_url('/auth/login') ?>';
-            return;
-        }
-
-        const hours = Math.floor(remaining / (1000 * 60 * 60));
-        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-
-        const sessionTimeElement = document.getElementById('sessionTime');
-        if (sessionTimeElement) {
-            if (hours > 0) {
-                sessionTimeElement.textContent = `⏰ ${hours}h ${minutes}m`;
-            } else {
-                sessionTimeElement.textContent = `⏰ ${minutes}m`;
-
-                // Warnung färben wenn weniger als 30 Minuten
-                if (minutes < 30) {
-                    sessionTimeElement.style.color = '#ff6b6b';
-                } else {
-                    sessionTimeElement.style.color = '#ccc';
-                }
-            }
-        }
-
-        // Warning anzeigen wenn weniger als 15 Minuten verbleiben
-        if (remaining <= warningTime && remaining > 0) {
-            showSessionWarning(Math.ceil(remaining / (1000 * 60)));
-        }
-    }
-
-    // Session Warning anzeigen
-    function showSessionWarning(minutesLeft) {
-        const warningElement = document.getElementById('sessionWarning');
-        const warningTimeElement = document.getElementById('warningTime');
-
-        if (warningElement && warningTimeElement) {
-            warningTimeElement.textContent = minutesLeft;
-            warningElement.style.display = 'block';
-        }
-    }
-
-    // Session verlängern
-    function refreshSession() {
-        fetch('<?= base_url('/auth/refresh') ?>', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    sessionStartTime = new Date().getTime();
-                    document.getElementById('sessionWarning').style.display = 'none';
-
-                    // Success-Message anzeigen
-                    showAlert('✅ Session verlängert! Sie sind für weitere 8 Stunden angemeldet.', 'success');
-                } else {
-                    alert('Session konnte nicht verlängert werden. Bitte melden Sie sich erneut an.');
-                    window.location.href = '<?= base_url('/auth/login') ?>';
-                }
-            })
-            .catch(error => {
-                console.error('Session refresh error:', error);
-                alert('Fehler beim Verlängern der Session.');
-            });
-    }
-
-    // Alert Helper Function
-    function showAlert(message, type = 'info') {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-
-        const mainContent = document.querySelector('.main-content');
-        mainContent.insertBefore(alertDiv, mainContent.firstChild);
-
-        // Auto-hide nach 3 Sekunden
-        setTimeout(() => {
-            if (alertDiv.parentNode) {
-                alertDiv.remove();
-            }
-        }, 3000);
-    }
-
-    // Auto-hide alerts after 5 seconds
-    document.addEventListener('DOMContentLoaded', function() {
-        // Session-Zeit sofort aktualisieren und dann jede Minute
-        updateSessionTime();
-        setInterval(updateSessionTime, 60000); // Update every minute
-
-        // Auto-hide Flash-Messages
-        const alerts = document.querySelectorAll('.alert:not(.alert-permanent)');
-        alerts.forEach(function(alert) {
-            setTimeout(function() {
-                if (alert && alert.parentNode) {
-                    const bsAlert = new bootstrap.Alert(alert);
-                    if (bsAlert) {
-                        bsAlert.close();
-                    }
-                }
-            }, 5000);
-        });
-
-        // Activity Detection für automatische Session-Verlängerung
-        let lastActivity = new Date().getTime();
-        const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-
-        activityEvents.forEach(event => {
-            document.addEventListener(event, function() {
-                const now = new Date().getTime();
-                // Nur alle 5 Minuten bei Aktivität Session refreshen
-                if (now - lastActivity > 5 * 60 * 1000) {
-                    lastActivity = now;
-
-                    // Stille Session-Verlängerung bei Aktivität
-                    fetch('<?= base_url('/auth/refresh') ?>', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    }).then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                sessionStartTime = new Date().getTime();
-                                // Session Warning verstecken falls sichtbar
-                                const warning = document.getElementById('sessionWarning');
-                                if (warning) {
-                                    warning.style.display = 'none';
-                                }
-                                // Session-Zeit-Farbe zurücksetzen
-                                const sessionTime = document.getElementById('sessionTime');
-                                if (sessionTime) {
-                                    sessionTime.style.color = '#ccc';
-                                }
-                            }
-                        }).catch(error => {
-                        console.log('Background session refresh failed:', error);
-                    });
-                }
-            }, true);
-        });
-    });
-
-    // Format currency inputs
-    function formatCurrency(input) {
-        let value = input.value.replace(/[^\d,.-]/g, '');
-        value = value.replace(',', '.');
-        input.value = value;
-    }
-
-    // Keyboard Shortcuts
-    document.addEventListener('keydown', function(e) {
-        // Ctrl+Q = Quick Logout
-        if (e.ctrlKey && e.key === 'q') {
-            e.preventDefault();
-            if (confirm('Wirklich abmelden? (Ctrl+Q)')) {
-                window.location.href = '<?= base_url('/auth/logout') ?>';
-            }
-        }
-
-        // Ctrl+D = Dashboard
-        if (e.ctrlKey && e.key === 'd') {
-            e.preventDefault();
-            window.location.href = '<?= base_url('/dashboard') ?>';
-        }
-
-        // Ctrl+B = Buchungen/Kassenbuch
-        if (e.ctrlKey && e.key === 'b') {
-            e.preventDefault();
-            window.location.href = '<?= base_url('/buchungen') ?>';
-        }
-
-        // Ctrl+E = Belege
-        if (e.ctrlKey && e.key === 'e') {
-            e.preventDefault();
-            window.location.href = '<?= base_url('/belege') ?>';
-        }
-    });
-
-    // Console Info für Entwickler
-    console.log('🏛️ VDSt Kassensystem geladen');
-    console.log('⌨️ Keyboard Shortcuts: Ctrl+D (Dashboard), Ctrl+B (Buchungen), Ctrl+E (Belege), Ctrl+Q (Logout)');
-</script>
+<!-- Gemeinsames Kassensystem-JS -->
+<script src="<?= base_url('js/app.js') ?>"></script>
 
 <?= $this->renderSection('scripts') ?>
 </body>

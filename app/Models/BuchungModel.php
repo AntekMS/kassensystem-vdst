@@ -109,25 +109,6 @@ class BuchungModel extends Model
     }
 
     /**
-     * Holt Buchungen für einen bestimmten Zeitraum
-     *
-     * @param string $monat Format: Y-m
-     * @return array
-     */
-    public function getBuchungenFuerMonat($monat)
-    {
-        return $this->select('
-                buchungen.*, 
-                belege.belegnummer, 
-                belege.lieferant
-            ')
-            ->join('belege', 'belege.id = buchungen.beleg_id', 'left')
-            ->where('DATE_FORMAT(buchungen.buchungsdatum, "%Y-%m")', $monat)
-            ->orderBy('buchungen.buchungsdatum', 'ASC')
-            ->findAll();
-    }
-
-    /**
      * Berechnet Kontostände
      *
      * @return array
@@ -160,18 +141,6 @@ class BuchungModel extends Model
         }
 
         return $staende;
-    }
-
-    /**
-     * Holt Buchungen ohne Beleg-Verknüpfung
-     *
-     * @return array
-     */
-    public function getBuchungenOhneBelege()
-    {
-        return $this->where('beleg_id IS NULL')
-            ->orderBy('buchungsdatum', 'DESC')
-            ->findAll();
     }
 
     /**
@@ -255,102 +224,4 @@ class BuchungModel extends Model
         return $belege;
     }
 
-    /**
-     * Exportiert Kassenbuch-Daten für Excel
-     *
-     * @param array $filter
-     * @return array
-     */
-    public function getKassenbuchExportDaten($filter = [])
-    {
-        $buchungen = $this->getBuchungenMitBelegen($filter);
-        $exportDaten = [];
-
-        foreach ($buchungen as $buchung) {
-            $exportDaten[] = [
-                'Datum' => date('d.m.Y', strtotime($buchung['buchungsdatum'])),
-                'Belegnummer' => $buchung['belegnummer'] ?? 'ohne Beleg',
-                'Beschreibung' => $buchung['beschreibung'],
-                'Lieferant' => $buchung['lieferant'] ?? '',
-                'Konto' => ucfirst($buchung['konto_typ']),
-                'Einnahme' => $buchung['buchungsart'] === 'einnahme' ? $buchung['betrag'] : '',
-                'Ausgabe' => $buchung['buchungsart'] === 'ausgabe' ? $buchung['betrag'] : '',
-                'Notizen' => $buchung['notizen'] ?? ''
-            ];
-        }
-
-        return $exportDaten;
-    }
-
-    /**
-     * Berechnet Summen für Zeitraum
-     *
-     * @param string $datumVon
-     * @param string $datumBis
-     * @return array
-     */
-    public function berechneSummenFuerZeitraum($datumVon, $datumBis)
-    {
-        $builder = $this->where('buchungsdatum >=', $datumVon)
-            ->where('buchungsdatum <=', $datumBis);
-
-        $einnahmen = $builder->where('buchungsart', 'einnahme')
-            ->selectSum('betrag')
-            ->get()
-            ->getRow()
-            ->betrag ?? 0;
-
-        $ausgaben = $this->where('buchungsdatum >=', $datumVon)
-            ->where('buchungsdatum <=', $datumBis)
-            ->where('buchungsart', 'ausgabe')
-            ->selectSum('betrag')
-            ->get()
-            ->getRow()
-            ->betrag ?? 0;
-
-        return [
-            'einnahmen' => $einnahmen,
-            'ausgaben' => $ausgaben,
-            'saldo' => $einnahmen - $ausgaben
-        ];
-    }
-
-    /**
-     * Formatiert Betrag für Anzeige
-     *
-     * @param float $betrag
-     * @return string
-     */
-    public function formatiereBetrag($betrag)
-    {
-        return number_format($betrag, 2, ',', '.') . ' €';
-    }
-
-    /**
-     * Formatiert Konto-Typ für Anzeige
-     *
-     * @param string $kontoTyp
-     * @return string
-     */
-    public function formatiereKontoTyp($kontoTyp)
-    {
-        $mapping = [
-            'aktivenkasse' => 'Aktivenkasse',
-            'getraenkekasse' => 'Getränkekasse',
-            'barkasse' => 'Barkasse'
-        ];
-
-        return $mapping[$kontoTyp] ?? $kontoTyp;
-    }
-
-    /**
-     * Formatiert Buchungsart für Anzeige
-     *
-     * @param string $buchungsart
-     * @return string
-     */
-    public function formatiereBuchungsart($buchungsart)
-    {
-        return $buchungsart === 'einnahme' ? 'Einnahme' : 'Ausgabe';
-    }
 }

@@ -57,9 +57,11 @@ class AuthController extends BaseController
             return redirect()->back()->with('error', 'Bitte geben Sie das Passwort ein.');
         }
 
-        // Passwort aus .env prüfen
-        if ($password === $this->getMasterPassword()) {
-            // Session setzen mit Kassenwart-Name aus .env
+        // Passwort aus .env prüfen (zeitkonstanter Vergleich)
+        if (hash_equals($this->getMasterPassword(), $password)) {
+            // Neue Session-ID gegen Session-Fixation
+            session()->regenerate();
+
             session()->set([
                 'kassenwart_authenticated' => true,
                 'kassenwart_name' => env('vdst.kassenwart_name', 'VDSt Kassenwart'),
@@ -68,8 +70,10 @@ class AuthController extends BaseController
 
             return redirect()->to('/dashboard')->with('success', 'Erfolgreich angemeldet!');
         } else {
-            // Login-Versuch loggen (für Sicherheit)
             log_message('warning', 'Fehlgeschlagener Login-Versuch von IP: ' . $this->request->getIPAddress());
+
+            // Einfache Bremse gegen automatisiertes Durchprobieren
+            sleep(1);
 
             return redirect()->back()->with('error', 'Falsches Passwort.');
         }
@@ -107,18 +111,5 @@ class AuthController extends BaseController
         }
 
         return false;
-    }
-
-    /**
-     * Session verlängern (bei Aktivität)
-     */
-    public function refreshSession()
-    {
-        if ($this->isAuthenticated()) {
-            session()->set('login_time', time());
-            return $this->response->setJSON(['success' => true]);
-        }
-
-        return $this->response->setJSON(['success' => false]);
     }
 }

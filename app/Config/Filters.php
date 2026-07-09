@@ -30,15 +30,11 @@ class Filters extends BaseConfig
      */
     public array $globals = [
         'before' => [
-            'honeypot',
-            'csrf' => ['except' => [
-                'auth/*',  // CSRF für Auth-Routen deaktivieren falls Probleme
-            ]],
+            'csrf',
             'invalidchars',
         ],
         'after' => [
             'toolbar',
-            'honeypot',
             'secureheaders',
         ],
     ];
@@ -63,28 +59,7 @@ class Filters extends BaseConfig
      * Example:
      * 'isLoggedIn' => ['before' => ['account/*', 'profiles/*']]
      */
-    public array $filters = [
-        // Auth-Filter für alle geschützten Bereiche
-        'auth' => [
-            'before' => [
-                '/',
-                'dashboard',
-                'dashboard/*',
-                'buchungen',
-                'buchungen/*',
-                'belege',
-                'belege/*',
-                'abrechnungen',
-                'abrechnungen/*',
-            ]
-        ],
-
-        'csrf' => [
-            'before' => ['post', 'put', 'patch', 'delete'],
-            'except' => [
-                'abrechnungen/*/removeBeleg/*',
-                'abrechnungen/*/addBeleg/*'
-            ]
-        ],
-    ];
+    // Der Auth-Filter wird über die Routen-Gruppe in app/Config/Routes.php
+    // angewendet (['filter' => 'auth']) — hier keine zweite Konfiguration.
+    public array $filters = [];
 }

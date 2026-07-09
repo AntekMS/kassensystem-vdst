@@ -54,9 +54,10 @@ class Database extends Config
      */
     public array $docker = [
         'DSN'          => '',
-        'hostname'     => 'kassensystem-db', // Docker Service Name
-        'username'     => 'kassenuser',
-        'password'     => 'kassenpass123',
+        // Zugangsdaten kommen aus den Docker-Umgebungsvariablen (siehe Konstruktor)
+        'hostname'     => 'kassensystem-db',
+        'username'     => '',
+        'password'     => '',
         'database'     => 'vdst_kassensystem_small',
         'DBDriver'     => 'MySQLi',
         'DBPrefix'     => '',
@@ -110,13 +111,15 @@ class Database extends Config
         $isDocker = $this->isRunningInDocker();
 
         if ($isDocker) {
-            // Verwende Docker-Konfiguration
+            // Docker-Konfiguration: Zugangsdaten aus Umgebungsvariablen (docker-compose.yml)
             $this->defaultGroup = 'docker';
-            log_message('info', 'Docker-Umgebung erkannt - verwende Docker-Datenbankverbindung');
+            $this->docker['hostname'] = getenv('DB_HOST') ?: $this->docker['hostname'];
+            $this->docker['username'] = getenv('DB_USER') ?: $this->docker['username'];
+            $this->docker['password'] = getenv('DB_PASS') ?: $this->docker['password'];
+            $this->docker['database'] = getenv('DB_NAME') ?: $this->docker['database'];
         } else {
-            // Verwende Standard XAMPP-Konfiguration
+            // Standard XAMPP-Konfiguration
             $this->defaultGroup = 'default';
-            log_message('info', 'Lokale Umgebung erkannt - verwende XAMPP-Datenbankverbindung');
         }
 
         // Automatisch Test-Datenbank verwenden wenn Tests laufen

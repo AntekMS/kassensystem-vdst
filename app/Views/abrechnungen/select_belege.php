@@ -1,11 +1,11 @@
 <?= $this->extend('layouts/main') ?>
 
-<?= $this->section('title') ?>Belege auswählen: <?= $abrechnung['titel'] ?><?= $this->endSection() ?>
+<?= $this->section('title') ?>Belege auswählen: <?= esc($abrechnung['titel']) ?><?= $this->endSection() ?>
 
 <?= $this->section('content') ?>
     <div class="container-fluid">
         <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
             <div>
                 <h1 class="page-title">Belege auswählen</h1>
                 <h4 class="text-muted"><?= esc($abrechnung['titel']) ?></h4>
@@ -88,6 +88,9 @@
                         </div>
                         <div class="card-body">
                             <form id="begruendungForm" method="post" action="<?= base_url('/abrechnungen/hv/update/' . $abrechnung['id']) ?>">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="titel" value="<?= esc($abrechnung['titel'], 'attr') ?>">
+                                <input type="hidden" name="notizen" value="<?= esc($abrechnung['notizen'] ?? '', 'attr') ?>">
                             <textarea name="begruendung" class="form-control" rows="3"
                                       placeholder="Begründung für Heimverein..."><?= esc($abrechnung['begruendung'] ?? '') ?></textarea>
                                 <button type="submit" class="btn btn-outline-warning btn-sm mt-2">Speichern</button>
@@ -123,7 +126,7 @@
                                         <div class="d-flex justify-content-between align-items-start">
                                             <div class="flex-grow-1">
                                                 <div class="d-flex justify-content-between">
-                                                    <strong><?= $beleg['belegnummer'] ?></strong>
+                                                    <strong><?= esc($beleg['belegnummer']) ?></strong>
                                                     <span class="text-end">
                                                     <strong><?= number_format($beleg['betrag'], 2, ',', '.') ?> €</strong>
                                                 </span>
@@ -140,8 +143,8 @@
                                             <div class="ms-3">
                                                 <button class="btn btn-success btn-sm add-beleg-btn"
                                                         data-beleg-id="<?= $beleg['id'] ?>"
-                                                        title="Zur Abrechnung hinzufügen">
-                                                    ➡️
+                                                        title="Zur Abrechnung hinzufügen" aria-label="Zur Abrechnung hinzufügen">
+                                                    <span aria-hidden="true">➡️</span>
                                                 </button>
                                             </div>
                                         </div>
@@ -176,7 +179,7 @@
                                         <div class="d-flex justify-content-between align-items-start">
                                             <div class="flex-grow-1">
                                                 <div class="d-flex justify-content-between">
-                                                    <strong><?= $beleg['belegnummer'] ?></strong>
+                                                    <strong><?= esc($beleg['belegnummer']) ?></strong>
                                                     <span class="text-end">
                                                     <strong><?= number_format($beleg['betrag'], 2, ',', '.') ?> €</strong>
                                                 </span>
@@ -196,8 +199,8 @@
                                             <div class="ms-3">
                                                 <button class="btn btn-danger btn-sm remove-beleg-btn"
                                                         data-beleg-id="<?= $beleg['id'] ?>"
-                                                        title="Aus Abrechnung entfernen">
-                                                    ❌
+                                                        title="Aus Abrechnung entfernen" aria-label="Aus Abrechnung entfernen">
+                                                    <span aria-hidden="true">❌</span>
                                                 </button>
                                             </div>
                                         </div>
@@ -214,77 +217,41 @@
 
 <?= $this->section('scripts') ?>
     <script>
-        const abrechnungId = <?= $abrechnung['id'] ?>;
+        const abrechnungId = <?= (int) $abrechnung['id'] ?>;
         const abrechnungTyp = '<?= $typ ?>';
         const baseUrl = '<?= base_url() ?>';
         const csrfToken = '<?= csrf_token() ?>';
-        const csrfHash = '<?= csrf_hash() ?>';
+        // Der Hash rotiert bei jedem POST; jede JSON-Antwort liefert den neuen mit
+        let csrfHash = '<?= csrf_hash() ?>';
 
         document.addEventListener('DOMContentLoaded', function() {
-            // Beleg hinzufügen
             document.addEventListener('click', function(e) {
                 if (e.target.classList.contains('add-beleg-btn')) {
-                    const belegId = e.target.dataset.belegId;
-                    addBelegToAbrechnung(belegId);
+                    sendeBelegAktion('addBeleg', e.target.dataset.belegId);
                 }
-            });
-
-            // Beleg entfernen
-            document.addEventListener('click', function(e) {
                 if (e.target.classList.contains('remove-beleg-btn')) {
-                    const belegId = e.target.dataset.belegId;
-                    removeBelegFromAbrechnung(belegId);
+                    sendeBelegAktion('removeBeleg', e.target.dataset.belegId);
                 }
             });
-
-            // Export-Download Feedback initialisieren
-            initializeExportFeedback();
         });
 
-        // Beleg zur Abrechnung hinzufügen
-        function addBelegToAbrechnung(belegId) {
+        // Beleg hinzufügen/entfernen (AJAX), danach Seite neu laden
+        function sendeBelegAktion(aktion, belegId) {
             const formData = new FormData();
             formData.append('beleg_id', belegId);
             formData.append(csrfToken, csrfHash);
 
-            fetch(`${baseUrl}/abrechnungen/${abrechnungTyp}/addBeleg/${abrechnungId}`, {
+            fetch(`${baseUrl}/abrechnungen/${abrechnungTyp}/${aktion}/${abrechnungId}`, {
                 method: 'POST',
                 body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
             })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success) {
-                        // Anstatt DOM-Manipulation: Einfach neu laden
-                        showMessage(data.message, 'success');
-                        setTimeout(() => location.reload(), 500);
-                    } else {
-                        showMessage(data.message, 'error');
+                    if (data.csrf_hash) {
+                        csrfHash = data.csrf_hash;
                     }
-                })
-                .catch(error => {
-                    showMessage('Fehler beim Hinzufügen des Belegs', 'error');
-                    console.error(error);
-                });
-        }
 
-        // Beleg aus Abrechnung entfernen
-        function removeBelegFromAbrechnung(belegId) {
-            const formData = new FormData();
-            formData.append('beleg_id', belegId);
-            formData.append(csrfToken, csrfHash);
-
-            fetch(`${baseUrl}/abrechnungen/${abrechnungTyp}/removeBeleg/${abrechnungId}`, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-                .then(response => response.json())
-                .then(data => {
                     if (data.success) {
                         showMessage(data.message, 'success');
                         setTimeout(() => location.reload(), 500);
@@ -294,76 +261,8 @@
                 })
                 .catch(error => {
                     console.error('Fetch error:', error);
-                    showMessage('Fehler beim Entfernen des Belegs', 'error');
+                    showMessage('Fehler bei der Beleg-Zuordnung', 'error');
                 });
-        }
-
-        // Beleg zu ausgewählten hinzufügen (DOM)
-        function addBelegToSelected(belegData) {
-            const zugeordneteContainer = document.getElementById('zugeordnete-belege');
-            const keineText = document.getElementById('keine-belege-text');
-
-            // "Keine Belege" Text entfernen
-            if (keineText) {
-                keineText.remove();
-            }
-
-            // List-Group erstellen falls nicht vorhanden
-            let listGroup = zugeordneteContainer.querySelector('.list-group');
-            if (!listGroup) {
-                listGroup = document.createElement('div');
-                listGroup.className = 'list-group list-group-flush';
-                zugeordneteContainer.appendChild(listGroup);
-            }
-
-            // Beleg-HTML anpassen und hinzufügen
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = belegData.html;
-            const belegElement = tempDiv.firstElementChild;
-
-            // Klasse ändern und Button austauschen
-            belegElement.className = 'list-group-item zugeordneter-beleg';
-            const button = belegElement.querySelector('.add-beleg-btn');
-            button.className = 'btn btn-danger btn-sm remove-beleg-btn';
-            button.innerHTML = '❌';
-            button.title = 'Aus Abrechnung entfernen';
-
-            // Hinzugefügt-Timestamp
-            const zeitDiv = document.createElement('div');
-            zeitDiv.className = 'text-muted small mt-1';
-            zeitDiv.textContent = 'Hinzugefügt: ' + new Date().toLocaleDateString('de-DE') + ' ' + new Date().toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'});
-            belegElement.querySelector('.flex-grow-1').appendChild(zeitDiv);
-
-            listGroup.appendChild(belegElement);
-            updateBelegAnzahl();
-        }
-
-        // Gesamtsumme aktualisieren
-        function updateGesamtsumme(neueSumme) {
-            document.getElementById('gesamtsumme').textContent = neueSumme;
-        }
-
-        // Beleg-Anzahl aktualisieren
-        function updateBelegAnzahl() {
-            const anzahl = document.querySelectorAll('.zugeordneter-beleg').length;
-            document.getElementById('anzahl-belege').textContent = anzahl + ' ausgewählt';
-        }
-
-        // Nachricht anzeigen
-        function showMessage(message, type) {
-            const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
-            const alertHtml = `
-        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `;
-
-            // Alert am Anfang der Seite einfügen
-            const container = document.querySelector('.container-fluid');
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = alertHtml;
-            container.insertBefore(tempDiv.firstElementChild, container.firstElementChild);
         }
 
         // Status auf "Ausstehend" setzen
@@ -371,6 +270,7 @@
             if (confirm('Abrechnung als "Ausstehend" markieren? Sie kann dann nicht mehr bearbeitet werden.')) {
                 const formData = new FormData();
                 formData.append('status', 'ausstehend');
+                formData.append(csrfToken, csrfHash);
 
                 fetch(`${baseUrl}/abrechnungen/${abrechnungTyp}/changeStatus/${abrechnungId}`, {
                     method: 'POST',
@@ -378,70 +278,6 @@
                 })
                     .then(() => location.reload());
             }
-        }
-
-        function initializeExportFeedback() {
-            // ZIP-Download mit Loading-Indikator
-            const zipLinks = document.querySelectorAll('a[href*="/downloadZip/"]');
-
-            zipLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    showLoadingToast('ZIP-Archiv wird erstellt...', 'Das kann einen Moment dauern.');
-
-                    setTimeout(() => {
-                        hideLoadingToast();
-                        showSuccessToast('ZIP-Download gestartet!', 'Das Archiv wurde erstellt und der Download gestartet.');
-                    }, 2000);
-                });
-            });
-
-            // Excel-Download Feedback
-            const excelLinks = document.querySelectorAll('a[href*="/exportExcel/"]');
-
-            excelLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    showSuccessToast('Excel-Export gestartet!', 'Die Datei wird heruntergeladen.');
-                });
-            });
-        }
-
-        function showLoadingToast(title, message) {
-            const toastHtml = `
-                <div class="toast-container position-fixed top-0 end-0 p-3">
-                    <div id="loadingToast" class="toast show" role="alert">
-                        <div class="toast-header bg-info text-white">
-                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                            <strong class="me-auto">${title}</strong>
-                        </div>
-                        <div class="toast-body">${message}</div>
-                    </div>
-                </div>
-            `;
-
-            document.body.insertAdjacentHTML('beforeend', toastHtml);
-        }
-
-        function hideLoadingToast() {
-            const loadingToast = document.getElementById('loadingToast');
-            if (loadingToast) {
-                loadingToast.remove();
-            }
-        }
-
-        function showSuccessToast(title, message) {
-            const toastHtml = `
-                <div class="toast-container position-fixed top-0 end-0 p-3">
-                    <div class="toast show" role="alert" data-bs-autohide="true" data-bs-delay="3000">
-                        <div class="toast-header bg-success text-white">
-                            <strong class="me-auto">${title}</strong>
-                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-                        </div>
-                        <div class="toast-body">${message}</div>
-                    </div>
-                </div>
-            `;
-
-            document.body.insertAdjacentHTML('beforeend', toastHtml);
         }
     </script>
 <?= $this->endSection() ?>

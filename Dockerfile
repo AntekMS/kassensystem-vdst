@@ -59,17 +59,17 @@ RUN if [ -f /var/www/html/composer.json ]; then \
 RUN chown -R www-data:www-data /var/www/html/
 RUN chmod -R 755 /var/www/html/
 
-# Spezielle Berechtigungen für CodeIgniter 4 writable Ordner
-RUN chmod -R 777 /var/www/html/writable/
+# Schreibrechte für den writable-Ordner (www-data ist Owner, 777 unnötig)
+RUN chmod -R 775 /var/www/html/writable/
 
-# Apache Konfiguration für CodeIgniter 4
+# Apache Konfiguration für CodeIgniter 4 (kein Directory-Listing)
 RUN echo '<Directory /var/www/html/>\n\
-    Options Indexes FollowSymLinks\n\
+    Options FollowSymLinks\n\
     AllowOverride All\n\
     Require all granted\n\
 </Directory>\n\
 <Directory /var/www/html/public/>\n\
-    Options Indexes FollowSymLinks\n\
+    Options FollowSymLinks\n\
     AllowOverride All\n\
     Require all granted\n\
 </Directory>' > /etc/apache2/conf-available/codeigniter.conf

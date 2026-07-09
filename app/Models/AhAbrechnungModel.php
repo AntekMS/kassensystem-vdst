@@ -111,85 +111,6 @@ class AhAbrechnungModel extends Model
     }
 
     /**
-     * Fügt einen Beleg zur Abrechnung hinzu
-     *
-     * @param int $abrechnungsId
-     * @param int $belegId
-     * @return bool
-     */
-    public function fuegeBeleghinzu($abrechnungsId, $belegId)
-    {
-        $db = \Config\Database::connect();
-
-        // Prüfe ob Beleg bereits in einer anderen AH²-Abrechnung ist
-        $builder = $db->table('abrechnung_belege');
-        $existiert = $builder->where('beleg_id', $belegId)
-                            ->where('abrechnung_typ', 'ah')
-                            ->countAllResults() > 0;
-
-        if ($existiert) {
-            return false;
-        }
-
-    // Prüfe ob Beleg AH²-berechtigt ist
-    $belegModel = new BelegModel();
-    $beleg = $belegModel->find($belegId);
-
-    if (!$beleg || $beleg['kategorie'] !== 'ah_berechtigt') {
-        return false;
-    }
-
-    // Füge zur Abrechnung hinzu
-    $data = [
-        'beleg_id' => $belegId,
-        'abrechnung_typ' => 'ah',
-        'abrechnung_id' => $abrechnungsId
-    ];
-
-    $inserted = $builder->insert($data);
-
-    if ($inserted) {
-        // Beleg-Status aktualisieren
-        $belegModel->update($belegId, ['status' => 'in_abrechnung']);
-
-        // Gesamtsumme neu berechnen (wird durch Trigger gemacht, aber zur Sicherheit)
-        $this->berechneGesamtsumme($abrechnungsId);
-    }
-
-    return $inserted;
-    }
-
-    /**
-     * Entfernt einen Beleg aus der Abrechnung
-     *
-     * @param int $abrechnungsId
-     * @param int $belegId
-     * @return bool
-     */
-    public function entferneBeleg($abrechnungsId, $belegId)
-    {
-        $db = \Config\Database::connect();
-
-        // Entferne aus Abrechnung
-        $builder = $db->table('abrechnung_belege');
-        $deleted = $builder->where('beleg_id', $belegId)
-            ->where('abrechnung_typ', 'ah')
-            ->where('abrechnung_id', $abrechnungsId)
-            ->delete();
-
-        if ($deleted) {
-            // Beleg-Status zurücksetzen
-            $belegModel = new BelegModel();
-            $belegModel->update($belegId, ['status' => 'erfasst']);
-
-            // Gesamtsumme neu berechnen
-            $this->berechneGesamtsumme($abrechnungsId);
-        }
-
-        return $deleted;
-    }
-
-    /**
      * Holt alle Belege einer Abrechnung
      *
      * @param int $abrechnungsId
@@ -240,6 +161,9 @@ class AhAbrechnungModel extends Model
             return false;
         }
 
+        $aktuelle = $this->find($abrechnungsId);
+        $alterStatus = $aktuelle['status'] ?? null;
+
         $updateData = ['status' => $neuerStatus];
 
         // Datum-Felder setzen je nach Status
@@ -250,27 +174,33 @@ class AhAbrechnungModel extends Model
             case 'bezahlt':
                 $updateData['bezahlt_am'] = date('Y-m-d');
                 // Belege als abgerechnet markieren
-                $this->markiereBelegeAlsAbgerechnet($abrechnungsId);
+                $this->setzeBelegeStatus($abrechnungsId, 'abgerechnet');
                 break;
+        }
+
+        // Wird eine bezahlte Abrechnung zurückgestuft, zugeordnete Belege wieder freigeben
+        if ($alterStatus === 'bezahlt' && $neuerStatus !== 'bezahlt') {
+            $this->setzeBelegeStatus($abrechnungsId, 'in_abrechnung');
         }
 
         return $this->update($abrechnungsId, $updateData);
     }
 
     /**
-     * Markiert alle Belege einer Abrechnung als abgerechnet
+     * Setzt den Status aller Belege einer Abrechnung.
      *
      * @param int $abrechnungsId
+     * @param string $status Ziel-Status (z.B. 'abgerechnet', 'in_abrechnung')
      * @return bool
      */
-    private function markiereBelegeAlsAbgerechnet($abrechnungsId)
+    private function setzeBelegeStatus($abrechnungsId, $status)
     {
         $belege = $this->getBelege($abrechnungsId);
         $belegIds = array_column($belege, 'id');
 
         if (!empty($belegIds)) {
             $belegModel = new BelegModel();
-            return $belegModel->updateStatus($belegIds, 'abgerechnet');
+            return $belegModel->updateStatus($belegIds, $status);
         }
 
         return true;
@@ -285,42 +215,6 @@ class AhAbrechnungModel extends Model
     {
         $belegModel = new BelegModel();
         return $belegModel->getBelegeVerfuegbar('ah_berechtigt');
-    }
-
-    /**
-     * Erstellt Excel-Export-Daten
-     *
-     * @param int $abrechnungsId
-     * @return array
-     */
-    public function getExportDaten($abrechnungsId)
-    {
-        $abrechnung = $this->find($abrechnungsId);
-        $belege = $this->getBelege($abrechnungsId);
-
-        if (!$abrechnung) {
-            return null;
-        }
-
-        $exportDaten = [
-            'abrechnung' => $abrechnung,
-            'belege' => [],
-            'gesamtsumme' => 0
-        ];
-
-        foreach ($belege as $beleg) {
-            $exportDaten['belege'][] = [
-                'Belegnummer' => $beleg['belegnummer'],
-                'Datum' => date('d.m.Y', strtotime($beleg['rechnungsdatum'])),
-                'Beschreibung' => $beleg['beschreibung'],
-                'Lieferant' => $beleg['lieferant'] ?? '',
-                'Betrag' => $beleg['betrag'],
-                'Dateipfad' => $beleg['dateipfad']
-            ];
-            $exportDaten['gesamtsumme'] += $beleg['betrag'];
-        }
-
-        return $exportDaten;
     }
 
     /**
@@ -359,50 +253,4 @@ class AhAbrechnungModel extends Model
         return $monate[$monat] . ' ' . $jahr;
     }
 
-    /**
-     * Formatiert Status für Anzeige
-     *
-     * @param string $status
-     * @return string
-     */
-    public function formatiereStatus($status)
-    {
-        $mapping = [
-            'entwurf' => 'Entwurf',
-            'ausstehend' => 'Ausstehend',
-            'eingereicht' => 'Eingereicht',
-            'bezahlt' => 'Bezahlt'
-        ];
-
-        return $mapping[$status] ?? $status;
-    }
-
-    /**
-     * Holt Status-Badge-Klasse für Bootstrap
-     *
-     * @param string $status
-     * @return string
-     */
-    public function getStatusBadgeClass($status)
-    {
-        $mapping = [
-            'entwurf' => 'badge-secondary',
-            'ausstehend' => 'badge-warning',
-            'eingereicht' => 'badge-info',
-            'bezahlt' => 'badge-success'
-        ];
-
-        return $mapping[$status] ?? 'badge-secondary';
-    }
-
-    /**
-     * Formatiert Betrag für Anzeige
-     *
-     * @param float $betrag
-     * @return string
-     */
-    public function formatiereBetrag($betrag)
-    {
-        return number_format($betrag, 2, ',', '.') . ' €';
-    }
 }

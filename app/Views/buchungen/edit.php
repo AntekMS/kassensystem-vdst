@@ -36,7 +36,7 @@
                                            value="<?= old('buchungsdatum', $buchung['buchungsdatum']) ?>"
                                            required>
                                     <?php if (isset($errors['buchungsdatum'])): ?>
-                                        <div class="invalid-feedback"><?= $errors['buchungsdatum'] ?></div>
+                                        <div class="invalid-feedback"><?= esc($errors['buchungsdatum']) ?></div>
                                     <?php endif; ?>
                                 </div>
                                 <div class="col-md-6">
@@ -55,7 +55,7 @@
                                         <?php endforeach; ?>
                                     </select>
                                     <?php if (isset($errors['konto_typ'])): ?>
-                                        <div class="invalid-feedback"><?= $errors['konto_typ'] ?></div>
+                                        <div class="invalid-feedback"><?= esc($errors['konto_typ']) ?></div>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -80,7 +80,7 @@
                                         </label>
                                     </div>
                                     <?php if (isset($errors['buchungsart'])): ?>
-                                        <div class="text-danger small mt-1"><?= $errors['buchungsart'] ?></div>
+                                        <div class="text-danger small mt-1"><?= esc($errors['buchungsart']) ?></div>
                                     <?php endif; ?>
                                 </div>
                                 <div class="col-md-6">
@@ -98,7 +98,7 @@
                                                required>
                                         <span class="input-group-text">€</span>
                                         <?php if (isset($errors['betrag'])): ?>
-                                            <div class="invalid-feedback"><?= $errors['betrag'] ?></div>
+                                            <div class="invalid-feedback"><?= esc($errors['betrag']) ?></div>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -113,9 +113,9 @@
                                           id="beschreibung"
                                           name="beschreibung"
                                           rows="3"
-                                          required><?= old('beschreibung', $buchung['beschreibung']) ?></textarea>
+                                          required><?= esc(old('beschreibung', $buchung['beschreibung'])) ?></textarea>
                                 <?php if (isset($errors['beschreibung'])): ?>
-                                    <div class="invalid-feedback"><?= $errors['beschreibung'] ?></div>
+                                    <div class="invalid-feedback"><?= esc($errors['beschreibung']) ?></div>
                                 <?php endif; ?>
                             </div>
 
@@ -127,7 +127,7 @@
                                 <textarea class="form-control"
                                           id="notizen"
                                           name="notizen"
-                                          rows="2"><?= old('notizen', $buchung['notizen']) ?></textarea>
+                                          rows="2"><?= esc(old('notizen', $buchung['notizen'] ?? '')) ?></textarea>
                             </div>
                         </div>
                     </div>
@@ -145,7 +145,7 @@
                                 <div class="alert alert-info">
                                     <strong>Aktueller Beleg:</strong><br>
                                     <a href="<?= base_url('/belege/show/' . $buchung['beleg_id']) ?>" target="_blank">
-                                        <?= $buchung['belegnummer'] ?? 'Beleg #' . $buchung['beleg_id'] ?>
+                                        <?= esc($buchung['belegnummer'] ?? 'Beleg #' . $buchung['beleg_id']) ?>
                                     </a>
                                 </div>
                             <?php else: ?>
@@ -159,10 +159,18 @@
                                 <label for="beleg_id" class="form-label">Beleg ändern</label>
                                 <select class="form-control" id="beleg_id" name="beleg_id">
                                     <option value="">Kein Beleg</option>
+                                    <?php // Der aktuell verknüpfte Beleg fehlt in $verfuegbare_belege (nur Belege ohne
+                                          // Buchung) — ohne diese Option würde Speichern die Verknüpfung lösen. ?>
+                                    <?php if (!empty($buchung['beleg_id'])): ?>
+                                        <option value="<?= $buchung['beleg_id'] ?>"
+                                            <?= old('beleg_id', $buchung['beleg_id']) == $buchung['beleg_id'] ? 'selected' : '' ?>>
+                                            Aktuellen Beleg beibehalten
+                                        </option>
+                                    <?php endif; ?>
                                     <?php foreach($verfuegbare_belege as $beleg): ?>
                                         <option value="<?= $beleg['id'] ?>"
                                             <?= old('beleg_id', $buchung['beleg_id']) == $beleg['id'] ? 'selected' : '' ?>>
-                                            <?= $beleg['belegnummer'] ?> - <?= esc(substr($beleg['beschreibung'], 0, 30)) ?>
+                                            <?= esc($beleg['belegnummer']) ?> - <?= esc(substr($beleg['beschreibung'], 0, 30)) ?>
                                             (<?= number_format($beleg['betrag'], 2, ',', '.') ?> €)
                                         </option>
                                     <?php endforeach; ?>

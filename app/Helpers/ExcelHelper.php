@@ -297,13 +297,22 @@ class ExcelHelper
     {
         $writer = new Xlsx($spreadsheet);
 
-        // Headers für Download setzen
-        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        header('Cache-Control: max-age=0');
+        // In temporäre Datei schreiben — mögliche Fehler passieren hier, VOR jeder
+        // Ausgabe, sodass der Aufrufer sie per try/catch sauber abfangen kann
+        // (statt rohem header()/exit, das den Response-Zyklus umgeht).
+        $tempFile = tempnam(sys_get_temp_dir(), 'xlsx_');
 
-        // Direkt an Browser ausgeben
-        $writer->save('php://output');
-        exit;
+        try {
+            $writer->save($tempFile);
+            $inhalt = file_get_contents($tempFile);
+        } finally {
+            if (is_file($tempFile)) {
+                unlink($tempFile);
+            }
+        }
+
+        return service('response')
+            ->download($filename, $inhalt)
+            ->setContentType('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     }
 }

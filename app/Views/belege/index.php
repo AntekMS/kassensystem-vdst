@@ -67,7 +67,7 @@
                     </div>
                     <div class="col-md-2">
                         <label for="filter_kategorie" class="form-label">Kategorie</label>
-                        <select id="filter_kategorie" name="kategorie" class="form-select">
+                        <select id="filter_kategorie" name="kategorie" class="form-select js-autosubmit">
                             <option value="">Alle</option>
                             <?php foreach($kategorien as $value => $label): ?>
                                 <option value="<?= $value ?>" <?= ($filter['kategorie'] ?? '') === $value ? 'selected' : '' ?>>
@@ -78,7 +78,7 @@
                     </div>
                     <div class="col-md-2">
                         <label for="filter_status" class="form-label">Status</label>
-                        <select id="filter_status" name="status" class="form-select">
+                        <select id="filter_status" name="status" class="form-select js-autosubmit">
                             <option value="">Alle</option>
                             <?php foreach($status_optionen as $value => $label): ?>
                                 <option value="<?= $value ?>" <?= ($filter['status'] ?? '') === $value ? 'selected' : '' ?>>
@@ -274,16 +274,5 @@
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Filter-Selects automatisch absenden
-            const filterSelects = document.querySelectorAll('select[name="kategorie"], select[name="status"]');
-            filterSelects.forEach(select => {
-                select.addEventListener('change', function() {
-                    this.form.submit();
-                });
-            });
-
-        });
-    </script>
+    <!-- Filter-Selects werden über die Klasse js-autosubmit in public/js/app.js gebunden -->
 <?= $this->endSection() ?>

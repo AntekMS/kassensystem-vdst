@@ -284,7 +284,7 @@ abstract class AbstractAbrechnungenController extends BaseController
 
             $filename = strtoupper($this->typ) . '_Abrechnung_' . $abrechnung['abrechnungsmonat'] . '.xlsx';
 
-            \App\Helpers\ExcelHelper::downloadExcel($spreadsheet, $filename);
+            return \App\Helpers\ExcelHelper::downloadExcel($spreadsheet, $filename);
         } catch (\Exception $e) {
             log_message('error', 'Excel-Export Fehler: ' . $e->getMessage());
 

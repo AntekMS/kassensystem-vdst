@@ -131,3 +131,28 @@ if (!function_exists('normalisiere_betrag')) {
         return $eingabe;
     }
 }
+
+if (!function_exists('schaetze_archiv_groesse')) {
+    /**
+     * Schätzt die Gesamtgröße eines Beleg-Archivs für die Vorschau.
+     * Nutzt die tatsächliche Dateigröße, sonst eine Schätzung nach Dateityp.
+     */
+    function schaetze_archiv_groesse(array $belege): string
+    {
+        $gesamtgroesse = 0;
+
+        foreach ($belege as $beleg) {
+            if (isset($beleg['dateigroesse']) && $beleg['dateigroesse'] > 0) {
+                $gesamtgroesse += $beleg['dateigroesse'];
+            } else {
+                $gesamtgroesse += ($beleg['dateityp'] ?? '') === 'pdf' ? 200000 : 500000;
+            }
+        }
+
+        if ($gesamtgroesse < 1024 * 1024) {
+            return number_format($gesamtgroesse / 1024, 0) . ' KB';
+        }
+
+        return number_format($gesamtgroesse / (1024 * 1024), 1) . ' MB';
+    }
+}

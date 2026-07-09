@@ -228,7 +228,7 @@ class BuchungenController extends BaseController
             $spreadsheet = \App\Helpers\ExcelHelper::erstelleKassenbuch($buchungen, $kontostaende, $filter);
             $filename = $this->generiereExportFilename('Kassenbuch', $filter, 'xlsx');
 
-            \App\Helpers\ExcelHelper::downloadExcel($spreadsheet, $filename);
+            return \App\Helpers\ExcelHelper::downloadExcel($spreadsheet, $filename);
         } catch (\Exception $e) {
             log_message('error', 'Excel-Export Fehler: ' . $e->getMessage());
 
@@ -256,7 +256,7 @@ class BuchungenController extends BaseController
                 mkdir($tempDir, 0755, true);
             }
 
-            $zipPath = $tempDir . 'kassenbuch_komplett_' . time() . '.zip';
+            $zipPath = $tempDir . 'kassenbuch_komplett_' . uniqid('', true) . '.zip';
 
             $zip = new \ZipArchive();
             if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {

@@ -95,21 +95,6 @@ class AuthController extends BaseController
      */
     public function isAuthenticated()
     {
-        $authenticated = session()->get('kassenwart_authenticated');
-        $loginTime = session()->get('login_time');
-
-        // Session-Timeout aus .env oder Standard (8 Stunden)
-        $sessionTimeout = env('vdst.session_timeout', 8 * 60 * 60);
-
-        if ($authenticated && $loginTime && (time() - $loginTime) < $sessionTimeout) {
-            return true;
-        }
-
-        // Session abgelaufen
-        if ($authenticated && $loginTime && (time() - $loginTime) >= $sessionTimeout) {
-            session()->destroy();
-        }
-
-        return false;
+        return \App\Libraries\Auth::istAngemeldet();
     }
 }

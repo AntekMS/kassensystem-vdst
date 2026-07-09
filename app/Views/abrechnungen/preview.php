@@ -287,7 +287,7 @@
                                 <li>Aussagekräftige Dateinamen</li>
                                 <li>Übersichtliche Nummerierung</li>
                                 <li>Detaillierte Info-Datei</li>
-                                <li>Gesamtgröße: ca. <?= schaetzeArchivGroesse($belege) ?></li>
+                                <li>Gesamtgröße: ca. <?= schaetze_archiv_groesse($belege) ?></li>
                             </ul>
                             <a href="<?= base_url('/abrechnungen/' . $typ . '/downloadZip/' . $abrechnung['id']) ?>"
                                class="btn btn-dark w-100">
@@ -301,26 +301,6 @@
         <?php endif; ?>
     </div>
 
-<?php
-// Hilfsfunktion für geschätzte Archivgröße
-function schaetzeArchivGroesse($belege) {
-    $gesamtgroesse = 0;
-    foreach ($belege as $beleg) {
-        if (isset($beleg['dateigroesse']) && $beleg['dateigroesse'] > 0) {
-            $gesamtgroesse += $beleg['dateigroesse'];
-        } else {
-            $schaetzung = $beleg['dateityp'] === 'pdf' ? 200000 : 500000;
-            $gesamtgroesse += $schaetzung;
-        }
-    }
-
-    if ($gesamtgroesse < 1024 * 1024) {
-        return number_format($gesamtgroesse / 1024, 0) . ' KB';
-    } else {
-        return number_format($gesamtgroesse / (1024 * 1024), 1) . ' MB';
-    }
-}
-?>
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>

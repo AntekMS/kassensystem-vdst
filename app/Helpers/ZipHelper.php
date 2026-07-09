@@ -28,10 +28,11 @@ class ZipHelper
                 mkdir($tempDir, 0755, true);
             }
 
-            // ZIP-Dateiname generieren
+            // ZIP-Dateiname generieren (uniqid statt time() — verhindert Kollisionen
+            // bei parallelen Exports innerhalb derselben Sekunde)
             $zipFilename = strtoupper($typ) . '_Komplett_' .
                 $abrechnung['abrechnungsmonat'] . '_' .
-                time() . '.zip';
+                uniqid('', true) . '.zip';
             $zipPath = $tempDir . $zipFilename;
 
             // ZIP erstellen
@@ -53,7 +54,7 @@ class ZipHelper
             }
 
             // Excel temporär speichern
-            $tempExcelPath = $tempDir . 'temp_' . $excelFilename;
+            $tempExcelPath = $tempDir . uniqid('temp_', true) . '.xlsx';
             $writer = new Xlsx($spreadsheet);
             $writer->save($tempExcelPath);
 

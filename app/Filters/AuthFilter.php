@@ -21,12 +21,8 @@ class AuthFilter implements FilterInterface
      */
     public function before(RequestInterface $request, $arguments = null)
     {
-        // Auth-Controller laden für isAuthenticated() Methode
-        $authController = new \App\Controllers\AuthController();
-
-        // Aktuelle URI holen
-        $uri = service('uri');
-        $currentPath = $uri->getPath();
+        // Aktuelle URI holen (ohne führende/abschließende Slashes für exakten Vergleich)
+        $currentPath = trim(service('uri')->getPath(), '/');
 
         // Ausnahmen: Diese Pfade sind ohne Login zugänglich
         $publicPaths = [
@@ -34,15 +30,13 @@ class AuthFilter implements FilterInterface
             'auth/authenticate'
         ];
 
-        // Prüfen ob aktueller Pfad öffentlich ist
-        foreach ($publicPaths as $path) {
-            if (strpos($currentPath, $path) !== false) {
-                return; // Zugriff erlaubt
-            }
+        // Prüfen ob aktueller Pfad öffentlich ist (exakter Match statt Teilstring)
+        if (in_array($currentPath, $publicPaths, true)) {
+            return; // Zugriff erlaubt
         }
 
         // Authentifizierung prüfen
-        if (!$authController->isAuthenticated()) {
+        if (!\App\Libraries\Auth::istAngemeldet()) {
             // Session-Message setzen
             session()->setFlashdata('error', 'Bitte melden Sie sich zuerst an.');
 

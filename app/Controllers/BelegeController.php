@@ -36,10 +36,15 @@ class BelegeController extends BaseController
 
         $belege = $this->belegModel->sucheBelege($filter);
 
-        // Für jeden Beleg prüfen, ob er in Abrechnungen ist
+        // Abrechnungs-Zuordnungen für alle Belege in 2 Queries laden (statt 2·N)
+        $abrechnungenMap = $this->abrechnungBelegModel->getAbrechnungenFuerBelege(
+            array_column($belege, 'id')
+        );
+
         foreach ($belege as &$beleg) {
-            $beleg['abrechnungen'] = $this->abrechnungBelegModel->getAbrechnungenFuerBeleg($beleg['id']);
+            $beleg['abrechnungen'] = $abrechnungenMap[$beleg['id']] ?? [];
         }
+        unset($beleg);
 
         $data = [
             'title' => 'Belege-Übersicht',
@@ -335,10 +340,16 @@ class BelegeController extends BaseController
             return redirect()->back()->with('error', 'Keine Belege zum Exportieren gefunden.');
         }
 
-        $excel = $this->erstelleBelegeExcel($belege);
-        $filename = $this->generiereExportFilename('Belege_Export', $filter, 'xlsx');
+        try {
+            $excel = $this->erstelleBelegeExcel($belege);
+            $filename = $this->generiereExportFilename('Belege_Export', $filter, 'xlsx');
 
-        \App\Helpers\ExcelHelper::downloadExcel($excel, $filename);
+            return \App\Helpers\ExcelHelper::downloadExcel($excel, $filename);
+        } catch (\Exception $e) {
+            log_message('error', 'Excel-Export Fehler: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Fehler beim Excel-Export: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -361,7 +372,7 @@ class BelegeController extends BaseController
                 mkdir($tempDir, 0755, true);
             }
 
-            $zipPath = $tempDir . 'belege_komplett_' . time() . '.zip';
+            $zipPath = $tempDir . 'belege_komplett_' . uniqid('', true) . '.zip';
 
             $zip = new \ZipArchive();
             if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
@@ -371,7 +382,7 @@ class BelegeController extends BaseController
             // 1. Excel-Datei erstellen und hinzufügen
             $excel = $this->erstelleBelegeExcel($belege);
             $excelFilename = 'Belege_Liste_' . date('Y-m-d') . '.xlsx';
-            $tempExcelPath = $tempDir . $excelFilename;
+            $tempExcelPath = $tempDir . uniqid('temp_', true) . '.xlsx';
 
             $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($excel);
             $writer->save($tempExcelPath);

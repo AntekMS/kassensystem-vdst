@@ -246,10 +246,26 @@
                 body: formData,
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.csrf_hash) {
+                .then(async (response) => {
+                    // Defensiv: bei abgelaufener Session/CSRF kann die Antwort
+                    // non-JSON sein (HTML-Fehlerseite). Nicht blind json() parsen.
+                    let data = null;
+                    try {
+                        data = await response.json();
+                    } catch (e) {
+                        data = null;
+                    }
+
+                    // Rotierten CSRF-Hash übernehmen, sobald vorhanden
+                    if (data && data.csrf_hash) {
                         csrfHash = data.csrf_hash;
+                    }
+
+                    if (!response.ok || !data) {
+                        // z.B. 403 durch abgelaufene Session/CSRF → neu laden für frisches Token
+                        showMessage('Sitzung abgelaufen oder ungültig. Seite wird neu geladen …', 'error');
+                        setTimeout(() => location.reload(), 1200);
+                        return;
                     }
 
                     if (data.success) {
@@ -261,7 +277,7 @@
                 })
                 .catch(error => {
                     console.error('Fetch error:', error);
-                    showMessage('Fehler bei der Beleg-Zuordnung', 'error');
+                    showMessage('Netzwerkfehler bei der Beleg-Zuordnung', 'error');
                 });
         }
 
@@ -274,9 +290,14 @@
 
                 fetch(`${baseUrl}/abrechnungen/${abrechnungTyp}/changeStatus/${abrechnungId}`, {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 })
-                    .then(() => location.reload());
+                    .then(() => location.reload())
+                    .catch(error => {
+                        console.error('Fetch error:', error);
+                        location.reload();
+                    });
             }
         }
     </script>

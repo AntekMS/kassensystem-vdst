@@ -58,7 +58,7 @@
                                     </label>
                                     <div class="input-group">
                                         <input type="number"
-                                               class="form-control <?= isset($errors['betrag']) ? 'is-invalid' : '' ?>"
+                                               class="form-control js-betrag-format <?= isset($errors['betrag']) ? 'is-invalid' : '' ?>"
                                                id="betrag"
                                                name="betrag"
                                                step="0.01"
@@ -242,14 +242,7 @@
                 }
             });
 
-            // Betrag formatieren
-            const betragInput = document.getElementById('betrag');
-            betragInput.addEventListener('blur', function() {
-                const value = parseFloat(this.value);
-                if (!isNaN(value)) {
-                    this.value = value.toFixed(2);
-                }
-            });
+            // Betrag-Formatierung erfolgt zentral über js-betrag-format (public/js/app.js)
         });
     </script>
 <?= $this->endSection() ?>

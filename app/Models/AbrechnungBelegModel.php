@@ -186,6 +186,54 @@ class AbrechnungBelegModel extends Model
     }
 
     /**
+     * Holt die Abrechnungen für mehrere Belege auf einmal (2 Queries statt 2·N).
+     *
+     * @param int[] $belegIds
+     * @return array<int, array> Map beleg_id => Liste der Abrechnungen
+     */
+    public function getAbrechnungenFuerBelege(array $belegIds): array
+    {
+        if (empty($belegIds)) {
+            return [];
+        }
+
+        $ahAbrechnungen = $this->select('
+                abrechnung_belege.beleg_id,
+                abrechnung_belege.hinzugefuegt_am,
+                ah_abrechnungen.id,
+                ah_abrechnungen.titel,
+                ah_abrechnungen.abrechnungsmonat,
+                ah_abrechnungen.status,
+                "ah" as typ
+            ')
+            ->join('ah_abrechnungen', 'ah_abrechnungen.id = abrechnung_belege.abrechnung_id')
+            ->whereIn('abrechnung_belege.beleg_id', $belegIds)
+            ->where('abrechnung_belege.abrechnung_typ', 'ah')
+            ->findAll();
+
+        $hvAbrechnungen = $this->select('
+                abrechnung_belege.beleg_id,
+                abrechnung_belege.hinzugefuegt_am,
+                hv_abrechnungen.id,
+                hv_abrechnungen.titel,
+                hv_abrechnungen.abrechnungsmonat,
+                hv_abrechnungen.status,
+                "hv" as typ
+            ')
+            ->join('hv_abrechnungen', 'hv_abrechnungen.id = abrechnung_belege.abrechnung_id')
+            ->whereIn('abrechnung_belege.beleg_id', $belegIds)
+            ->where('abrechnung_belege.abrechnung_typ', 'hv')
+            ->findAll();
+
+        $map = [];
+        foreach (array_merge($ahAbrechnungen, $hvAbrechnungen) as $zeile) {
+            $map[$zeile['beleg_id']][] = $zeile;
+        }
+
+        return $map;
+    }
+
+    /**
      * Prüft ob ein Beleg bereits in einer bestimmten Abrechnung ist
      */
     public function istBelegInAbrechnung($belegId, $abrechnungsTyp, $abrechnungsId)

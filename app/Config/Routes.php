@@ -77,12 +77,19 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
 // ==================== ERROR HANDLING ====================
 
 $routes->set404Override(function () {
+    // Wichtig: CI4 gibt den Rückgabewert dieser Closure per echo aus. Ein
+    // Response-/RedirectResponse-Objekt zurückzugeben würde beim String-Cast
+    // fatal fehlschlagen. Daher die geteilte Response mutieren und '' zurückgeben.
+    $response = service('response')->setStatusCode(404);
+
     if (service('request')->isAJAX()) {
-        return service('response')->setJSON(['error' => 'Seite nicht gefunden'])->setStatusCode(404);
+        $response->setJSON(['error' => 'Seite nicht gefunden']);
+        return $response->getBody();
     }
 
-    if (!session()->get('kassenwart_authenticated')) {
-        return redirect()->to('/auth/login');
+    if (!\App\Libraries\Auth::istAngemeldet()) {
+        $response->redirect(site_url('auth/login'));
+        return '';
     }
 
     return view('errors/html/error_404');

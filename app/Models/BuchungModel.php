@@ -116,28 +116,33 @@ class BuchungModel extends Model
     public function berechneKontostaende()
     {
         $konten = ['aktivenkasse', 'getraenkekasse', 'barkasse'];
+
+        // Grundgerüst mit Nullwerten, damit auch Konten ohne Buchungen erscheinen
         $staende = [];
-
         foreach ($konten as $konto) {
-            $einnahmen = $this->where('konto_typ', $konto)
-                ->where('buchungsart', 'einnahme')
-                ->selectSum('betrag')
-                ->get()
-                ->getRow()
-                ->betrag ?? 0;
+            $staende[$konto] = ['einnahmen' => 0, 'ausgaben' => 0, 'saldo' => 0];
+        }
 
-            $ausgaben = $this->where('konto_typ', $konto)
-                ->where('buchungsart', 'ausgabe')
-                ->selectSum('betrag')
-                ->get()
-                ->getRow()
-                ->betrag ?? 0;
+        // Alle Summen in EINER Query statt 2 je Konto
+        $zeilen = $this->select('konto_typ, buchungsart, SUM(betrag) AS summe')
+            ->groupBy(['konto_typ', 'buchungsart'])
+            ->get()
+            ->getResultArray();
 
-            $staende[$konto] = [
-                'einnahmen' => $einnahmen,
-                'ausgaben' => $ausgaben,
-                'saldo' => $einnahmen - $ausgaben
-            ];
+        foreach ($zeilen as $zeile) {
+            $konto = $zeile['konto_typ'];
+            if (!isset($staende[$konto])) {
+                continue;
+            }
+            if ($zeile['buchungsart'] === 'einnahme') {
+                $staende[$konto]['einnahmen'] = (float) $zeile['summe'];
+            } elseif ($zeile['buchungsart'] === 'ausgabe') {
+                $staende[$konto]['ausgaben'] = (float) $zeile['summe'];
+            }
+        }
+
+        foreach ($staende as $konto => $werte) {
+            $staende[$konto]['saldo'] = $werte['einnahmen'] - $werte['ausgaben'];
         }
 
         return $staende;

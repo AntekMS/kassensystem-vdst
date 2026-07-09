@@ -136,7 +136,7 @@
                     </div>
                     <div class="col-md-2">
                         <label for="filter_konto_typ" class="form-label">Konto</label>
-                        <select id="filter_konto_typ" name="konto_typ" class="form-select">
+                        <select id="filter_konto_typ" name="konto_typ" class="form-select js-autosubmit">
                             <option value="">Alle Konten</option>
                             <option value="aktivenkasse" <?= ($filter['konto_typ'] ?? '') === 'aktivenkasse' ? 'selected' : '' ?>>
                                 Aktivenkasse
@@ -151,7 +151,7 @@
                     </div>
                     <div class="col-md-2">
                         <label for="filter_buchungsart" class="form-label">Art</label>
-                        <select id="filter_buchungsart" name="buchungsart" class="form-select">
+                        <select id="filter_buchungsart" name="buchungsart" class="form-select js-autosubmit">
                             <option value="">Alle</option>
                             <option value="einnahme" <?= ($filter['buchungsart'] ?? '') === 'einnahme' ? 'selected' : '' ?>>
                                 Einnahme
@@ -323,13 +323,7 @@
                 link.setAttribute('target', '_blank');
             });
 
-            // Filter-Form automatisch absenden bei Änderung der Selects
-            const filterSelects = document.querySelectorAll('select[name="konto_typ"], select[name="buchungsart"]');
-            filterSelects.forEach(select => {
-                select.addEventListener('change', function() {
-                    this.form.submit();
-                });
-            });
+            // Filter-Selects werden über die Klasse js-autosubmit in public/js/app.js gebunden
 
             // Barkasse-Toggle Funktionalität
             const barkasseToggle = document.getElementById('barkasse-toggle');

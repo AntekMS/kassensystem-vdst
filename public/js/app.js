@@ -88,6 +88,23 @@ function initializeExportFeedback() {
     });
 }
 
+// Formatiert eine Betrag-Eingabe beim Verlassen auf 2 Dezimalstellen
+function bindBetragFormat(input) {
+    input.addEventListener('blur', function () {
+        const value = parseFloat(this.value);
+        if (!isNaN(value)) {
+            this.value = value.toFixed(2);
+        }
+    });
+}
+
+// Sendet das umgebende Formular automatisch ab, sobald sich das Select ändert
+function bindAutoSubmit(select) {
+    select.addEventListener('change', function () {
+        this.form.submit();
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     // Flash-Messages nach 5 Sekunden automatisch ausblenden
     document.querySelectorAll('.alert:not(.alert-permanent)').forEach(function (alert) {
@@ -97,6 +114,10 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }, 5000);
     });
+
+    // Gemeinsame Verhaltensweisen per Klasse binden (vorher pro View dupliziert)
+    document.querySelectorAll('input.js-betrag-format').forEach(bindBetragFormat);
+    document.querySelectorAll('select.js-autosubmit').forEach(bindAutoSubmit);
 
     initializeExportFeedback();
 });

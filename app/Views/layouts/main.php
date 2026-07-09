@@ -186,8 +186,10 @@
             VDSt Kassensystem
         </a>
 
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" style="border-color: var(--vdst-rot);">
-            <span style="color: var(--vdst-weiss);">☰</span>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Navigation ein-/ausblenden"
+                style="border-color: var(--vdst-rot);">
+            <span style="color: var(--vdst-weiss);" aria-hidden="true">☰</span>
         </button>
 
         <div class="collapse navbar-collapse" id="navbarNav">

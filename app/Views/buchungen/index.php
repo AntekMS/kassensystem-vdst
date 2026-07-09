@@ -21,14 +21,7 @@
                 <div class="col-md-3">
                     <div class="card kontostand-card">
                         <div class="card-header">
-                            <?php
-                            $kontoNamen = [
-                                'aktivenkasse' => 'Aktivenkasse',
-                                'getraenkekasse' => 'Getränkekasse',
-                                'barkasse' => 'Barkasse'
-                            ];
-                            echo $kontoNamen[$konto] ?? ucfirst($konto);
-                            ?>
+                            <?= konto_label($konto) ?>
                         </div>
                         <div class="card-body text-center">
                             <div class="row">
@@ -100,17 +93,12 @@
                             <ul class="dropdown-menu">
                                 <li>
                                     <a class="dropdown-item" href="<?= base_url('/buchungen/exportExcel?' . http_build_query($filter)) ?>">
-                                        📋 Kassenbuch (Original-Format)
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="<?= base_url('/buchungen/export/excel?' . http_build_query($filter)) ?>">
-                                        📝 Nur Buchungen-Liste
+                                        📋 Kassenbuch (Excel)
                                     </a>
                                 </li>
                                 <li>
                                     <a class="dropdown-item" href="<?= base_url('/buchungen/export/zip?' . http_build_query($filter)) ?>">
-                                        📦 Kassenbuch + Buchungen + Belege (ZIP)
+                                        📦 Kassenbuch + Belege (ZIP)
                                     </a>
                                 </li>
                             </ul>
@@ -137,18 +125,18 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-2">
-                        <label class="form-label">Von Datum</label>
-                        <input type="date" name="datum_von" value="<?= $filter['datum_von'] ?? '' ?>"
+                        <label for="filter_datum_von" class="form-label">Von Datum</label>
+                        <input type="date" id="filter_datum_von" name="datum_von" value="<?= esc($filter['datum_von'] ?? '', 'attr') ?>"
                                class="form-control">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Bis Datum</label>
-                        <input type="date" name="datum_bis" value="<?= $filter['datum_bis'] ?? '' ?>"
+                        <label for="filter_datum_bis" class="form-label">Bis Datum</label>
+                        <input type="date" id="filter_datum_bis" name="datum_bis" value="<?= esc($filter['datum_bis'] ?? '', 'attr') ?>"
                                class="form-control">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Konto</label>
-                        <select name="konto_typ" class="form-control">
+                        <label for="filter_konto_typ" class="form-label">Konto</label>
+                        <select id="filter_konto_typ" name="konto_typ" class="form-select">
                             <option value="">Alle Konten</option>
                             <option value="aktivenkasse" <?= ($filter['konto_typ'] ?? '') === 'aktivenkasse' ? 'selected' : '' ?>>
                                 Aktivenkasse
@@ -162,8 +150,8 @@
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Art</label>
-                        <select name="buchungsart" class="form-control">
+                        <label for="filter_buchungsart" class="form-label">Art</label>
+                        <select id="filter_buchungsart" name="buchungsart" class="form-select">
                             <option value="">Alle</option>
                             <option value="einnahme" <?= ($filter['buchungsart'] ?? '') === 'einnahme' ? 'selected' : '' ?>>
                                 Einnahme
@@ -174,8 +162,8 @@
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Suche</label>
-                        <input type="text" name="suche" value="<?= esc($filter['suche'] ?? '') ?>"
+                        <label for="filter_suche" class="form-label">Suche</label>
+                        <input type="text" id="filter_suche" name="suche" value="<?= esc($filter['suche'] ?? '') ?>"
                                placeholder="Beschreibung, Lieferant, Belegnummer, Notizen..." class="form-control">
                     </div>
                     <div class="col-md-1">
@@ -238,7 +226,7 @@
                                         <?php if (!empty($buchung['belegnummer'])): ?>
                                             <a href="<?= base_url('/belege/show/' . $buchung['beleg_id']) ?>"
                                                target="_blank" class="btn btn-outline-dark btn-sm">
-                                                📄 <?= $buchung['belegnummer'] ?>
+                                                📄 <?= esc($buchung['belegnummer']) ?>
                                             </a>
                                         <?php else: ?>
                                             <span class="text-muted">Kein Beleg</span>
@@ -246,14 +234,7 @@
                                     </td>
                                     <td>
                                     <span class="badge bg-secondary">
-                                        <?php
-                                        $kontoNamen = [
-                                            'aktivenkasse' => 'Aktivenkasse',
-                                            'getraenkekasse' => 'Getränkekasse',
-                                            'barkasse' => 'Barkasse'
-                                        ];
-                                        echo $kontoNamen[$buchung['konto_typ']] ?? ucfirst($buchung['konto_typ']);
-                                        ?>
+                                        <?= konto_label($buchung['konto_typ']) ?>
                                     </span>
                                     </td>
                                     <td class="text-end">
@@ -273,15 +254,17 @@
                                     <td class="text-center">
                                         <div class="btn-group btn-group-sm">
                                             <a href="<?= base_url('/buchungen/edit/' . $buchung['id']) ?>"
-                                               class="btn btn-outline-dark" title="Bearbeiten">
-                                                ✏️
+                                               class="btn btn-outline-dark" title="Bearbeiten" aria-label="Buchung bearbeiten">
+                                                <span aria-hidden="true">✏️</span>
                                             </a>
-                                            <a href="<?= base_url('/buchungen/delete/' . $buchung['id']) ?>"
-                                               class="btn btn-outline-danger"
-                                               onclick="return confirmDelete('Buchung wirklich löschen?')"
-                                               title="Löschen">
-                                                🗑️
-                                            </a>
+                                            <form method="post" class="d-inline"
+                                                  action="<?= base_url('/buchungen/delete/' . $buchung['id']) ?>"
+                                                  onsubmit="return confirmDelete('Buchung wirklich löschen?')">
+                                                <?= csrf_field() ?>
+                                                <button type="submit" class="btn btn-outline-danger" title="Löschen" aria-label="Buchung löschen">
+                                                    <span aria-hidden="true">🗑️</span>
+                                                </button>
+                                            </form>
                                         </div>
                                     </td>
                                 </tr>

@@ -36,7 +36,7 @@
                                            value="<?= old('abrechnungsmonat', $aktueller_monat) ?>"
                                            required>
                                     <?php if (isset($errors['abrechnungsmonat'])): ?>
-                                        <div class="invalid-feedback"><?= $errors['abrechnungsmonat'] ?></div>
+                                        <div class="invalid-feedback"><?= esc($errors['abrechnungsmonat']) ?></div>
                                     <?php endif; ?>
                                     <small class="text-muted">
                                         Der Monat für den die Abrechnung erstellt wird.
@@ -53,11 +53,11 @@
                                        class="form-control <?= isset($errors['titel']) ? 'is-invalid' : '' ?>"
                                        id="titel"
                                        name="titel"
-                                       value="<?= old('titel') ?>"
+                                       value="<?= esc(old('titel') ?? '', 'attr') ?>"
                                        placeholder="<?= $typ === 'ah' ? 'AH²' : 'HV' ?> Abrechnung [Monat] [Jahr]"
                                        required>
                                 <?php if (isset($errors['titel'])): ?>
-                                    <div class="invalid-feedback"><?= $errors['titel'] ?></div>
+                                    <div class="invalid-feedback"><?= esc($errors['titel']) ?></div>
                                 <?php endif; ?>
                                 <small class="text-muted">
                                     Wird automatisch generiert, falls leer gelassen.
@@ -74,13 +74,12 @@
                                               id="begruendung"
                                               name="begruendung"
                                               rows="4"
-                                              placeholder="Begründung warum diese Ausgaben vom Heimverein erstattet werden sollen..."><?= old('begruendung') ?></textarea>
+                                              placeholder="Begründung warum diese Ausgaben vom Heimverein erstattet werden sollen..."><?= esc(old('begruendung') ?? '') ?></textarea>
                                     <?php if (isset($errors['begruendung'])): ?>
-                                        <div class="invalid-feedback"><?= $errors['begruendung'] ?></div>
+                                        <div class="invalid-feedback"><?= esc($errors['begruendung']) ?></div>
                                     <?php endif; ?>
                                     <small class="text-muted">
-                                        Diese Begründung erscheint in der Excel-Datei. Zusätzlich werden automatisch
-                                        spezifische Begründungen pro Beleg generiert.
+                                        Diese Begründung erscheint in der Excel-Datei.
                                     </small>
                                 </div>
                             <?php endif; ?>
@@ -94,7 +93,7 @@
                                           id="notizen"
                                           name="notizen"
                                           rows="3"
-                                          placeholder="Interne Notizen zur Abrechnung (erscheinen nicht im Export)..."><?= old('notizen') ?></textarea>
+                                          placeholder="Interne Notizen zur Abrechnung (erscheinen nicht im Export)..."><?= esc(old('notizen') ?? '') ?></textarea>
                                 <small class="text-muted">
                                     Diese Notizen sind nur intern sichtbar und erscheinen nicht in der Excel-Datei.
                                 </small>

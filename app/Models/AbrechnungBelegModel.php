@@ -148,22 +148,6 @@ class AbrechnungBelegModel extends Model
     }
 
     /**
-     * Holt alle Belege einer bestimmten Abrechnung
-     */
-    public function getBelegeFuerAbrechnung($abrechnungsTyp, $abrechnungsId)
-    {
-        return $this->select('
-                abrechnung_belege.hinzugefuegt_am,
-                belege.*
-            ')
-            ->join('belege', 'belege.id = abrechnung_belege.beleg_id')
-            ->where('abrechnung_belege.abrechnung_typ', $abrechnungsTyp)
-            ->where('abrechnung_belege.abrechnung_id', $abrechnungsId)
-            ->orderBy('belege.rechnungsdatum', 'ASC')
-            ->findAll();
-    }
-
-    /**
      * Holt alle Abrechnungen für einen bestimmten Beleg
      */
     public function getAbrechnungenFuerBeleg($belegId)
@@ -269,23 +253,6 @@ class AbrechnungBelegModel extends Model
     }
 
     /**
-     * Verschiebt alle Belege von einer Abrechnung zu einer anderen
-     */
-    public function verschiebeAlleBeleg($abrechnungsTyp, $vonAbrechnungsId, $zuAbrechnungsId)
-    {
-        // Prüfe ob Ziel-Abrechnung existiert
-        if (!$this->abrechnungExistiert($abrechnungsTyp, $zuAbrechnungsId)) {
-            return false;
-        }
-
-        return $this->where([
-            'abrechnung_typ' => $abrechnungsTyp,
-            'abrechnung_id' => $vonAbrechnungsId
-        ])->set(['abrechnung_id' => $zuAbrechnungsId])
-            ->update();
-    }
-
-    /**
      * Löscht alle Zuordnungen einer Abrechnung
      */
     public function loescheAlleZuordnungen($abrechnungsTyp, $abrechnungsId)
@@ -319,23 +286,6 @@ class AbrechnungBelegModel extends Model
     }
 
     /**
-     * Holt Statistiken für Dashboard
-     */
-    public function getDashboardStats()
-    {
-        return [
-            'gesamt_zuordnungen' => $this->countAll(),
-            'ah_zuordnungen' => $this->where('abrechnung_typ', 'ah')->countAllResults(),
-            'hv_zuordnungen' => $this->where('abrechnung_typ', 'hv')->countAllResults(),
-            'heute_hinzugefuegt' => $this->where('DATE(hinzugefuegt_am)', date('Y-m-d'))->countAllResults()
-        ];
-    }
-
-    /**
-     * Holt verfügbare Belege für eine Abrechnung
-     * (Belege die nicht bereits in einer anderen Abrechnung desselben Typs sind)
-     */
-    /**
      * Holt verfügbare Belege für eine Abrechnung
      * (Belege die nicht bereits in einer Abrechnung desselben Typs sind)
      */
@@ -343,7 +293,7 @@ class AbrechnungBelegModel extends Model
     {
         $erforderlicheKategorie = $abrechnungsTyp === 'ah' ? 'ah_berechtigt' : 'hv_berechtigt';
 
-        // Query für bereits zugeordnete Belege - KORRIGIERT!
+        // Subquery für bereits zugeordnete Belege
         $db = \Config\Database::connect();
         $subqueryBuilder = $db->table('abrechnung_belege');
         $subqueryBuilder->select('beleg_id')
@@ -382,13 +332,5 @@ class AbrechnungBelegModel extends Model
             ->where('abrechnung_belege.abrechnung_id', $abrechnungsId)
             ->orderBy('belege.rechnungsdatum', 'ASC')
             ->findAll();
-    }
-
-    /**
-     * Formatiert Hinzugefügt-Datum für Anzeige
-     */
-    public function formatiereHinzugefuegtAm($datum)
-    {
-        return date('d.m.Y H:i', strtotime($datum));
     }
 }

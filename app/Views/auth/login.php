@@ -161,7 +161,7 @@
         <!-- Success Messages -->
         <?php if (session()->getFlashdata('success')): ?>
             <div class="alert alert-success">
-                <?= session()->getFlashdata('success') ?>
+                <?= esc(session()->getFlashdata('success')) ?>
             </div>
         <?php endif; ?>
 
@@ -180,7 +180,7 @@
                            placeholder="Passwort eingeben..."
                            required
                            autofocus>
-                    <button type="button" class="password-toggle-btn" id="togglePassword">
+                    <button type="button" class="password-toggle-btn" id="togglePassword" aria-label="Passwort anzeigen oder verbergen">
                         👁️
                     </button>
                 </div>

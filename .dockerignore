@@ -1,0 +1,10 @@
+.git
+.env
+writable/cache/*
+writable/debugbar/*
+writable/logs/*
+writable/session/*
+writable/temp/*
+vendor
+node_modules
+composer.phar

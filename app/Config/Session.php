@@ -39,8 +39,11 @@ class Session extends BaseConfig
      *
      * The number of SECONDS you want the session to last.
      * Setting to 0 (zero) means expire when the browser is closed.
+     *
+     * Muss zu vdst.session_timeout in .env passen (Standard: 8 Stunden),
+     * sonst läuft die Framework-Session früher ab als der Login.
      */
-    public int $expiration = 1800;
+    public int $expiration = 28800;
 
     /**
      * --------------------------------------------------------------------------

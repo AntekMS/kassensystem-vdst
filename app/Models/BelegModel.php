@@ -240,7 +240,8 @@ class BelegModel extends Model
     /**
      * Generiert Dateipfad basierend auf Rechnungsdatum
      *
-     * Struktur: uploads/belege/YYYY/MM/
+     * Struktur: uploads/belege/YYYY/MM/ — relativ zu FCPATH (public/),
+     * daher hier KEIN "public/"-Präfix.
      *
      * @param string $rechnungsdatum
      * @return string
@@ -250,7 +251,7 @@ class BelegModel extends Model
         $jahr = date('Y', strtotime($rechnungsdatum));
         $monat = date('m', strtotime($rechnungsdatum));
 
-        return "public/uploads/belege/{$jahr}/{$monat}/";
+        return "uploads/belege/{$jahr}/{$monat}/";
     }
 
     /**
@@ -289,26 +290,4 @@ class BelegModel extends Model
             ->findAll();
     }
 
-    /**
-     * Validiert Dateityp
-     *
-     * @param string $dateityp
-     * @return bool
-     */
-    public function istErlaubterDateityp($dateityp)
-    {
-        $erlaubteTypen = ['pdf', 'jpg', 'jpeg', 'png'];
-        return in_array(strtolower($dateityp), $erlaubteTypen);
-    }
-
-    /**
-     * Formatiert Betrag für Anzeige
-     *
-     * @param float $betrag
-     * @return string
-     */
-    public function formatiereBetrag($betrag)
-    {
-        return number_format($betrag, 2, ',', '.') . ' €';
-    }
 }

@@ -206,7 +206,7 @@ class ExcelHelper
     }
 
     /**
-     * Erstellt HV-Abrechnung Excel mit Begründungen
+     * Erstellt HV-Abrechnung Excel (mit Freitext-Begründung aus der Abrechnung)
      */
     public static function erstelleHvAbrechnung($abrechnung, $belege)
     {
@@ -217,31 +217,30 @@ class ExcelHelper
         // Titel der Abrechnung
         $sheet->setCellValue('A1', $abrechnung['titel'] ?? 'Heimverein Abrechnung');
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
-        $sheet->mergeCells('A1:F1');
+        $sheet->mergeCells('A1:E1');
 
-        // Allgemeine Begründung falls vorhanden
+        // Begründung (Freitext aus der Abrechnung) falls vorhanden
         if (!empty($abrechnung['begruendung'])) {
             $sheet->setCellValue('A2', 'Begründung:');
             $sheet->setCellValue('B2', $abrechnung['begruendung']);
             $sheet->getStyle('A2')->getFont()->setBold(true);
-            $sheet->mergeCells('B2:F2');
+            $sheet->mergeCells('B2:E2');
             $headerZeile = 3;
         } else {
             $headerZeile = 2;
         }
 
-        // Header: Beschreibung | Datum | Beleg | Betrag | Bezugsquelle | Begründung
+        // Header: Beschreibung | Datum | Beleg | Betrag | Bezugsquelle
         $sheet->setCellValue('A' . $headerZeile, 'Beschreibung');
         $sheet->setCellValue('B' . $headerZeile, 'Datum');
         $sheet->setCellValue('C' . $headerZeile, 'Beleg');
         $sheet->setCellValue('D' . $headerZeile, 'Betrag');
         $sheet->setCellValue('E' . $headerZeile, 'Bezugsquelle');
-        $sheet->setCellValue('F' . $headerZeile, 'Begründung');
 
         // Header-Formatierung
-        $sheet->getStyle('A' . $headerZeile . ':F' . $headerZeile)->getFont()->setBold(true);
-        $sheet->getStyle('A' . $headerZeile . ':F' . $headerZeile)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('A' . $headerZeile . ':F' . $headerZeile)->getFill()
+        $sheet->getStyle('A' . $headerZeile . ':E' . $headerZeile)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $headerZeile . ':E' . $headerZeile)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('A' . $headerZeile . ':E' . $headerZeile)->getFill()
             ->setFillType(Fill::FILL_SOLID)
             ->getStartColor()->setRGB('FFE4B5'); // Hellgelb für HV
 
@@ -257,11 +256,6 @@ class ExcelHelper
             $sheet->setCellValue('C' . $zeile, $beleg['belegnummer'] ?? '');
             $sheet->setCellValue('D' . $zeile, $beleg['betrag']);
             $sheet->setCellValue('E' . $zeile, $beleg['lieferant'] ?: 'Kassenwart');
-
-            // Automatische Begründung generieren
-            $begruendung = self::generiereHvBegruendung($beleg['beschreibung']);
-            $sheet->setCellValue('F' . $zeile, $begruendung);
-
             $zeile++;
         }
 
@@ -276,7 +270,6 @@ class ExcelHelper
         $sheet->getColumnDimension('C')->setWidth(18);
         $sheet->getColumnDimension('D')->setWidth(12);
         $sheet->getColumnDimension('E')->setWidth(25);
-        $sheet->getColumnDimension('F')->setWidth(40);
 
         // Datum formatieren
         $sheet->getStyle('B' . ($headerZeile + 1) . ':B' . ($zeile - 1))
@@ -289,7 +282,7 @@ class ExcelHelper
             ->setFormatCode('#,##0.00 "€"');
 
         // Rahmen
-        $sheet->getStyle('A' . $headerZeile . ':F' . $zeile)
+        $sheet->getStyle('A' . $headerZeile . ':E' . $zeile)
             ->getBorders()
             ->getAllBorders()
             ->setBorderStyle(Border::BORDER_THIN);
@@ -312,70 +305,5 @@ class ExcelHelper
         // Direkt an Browser ausgeben
         $writer->save('php://output');
         exit;
-    }
-
-    /**
-     * Generiert HV-Begründung basierend auf Beschreibung
-     */
-    private static function generiereHvBegruendung($beschreibung)
-    {
-        $beschreibung = strtolower($beschreibung);
-
-        $begruendungen = [
-            'farbe' => 'Renovierung und Instandhaltung der Hausräume',
-            'pinsel' => 'Renovierung und Instandhaltung der Hausräume',
-            'streichen' => 'Renovierung und Instandhaltung der Hausräume',
-            'tapete' => 'Renovierung und Instandhaltung der Hausräume',
-            'spachtel' => 'Renovierung und Instandhaltung der Hausräume',
-
-            'regal' => 'Möblierung und Ausstattung der Gemeinschaftsräume',
-            'schrank' => 'Möblierung und Ausstattung der Gemeinschaftsräume',
-            'möbel' => 'Möblierung und Ausstattung der Gemeinschaftsräume',
-            'tisch' => 'Möblierung und Ausstattung der Gemeinschaftsräume',
-            'stuhl' => 'Möblierung und Ausstattung der Gemeinschaftsräume',
-            'sofa' => 'Möblierung und Ausstattung der Gemeinschaftsräume',
-
-            'lampe' => 'Beleuchtung und elektrische Ausstattung',
-            'glühbirne' => 'Beleuchtung und elektrische Ausstattung',
-            'leuchte' => 'Beleuchtung und elektrische Ausstattung',
-            'steckdose' => 'Beleuchtung und elektrische Ausstattung',
-
-            'reinigung' => 'Reinigung und Hygiene der Hausräume',
-            'putz' => 'Reinigung und Hygiene der Hausräume',
-            'sauber' => 'Reinigung und Hygiene der Hausräume',
-            'waschmittel' => 'Reinigung und Hygiene der Hausräume',
-
-            'werkzeug' => 'Wartung und Reparatur der Hausausstattung',
-            'schrauben' => 'Wartung und Reparatur der Hausausstattung',
-            'reparatur' => 'Wartung und Reparatur der Hausausstattung',
-            'bohren' => 'Wartung und Reparatur der Hausausstattung',
-            'hammer' => 'Wartung und Reparatur der Hausausstattung',
-
-            'küche' => 'Küchenausstattung und -wartung',
-            'geschirr' => 'Küchenausstattung und -wartung',
-            'topf' => 'Küchenausstattung und -wartung',
-            'pfanne' => 'Küchenausstattung und -wartung',
-            'besteck' => 'Küchenausstattung und -wartung',
-
-            'garten' => 'Außenanlagen und Gartenpflege',
-            'rasen' => 'Außenanlagen und Gartenpflege',
-            'pflanze' => 'Außenanlagen und Gartenpflege',
-
-            'heizung' => 'Heizung und Klimatechnik',
-            'thermostat' => 'Heizung und Klimatechnik',
-
-            'sanitär' => 'Sanitäranlagen und Wasserleitungen',
-            'bad' => 'Sanitäranlagen und Wasserleitungen',
-            'dusche' => 'Sanitäranlagen und Wasserleitungen',
-            'wc' => 'Sanitäranlagen und Wasserleitungen'
-        ];
-
-        foreach ($begruendungen as $schluesselwort => $begruendung) {
-            if (strpos($beschreibung, $schluesselwort) !== false) {
-                return $begruendung;
-            }
-        }
-
-        return 'Notwendige Ausgabe für das Vereinshaus';
     }
 }

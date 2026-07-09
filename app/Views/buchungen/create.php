@@ -36,7 +36,7 @@
                                            value="<?= old('buchungsdatum', date('Y-m-d')) ?>"
                                            required>
                                     <?php if (isset($errors['buchungsdatum'])): ?>
-                                        <div class="invalid-feedback"><?= $errors['buchungsdatum'] ?></div>
+                                        <div class="invalid-feedback"><?= esc($errors['buchungsdatum']) ?></div>
                                     <?php endif; ?>
                                 </div>
                                 <div class="col-md-6">
@@ -55,7 +55,7 @@
                                         <?php endforeach; ?>
                                     </select>
                                     <?php if (isset($errors['konto_typ'])): ?>
-                                        <div class="invalid-feedback"><?= $errors['konto_typ'] ?></div>
+                                        <div class="invalid-feedback"><?= esc($errors['konto_typ']) ?></div>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -80,7 +80,7 @@
                                         </label>
                                     </div>
                                     <?php if (isset($errors['buchungsart'])): ?>
-                                        <div class="text-danger small mt-1"><?= $errors['buchungsart'] ?></div>
+                                        <div class="text-danger small mt-1"><?= esc($errors['buchungsart']) ?></div>
                                     <?php endif; ?>
                                 </div>
                                 <div class="col-md-6">
@@ -99,7 +99,7 @@
                                                required>
                                         <span class="input-group-text">€</span>
                                         <?php if (isset($errors['betrag'])): ?>
-                                            <div class="invalid-feedback"><?= $errors['betrag'] ?></div>
+                                            <div class="invalid-feedback"><?= esc($errors['betrag']) ?></div>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -115,9 +115,9 @@
                                           name="beschreibung"
                                           rows="3"
                                           placeholder="Was wurde gekauft/verkauft/bezahlt..."
-                                          required><?= old('beschreibung') ?></textarea>
+                                          required><?= esc(old('beschreibung') ?? '') ?></textarea>
                                 <?php if (isset($errors['beschreibung'])): ?>
-                                    <div class="invalid-feedback"><?= $errors['beschreibung'] ?></div>
+                                    <div class="invalid-feedback"><?= esc($errors['beschreibung']) ?></div>
                                 <?php endif; ?>
                             </div>
 
@@ -130,7 +130,7 @@
                                           id="notizen"
                                           name="notizen"
                                           rows="2"
-                                          placeholder="Zusätzliche Informationen..."><?= old('notizen') ?></textarea>
+                                          placeholder="Zusätzliche Informationen..."><?= esc(old('notizen') ?? '') ?></textarea>
                             </div>
                         </div>
                     </div>
@@ -175,7 +175,7 @@
                                         <option value="<?= $beleg['id'] ?>"
                                                 data-betrag="<?= $beleg['betrag'] ?>"
                                                 data-beschreibung="<?= esc($beleg['beschreibung']) ?>">
-                                            <?= $beleg['belegnummer'] ?> - <?= esc($beleg['beschreibung']) ?>
+                                            <?= esc($beleg['belegnummer']) ?> - <?= esc($beleg['beschreibung']) ?>
                                             (<?= number_format($beleg['betrag'], 2, ',', '.') ?> €)
                                         </option>
                                     <?php endforeach; ?>

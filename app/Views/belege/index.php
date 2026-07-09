@@ -56,18 +56,18 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-2">
-                        <label class="form-label">Von Datum</label>
-                        <input type="date" name="datum_von" value="<?= $filter['datum_von'] ?? '' ?>"
+                        <label for="filter_datum_von" class="form-label">Von Datum</label>
+                        <input type="date" id="filter_datum_von" name="datum_von" value="<?= esc($filter['datum_von'] ?? '', 'attr') ?>"
                                class="form-control">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Bis Datum</label>
-                        <input type="date" name="datum_bis" value="<?= $filter['datum_bis'] ?? '' ?>"
+                        <label for="filter_datum_bis" class="form-label">Bis Datum</label>
+                        <input type="date" id="filter_datum_bis" name="datum_bis" value="<?= esc($filter['datum_bis'] ?? '', 'attr') ?>"
                                class="form-control">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Kategorie</label>
-                        <select name="kategorie" class="form-control">
+                        <label for="filter_kategorie" class="form-label">Kategorie</label>
+                        <select id="filter_kategorie" name="kategorie" class="form-select">
                             <option value="">Alle</option>
                             <?php foreach($kategorien as $value => $label): ?>
                                 <option value="<?= $value ?>" <?= ($filter['kategorie'] ?? '') === $value ? 'selected' : '' ?>>
@@ -77,8 +77,8 @@
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Status</label>
-                        <select name="status" class="form-control">
+                        <label for="filter_status" class="form-label">Status</label>
+                        <select id="filter_status" name="status" class="form-select">
                             <option value="">Alle</option>
                             <?php foreach($status_optionen as $value => $label): ?>
                                 <option value="<?= $value ?>" <?= ($filter['status'] ?? '') === $value ? 'selected' : '' ?>>
@@ -88,8 +88,8 @@
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Suche</label>
-                        <input type="text" name="suche" value="<?= esc($filter['suche'] ?? '') ?>"
+                        <label for="filter_suche" class="form-label">Suche</label>
+                        <input type="text" id="filter_suche" name="suche" value="<?= esc($filter['suche'] ?? '') ?>"
                                placeholder="Beschreibung, Bezugsquelle, Belegnummer, Notizen..." class="form-control">
                     </div>
                     <div class="col-md-1">
@@ -165,7 +165,7 @@
                                         <strong>
                                             <a href="<?= base_url('/belege/show/' . $beleg['id']) ?>"
                                                class="text-decoration-none">
-                                                <?= $beleg['belegnummer'] ?>
+                                                <?= esc($beleg['belegnummer']) ?>
                                             </a>
                                         </strong>
                                         <br>
@@ -191,27 +191,12 @@
                                     </td>
                                     <td>
                                     <span class="badge bg-<?= $beleg['kategorie'] === 'normal' ? 'secondary' : 'primary' ?> badge-sm">
-                                        <?php
-                                        $kat_labels = [
-                                                'normal' => 'Normal',
-                                                'ah_berechtigt' => 'AH²',
-                                                'hv_berechtigt' => 'HV'
-                                        ];
-                                        echo $kat_labels[$beleg['kategorie']] ?? $beleg['kategorie'];
-                                        ?>
+                                        <?= kategorie_label($beleg['kategorie']) ?>
                                     </span>
                                     </td>
                                     <td>
                                     <span class="badge bg-<?= $beleg['status'] === 'erfasst' ? 'secondary' : 'info' ?> badge-sm">
-                                        <?php
-                                        $status_labels = [
-                                                'erfasst' => 'Erfasst',
-                                                'in_abrechnung' => 'In Abrechnung',
-                                                'abgerechnet' => 'Abgerechnet',
-                                                'bezahlt' => 'Bezahlt'
-                                        ];
-                                        echo $status_labels[$beleg['status']] ?? $beleg['status'];
-                                        ?>
+                                        <?= beleg_status_label($beleg['status']) ?>
                                     </span>
                                     </td>
                                     <td style="max-width: 150px;"> <!-- NEU: Notizen-Spalte mit Größenbegrenzung -->
@@ -240,26 +225,28 @@
                                     <td class="text-center">
                                         <div class="btn-group btn-group-sm">
                                             <a href="<?= base_url('/belege/show/' . $beleg['id']) ?>"
-                                               class="btn btn-outline-dark" title="Anzeigen">
-                                                👁️
+                                               class="btn btn-outline-dark" title="Anzeigen" aria-label="Beleg anzeigen">
+                                                <span aria-hidden="true">👁️</span>
                                             </a>
                                             <?php if ($beleg['status'] === 'erfasst'): ?>
                                                 <a href="<?= base_url('/belege/edit/' . $beleg['id']) ?>"
-                                                   class="btn btn-outline-dark" title="Bearbeiten">
-                                                    ✏️
+                                                   class="btn btn-outline-dark" title="Bearbeiten" aria-label="Beleg bearbeiten">
+                                                    <span aria-hidden="true">✏️</span>
                                                 </a>
                                             <?php endif; ?>
                                             <a href="<?= base_url('/belege/download/' . $beleg['id']) ?>"
-                                               class="btn btn-outline-success" title="Download">
-                                                📥
+                                               class="btn btn-outline-success" title="Download" aria-label="Beleg herunterladen">
+                                                <span aria-hidden="true">📥</span>
                                             </a>
                                             <?php if (empty($beleg['abrechnungen']) && $beleg['status'] === 'erfasst'): ?>
-                                                <a href="<?= base_url('/belege/delete/' . $beleg['id']) ?>"
-                                                   class="btn btn-outline-danger btn-sm"
-                                                   onclick="return confirmDelete('Beleg <?= $beleg['belegnummer'] ?> wirklich löschen? Die Datei wird ebenfalls gelöscht!')"
-                                                   title="Löschen">
-                                                    🗑️
-                                                </a>
+                                                <form method="post" class="d-inline"
+                                                      action="<?= base_url('/belege/delete/' . $beleg['id']) ?>"
+                                                      onsubmit="return confirmDelete('Beleg <?= esc($beleg['belegnummer'], 'js') ?> wirklich löschen? Die Datei wird ebenfalls gelöscht!')">
+                                                    <?= csrf_field() ?>
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Löschen" aria-label="Beleg löschen">
+                                                        <span aria-hidden="true">🗑️</span>
+                                                    </button>
+                                                </form>
                                             <?php endif; ?>
                                         </div>
                                     </td>
@@ -297,8 +284,6 @@
                 });
             });
 
-            // Beleg-Links in gleichen Tab öffnen (nicht wie bei Buchungen in neuem Tab)
-            console.log('Belege-Übersicht geladen');
         });
     </script>
 <?= $this->endSection() ?>

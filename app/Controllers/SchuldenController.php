@@ -182,6 +182,31 @@ class SchuldenController extends BaseController
     }
 
     /**
+     * Inventur-Ansicht: "Kassenwart – Aktueller Bestand" als HTML-Seite
+     *
+     * Gleiche Datengrundlage wie der Excel-Export (Issue #36).
+     */
+    public function inventur()
+    {
+        $kontostaende = (new BuchungModel())->berechneKontostaende();
+        $inventur = $this->schuldModel->berechneInventur();
+
+        $summeKassen = array_sum(array_column($kontostaende, 'saldo'));
+
+        $data = [
+            'title' => 'Inventur',
+            'kontostaende' => $kontostaende,
+            'inventur' => $inventur,
+            'summe_kassen' => $summeKassen,
+            'summe_gesamt' => $summeKassen
+                + ($inventur['forderung']['summe'] ?? 0)
+                - ($inventur['verbindlichkeit']['summe'] ?? 0),
+        ];
+
+        return view('schulden/inventur', $data);
+    }
+
+    /**
      * Inventur-Export: "Kassenwart – Aktueller Bestand" als Excel
      */
     public function exportInventur()

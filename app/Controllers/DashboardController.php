@@ -35,6 +35,9 @@ class DashboardController extends BaseController
      */
     public function index()
     {
+        $kontostaende = $this->buchungModel->berechneKontostaende();
+        $inventur = $this->schuldModel->berechneInventur();
+
         $data = [
             'title' => 'Dashboard - VDSt Kassensystem',
 
@@ -43,8 +46,11 @@ class DashboardController extends BaseController
             'ah_stats' => $this->ahAbrechnungModel->getDashboardStats(),
             'hv_stats' => $this->hvAbrechnungModel->getDashboardStats(),
 
-            'kontostaende' => $this->buchungModel->berechneKontostaende(),
+            'kontostaende' => $kontostaende,
             'schulden_offen' => $this->schuldModel->summeOffeneForderungen(),
+            'inventur_gesamt' => array_sum(array_column($kontostaende, 'saldo'))
+                + ($inventur['forderung']['summe'] ?? 0)
+                - ($inventur['verbindlichkeit']['summe'] ?? 0),
             'neueste_belege' => $this->belegModel->getNeuesteBelege(5),
             'neueste_buchungen' => $this->buchungModel->getNeuesteBuchungen(5),
         ];

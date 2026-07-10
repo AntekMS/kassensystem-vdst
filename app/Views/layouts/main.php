@@ -218,6 +218,12 @@
                         💰 Schulden
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link <?= uri_string() === 'inventur' ? 'active' : '' ?>"
+                       href="<?= base_url('/inventur') ?>">
+                        🧮 Inventur
+                    </a>
+                </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle <?= strpos(uri_string(), 'abrechnungen') === 0 ? 'active' : '' ?>"
                        href="#" role="button" data-bs-toggle="dropdown">

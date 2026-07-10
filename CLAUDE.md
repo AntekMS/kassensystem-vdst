@@ -67,6 +67,11 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   2 Formate: Excel und Komplett-ZIP (Excel + Beleg-Dateien). Ausnahme Schulden:
   nur ein Export — die Inventur (`ExcelHelper::erstelleInventur`, ein Sheet
   "Kassenwart – Aktueller Bestand": Kassenbestand + Forderungen − Verbindlichkeiten).
+- **Inventur** ist zusätzlich eine eigene HTML-Seite (`GET /inventur` →
+  `SchuldenController::inventur`, View `schulden/inventur.php`, eigener Navbar-Punkt
+  und Dashboard-Kachel) mit derselben Datengrundlage wie das Excel
+  (`BuchungModel::berechneKontostaende()` + `SchuldModel::berechneInventur()`);
+  der Excel-Download bleibt unter `schulden/export/inventur`.
 - **Schulden** (`SchuldenController`/`SchuldModel`, Views `app/Views/schulden/*`):
   Ledger pro Person, Person ist **Freitext** (keine Personen-Tabelle; Datalist-Vorschläge,
   Namen werden getrimmt, Gruppierung case-insensitiv über die DB-Kollation).

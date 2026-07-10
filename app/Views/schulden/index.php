@@ -39,8 +39,8 @@
                 <a href="<?= base_url('/schulden/create') ?>" class="btn btn-vdst btn-lg">
                     <strong>+ Neuer Eintrag</strong>
                 </a>
-                <a href="<?= base_url('/schulden/export/inventur') ?>" class="btn btn-outline-vdst">
-                    📊 Inventur (Excel)
+                <a href="<?= base_url('/inventur') ?>" class="btn btn-outline-vdst">
+                    🧮 Zur Inventur
                 </a>
             </div>
         </div>

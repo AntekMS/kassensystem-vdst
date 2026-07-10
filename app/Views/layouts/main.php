@@ -212,6 +212,12 @@
                         📄 Belege
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link <?= strpos(uri_string(), 'schulden') === 0 ? 'active' : '' ?>"
+                       href="<?= base_url('/schulden') ?>">
+                        💰 Schulden
+                    </a>
+                </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle <?= strpos(uri_string(), 'abrechnungen') === 0 ? 'active' : '' ?>"
                        href="#" role="button" data-bs-toggle="dropdown">

@@ -291,6 +291,99 @@ class ExcelHelper
     }
 
     /**
+     * Erstellt Inventur-Excel "Kassenwart – Aktueller Bestand"
+     *
+     * Summe Gesamt = Kassenbestand (I) + Forderungen (II) − Verbindlichkeiten (III)
+     *
+     * @param array $kontostaende aus BuchungModel::berechneKontostaende()
+     * @param array $inventur     aus SchuldModel::berechneInventur()
+     */
+    public static function erstelleInventur($kontostaende, $inventur)
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Inventur');
+
+        $geldFormat = '#,##0.00 "€";[Red]-#,##0.00 "€"';
+
+        // Titel
+        $sheet->setCellValue('A1', 'Kassenwart – Aktueller Bestand');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->mergeCells('A1:B1');
+        $sheet->setCellValue('A2', 'Stand: ' . date('d.m.Y'));
+
+        $zeile = 4;
+        $blockStart = static function ($sheet, $zeile, $titel) {
+            $sheet->setCellValue('A' . $zeile, $titel);
+            $sheet->getStyle('A' . $zeile . ':B' . $zeile)->getFont()->setBold(true);
+            $sheet->getStyle('A' . $zeile . ':B' . $zeile)->getFill()
+                ->setFillType(Fill::FILL_SOLID)
+                ->getStartColor()->setRGB('DDDDDD');
+        };
+
+        // ===== I. Kassenbestand =====
+        $blockStart($sheet, $zeile, 'I. Kassenbestand');
+        $zeile++;
+
+        $summeKassen = 0;
+        foreach ($kontostaende as $konto => $daten) {
+            $sheet->setCellValue('A' . $zeile, konto_label($konto));
+            $sheet->setCellValue('B' . $zeile, $daten['saldo']);
+            $summeKassen += $daten['saldo'];
+            $zeile++;
+        }
+
+        $sheet->setCellValue('A' . $zeile, 'Summe I');
+        $sheet->setCellValue('B' . $zeile, $summeKassen);
+        $sheet->getStyle('A' . $zeile . ':B' . $zeile)->getFont()->setBold(true);
+        $zeile += 2;
+
+        // ===== II. Forderungen / III. Verbindlichkeiten =====
+        $bloecke = [
+            'forderung' => ['titel' => 'II. Forderungen', 'summe_label' => 'Summe II'],
+            'verbindlichkeit' => ['titel' => 'III. Verbindlichkeiten', 'summe_label' => 'Summe III'],
+        ];
+
+        foreach ($bloecke as $typ => $block) {
+            $blockStart($sheet, $zeile, $block['titel']);
+            $zeile++;
+
+            foreach (schuld_kategorie_optionen() as $kategorie => $label) {
+                $sheet->setCellValue('A' . $zeile, $label);
+                $sheet->setCellValue('B' . $zeile, $inventur[$typ][$kategorie] ?? 0);
+                $zeile++;
+            }
+
+            $sheet->setCellValue('A' . $zeile, $block['summe_label']);
+            $sheet->setCellValue('B' . $zeile, $inventur[$typ]['summe'] ?? 0);
+            $sheet->getStyle('A' . $zeile . ':B' . $zeile)->getFont()->setBold(true);
+            $zeile += 2;
+        }
+
+        // ===== Summe Gesamt =====
+        $summeGesamt = $summeKassen
+            + ($inventur['forderung']['summe'] ?? 0)
+            - ($inventur['verbindlichkeit']['summe'] ?? 0);
+
+        $sheet->setCellValue('A' . $zeile, 'Summe Gesamt (I + II − III)');
+        $sheet->setCellValue('B' . $zeile, $summeGesamt);
+        $sheet->getStyle('A' . $zeile . ':B' . $zeile)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $zeile . ':B' . $zeile)->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('BBBBBB');
+
+        // Formatierung (Doppel-Rahmen NACH getAllBorders, sonst wird er überschrieben)
+        $sheet->getColumnDimension('A')->setWidth(40);
+        $sheet->getColumnDimension('B')->setWidth(16);
+        $sheet->getStyle('B4:B' . $zeile)->getNumberFormat()->setFormatCode($geldFormat);
+        $sheet->getStyle('A4:B' . $zeile)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->getStyle('A' . $zeile . ':B' . $zeile)->getBorders()
+            ->getTop()->setBorderStyle(Border::BORDER_DOUBLE);
+
+        return $spreadsheet;
+    }
+
+    /**
      * Speichert Excel und gibt Download-Response zurück
      */
     public static function downloadExcel($spreadsheet, $filename)

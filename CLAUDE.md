@@ -5,7 +5,8 @@ Kassenbuch- und Abrechnungssystem für den Verein deutscher Studenten zu Erlange
 **Ein** Kassenwart (Ehrenamt), ~12 Aktive, maximal ein paar Belege pro Woche. Das Tool ist
 bewusst klein: keine Multi-User-Verwaltung, keine Rollen, kein Enterprise-Feature-Creep.
 Aufgaben: Belege sammeln, Kassenbuch mit 3 Konten führen, monatliche Abrechnungen
-an AH²-Bund und Heimverein (HV) als Excel/ZIP einreichen.
+an AH²-Bund und Heimverein (HV) als Excel/ZIP einreichen, Schulden der Aktiven
+nachhalten (Schuldenliste + Inventur-Export).
 
 ## Stack
 - CodeIgniter 4 (PHP 8.1+), MySQL 8
@@ -18,7 +19,7 @@ an AH²-Bund und Heimverein (HV) als Excel/ZIP einreichen.
 Auf diesem Rechner gibt es **kein Host-PHP/Composer** — alles im laufenden Web-Container
 ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
 - `docker exec kassensystem-vdst-web vendor/bin/phpunit tests/unit/` — Tests
-  (`HealthTest`, `BetragTest`); entspricht `composer test`
+  (`HealthTest`, `BetragTest`, `SchuldLabelTest`); entspricht `composer test`
 - `docker exec kassensystem-vdst-web php spark migrate` — Migrationen (auch die
   Datei-/Trigger-Cleanup-Migrationen)
 - `docker exec kassensystem-vdst-web php spark routes` — Routenliste
@@ -32,16 +33,21 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   dann lokal `git merge --no-ff` in `small` + `git push`; `Closes #N` im PR-Body schließt
   das Issue beim Merge automatisch.
 - Issues: Labels `priority: hoch|mittel|niedrig`, `security`, `tech-debt`, `Big Update`.
+- **Doku aktuell halten**: Nach **jeder** abgeschlossenen Aufgabe diese `CLAUDE.md` (und
+  bei Bedarf die `README.md`) auf den neuesten Stand bringen — geänderte Architektur,
+  neue/entfernte Invarianten, Konventionen und Befehle einpflegen, damit die Landkarte
+  nie vom Code abweicht. Gehört zur Aufgabe, nicht als optionaler Zusatz.
 
 ## Architektur-Landkarte
 - **Controller** (`app/Controllers/`): `DashboardController`, `BelegeController`,
-  `BuchungenController`, `AuthController` sowie `AbstractAbrechnungenController`
-  mit den dünnen Subklassen `AhAbrechnungenController`/`HvAbrechnungenController`
+  `BuchungenController`, `SchuldenController`, `AuthController` sowie
+  `AbstractAbrechnungenController` mit den dünnen Subklassen
+  `AhAbrechnungenController`/`HvAbrechnungenController`
   (nur `$typ`, `$typName`, Modell — die ganze Logik liegt in der Basisklasse).
 - **Models**: `BelegModel` (belege), `BuchungModel` (buchungen),
-  `AhAbrechnungModel`/`HvAbrechnungModel` (ah_/hv_abrechnungen),
-  `AbrechnungBelegModel` (Junction abrechnung_belege — einziger Codepfad für
-  Beleg-Zuordnungen).
+  `SchuldModel` (schulden), `AhAbrechnungModel`/`HvAbrechnungModel`
+  (ah_/hv_abrechnungen), `AbrechnungBelegModel` (Junction abrechnung_belege —
+  einziger Codepfad für Beleg-Zuordnungen).
 - **Gemeinsame Views**: `app/Views/abrechnungen/*` werden von AH und HV geteilt,
   gesteuert über `$typ` ('ah'|'hv'). HV hat zusätzlich ein Freitext-Feld `begruendung`.
 - **Upload-Logik**: zentral in `app/Libraries/BelegUpload.php` (genutzt von
@@ -51,13 +57,21 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   delegieren dorthin. Logik nicht erneut duplizieren.
 - **Labels**: `app/Helpers/label_helper.php` (autogeladen) — `kategorie_label()`,
   `beleg_status_label()`, `abrechnung_status_label()`, `konto_label()`,
+  `schuld_typ_label()`, `schuld_kategorie_label()` (je mit `_optionen()`-Pendant),
   `formatiere_betrag()`, `normalisiere_betrag()`, `schaetze_archiv_groesse()`.
 - **Geteiltes JS** (`public/js/app.js`, in `layouts/main.php` eingebunden):
   `confirmDelete()`, `showMessage()`, Export-Toasts; Views binden Verhalten per CSS-Klasse
   `js-autosubmit` (Filter-Selects) bzw. `js-betrag-format` (Betrag-Eingaben) — solche
   Handler NICHT wieder inline in Views duplizieren.
 - **Exporte**: `app/Helpers/ExcelHelper.php` + `ZipHelper.php`. Pro Bereich genau
-  2 Formate: Excel und Komplett-ZIP (Excel + Beleg-Dateien).
+  2 Formate: Excel und Komplett-ZIP (Excel + Beleg-Dateien). Ausnahme Schulden:
+  nur ein Export — die Inventur (`ExcelHelper::erstelleInventur`, ein Sheet
+  "Kassenwart – Aktueller Bestand": Kassenbestand + Forderungen − Verbindlichkeiten).
+- **Schulden** (`SchuldenController`/`SchuldModel`, Views `app/Views/schulden/*`):
+  Ledger pro Person, Person ist **Freitext** (keine Personen-Tabelle; Datalist-Vorschläge,
+  Namen werden getrimmt, Gruppierung case-insensitiv über die DB-Kollation).
+  Personen-Detail läuft über `/schulden/person?name=…` (GET-Param wegen
+  Leerzeichen/Umlauten, kein URI-Segment).
 
 ## Konventionen & Invarianten
 - **Upload-Pfade** sind relativ zu FCPATH (= `public/`): `uploads/belege/YYYY/MM/`.
@@ -77,6 +91,12 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   (in beiden Modellen `Ah`/`HvAbrechnungModel` identisch pflegen).
 - **Gesamtsummen** der Abrechnungen berechnet PHP (`berechneGesamtsumme()`) bei jedem
   Hinzufügen/Entfernen — es gibt KEINE DB-Trigger mehr (per Migration entfernt).
+- **Schulden-Vorzeichen**: Beträge normal positiv, **Rückzahlungen negativ** (grün
+  dargestellt); offener Stand = einfache `SUM(betrag)`. `typ` trennt Forderung
+  (Person schuldet Verein) und Verbindlichkeit (Verein schuldet Person) — die beiden
+  werden NIE gegeneinander verrechnet. Betrag 0 lehnt der Controller ab. Ab
+  `GETRAENKESTOPP_LIMIT` (50 €, `Config/Constants.php`) Getränke-Forderungen zeigt
+  die UI ein Getränkestopp-Badge.
 - **Auth**: ein Master-Passwort aus `.env` (`vdst.master_password`), Session 8h
   (`Config/Session.php::$expiration` muss zu `vdst.session_timeout` passen).
   Auth-Filter kommt ausschließlich aus der Routen-Gruppe in `Routes.php`; `AuthFilter`

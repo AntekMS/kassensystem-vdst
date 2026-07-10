@@ -6,6 +6,7 @@ use App\Models\AhAbrechnungModel;
 use App\Models\BelegModel;
 use App\Models\BuchungModel;
 use App\Models\HvAbrechnungModel;
+use App\Models\SchuldModel;
 
 /**
  * DashboardController - Zentrale Übersicht
@@ -18,6 +19,7 @@ class DashboardController extends BaseController
     protected $buchungModel;
     protected $ahAbrechnungModel;
     protected $hvAbrechnungModel;
+    protected $schuldModel;
 
     public function __construct()
     {
@@ -25,6 +27,7 @@ class DashboardController extends BaseController
         $this->buchungModel = new BuchungModel();
         $this->ahAbrechnungModel = new AhAbrechnungModel();
         $this->hvAbrechnungModel = new HvAbrechnungModel();
+        $this->schuldModel = new SchuldModel();
     }
 
     /**
@@ -41,6 +44,7 @@ class DashboardController extends BaseController
             'hv_stats' => $this->hvAbrechnungModel->getDashboardStats(),
 
             'kontostaende' => $this->buchungModel->berechneKontostaende(),
+            'schulden_offen' => $this->schuldModel->summeOffeneForderungen(),
             'neueste_belege' => $this->belegModel->getNeuesteBelege(5),
             'neueste_buchungen' => $this->buchungModel->getNeuesteBuchungen(5),
         ];

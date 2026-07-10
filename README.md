@@ -16,10 +16,11 @@ Heimverein (HV) als Excel/ZIP.
   Rechnungsdatum (`YYYY-MM-DD-NNN`) und Ablage nach `uploads/belege/YYYY/MM/`
 - **AH²- und HV-Abrechnungen** mit AJAX-Beleg-Zuordnung; HV zusätzlich mit Freitext-Begründung
 - **Exporte** – pro Bereich genau zwei Formate: **Excel** und **Komplett-ZIP** (Excel + Beleg-Dateien)
-- **Schuldenliste & Inventur** – Forderungen/Verbindlichkeiten pro Person (Freitext-Name)
+- **Schuldenliste** – Forderungen/Verbindlichkeiten pro Person (Freitext-Name)
   mit nachvollziehbarer Historie (z.B. monatliche Getränkerechnungen, Rückzahlungen als
-  negativer Betrag), Getränkestopp-Badge ab 50 € Getränkeschulden und Inventur-Excel
-  ("Kassenwart – Aktueller Bestand": Kassenbestand + Forderungen − Verbindlichkeiten)
+  negativer Betrag) und Getränkestopp-Badge ab 50 € Getränkeschulden
+- **Inventur** – eigene Seite ("Kassenwart – Aktueller Bestand": Kassenbestand +
+  Forderungen − Verbindlichkeiten) mit Dashboard-Kachel und Excel-Download
 - **Suche & Filter** über Beschreibung/Lieferant/Notizen, Datum, Kategorie, Status und Betrag
 - **Master-Passwort-Login** mit 8-Stunden-Session (Idle-Timeout)
 

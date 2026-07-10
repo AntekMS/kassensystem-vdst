@@ -88,7 +88,7 @@
 
         <!-- Statistiken -->
         <div class="row mb-4">
-            <div class="col-md-3">
+            <div class="col-md">
                 <div class="card">
                     <div class="card-header bg-dark text-white">
                         <strong>Belege</strong>
@@ -120,7 +120,7 @@
                 </div>
             </div>
 
-            <div class="col-md-3">
+            <div class="col-md">
                 <div class="card">
                     <div class="card-header bg-dark text-white">
                         <strong>Buchungen</strong>
@@ -153,7 +153,7 @@
                 </div>
             </div>
 
-            <div class="col-md-3">
+            <div class="col-md">
                 <div class="card">
                     <div class="card-header bg-dark text-white">
                         <strong>Abrechnungen</strong>
@@ -181,7 +181,7 @@
                 </div>
             </div>
 
-            <div class="col-md-3">
+            <div class="col-md">
                 <div class="card">
                     <div class="card-header bg-dark text-white">
                         <strong>Schulden</strong>
@@ -195,6 +195,25 @@
                     <div class="card-footer text-center">
                         <a href="<?= base_url('/schulden') ?>" class="btn btn-outline-vdst btn-sm">
                             Schuldenliste öffnen
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md">
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <strong>Inventur</strong>
+                    </div>
+                    <div class="card-body text-center">
+                        <h3 class="<?= $inventur_gesamt >= 0 ? 'saldo-positiv' : 'saldo-negativ' ?>">
+                            <?= formatiere_betrag($inventur_gesamt) ?>
+                        </h3>
+                        <small class="text-muted">Aktueller Bestand gesamt</small>
+                    </div>
+                    <div class="card-footer text-center">
+                        <a href="<?= base_url('/inventur') ?>" class="btn btn-outline-vdst btn-sm">
+                            Inventur öffnen
                         </a>
                     </div>
                 </div>

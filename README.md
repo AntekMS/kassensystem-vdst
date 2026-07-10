@@ -16,6 +16,10 @@ Heimverein (HV) als Excel/ZIP.
   Rechnungsdatum (`YYYY-MM-DD-NNN`) und Ablage nach `uploads/belege/YYYY/MM/`
 - **AH²- und HV-Abrechnungen** mit AJAX-Beleg-Zuordnung; HV zusätzlich mit Freitext-Begründung
 - **Exporte** – pro Bereich genau zwei Formate: **Excel** und **Komplett-ZIP** (Excel + Beleg-Dateien)
+- **Schuldenliste & Inventur** – Forderungen/Verbindlichkeiten pro Person (Freitext-Name)
+  mit nachvollziehbarer Historie (z.B. monatliche Getränkerechnungen, Rückzahlungen als
+  negativer Betrag), Getränkestopp-Badge ab 50 € Getränkeschulden und Inventur-Excel
+  ("Kassenwart – Aktueller Bestand": Kassenbestand + Forderungen − Verbindlichkeiten)
 - **Suche & Filter** über Beschreibung/Lieferant/Notizen, Datum, Kategorie, Status und Betrag
 - **Master-Passwort-Login** mit 8-Stunden-Session (Idle-Timeout)
 
@@ -58,7 +62,7 @@ die Defaults gelten nur für lokale Entwicklung.
 ### Container-Befehle
 
 ```bash
-docker exec kassensystem-vdst-web vendor/bin/phpunit tests/unit/   # Tests (HealthTest, BetragTest)
+docker exec kassensystem-vdst-web vendor/bin/phpunit tests/unit/   # Tests (HealthTest, BetragTest, SchuldLabelTest)
 docker exec kassensystem-vdst-web php spark migrate                # Migrationen
 docker exec kassensystem-vdst-web php spark routes                 # Routenliste
 docker exec kassensystem-vdst-web php -l <datei>                   # Syntax-Check
@@ -78,19 +82,21 @@ php spark serve       # Dev-Server auf :8080
 ## Architektur
 
 ### Controller (`app/Controllers/`)
-- `DashboardController`, `BuchungenController`, `BelegeController`, `AuthController`
+- `DashboardController`, `BuchungenController`, `BelegeController`, `SchuldenController`,
+  `AuthController`
 - `AbstractAbrechnungenController` mit den dünnen Subklassen
   `AhAbrechnungenController` / `HvAbrechnungenController` (nur `$typ`/`$typName`/Modell –
   die gesamte Logik liegt in der Basisklasse)
 
 ### Models (`app/Models/`)
-`BelegModel`, `BuchungModel`, `AhAbrechnungModel`, `HvAbrechnungModel`,
+`BelegModel`, `BuchungModel`, `SchuldModel`, `AhAbrechnungModel`, `HvAbrechnungModel`,
 `AbrechnungBelegModel` (Junction `abrechnung_belege` – einziger Codepfad für Beleg-Zuordnungen).
 
 ### Datenbank
 ```
 belege               # Herzstück – alle Belege inkl. Datei
 buchungen            # Kassenbuch-Einträge (optional mit beleg_id)
+schulden             # Schulden-Ledger pro Person (Freitext-Name, Rückzahlung = negativ)
 ah_abrechnungen      # AH²-Monatsabrechnungen
 hv_abrechnungen      # HV-Abrechnungen (mit Freitext-Begründung)
 abrechnung_belege    # Verknüpfung Abrechnung ↔ Beleg (M:N)

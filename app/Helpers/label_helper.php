@@ -85,6 +85,47 @@ if (!function_exists('konto_label')) {
     }
 }
 
+if (!function_exists('schuld_typ_optionen')) {
+    /**
+     * @return array<string, string>
+     */
+    function schuld_typ_optionen(): array
+    {
+        return [
+            'forderung' => 'Forderung',
+            'verbindlichkeit' => 'Verbindlichkeit',
+        ];
+    }
+}
+
+if (!function_exists('schuld_typ_label')) {
+    function schuld_typ_label(?string $typ): string
+    {
+        return schuld_typ_optionen()[$typ] ?? (string) $typ;
+    }
+}
+
+if (!function_exists('schuld_kategorie_optionen')) {
+    /**
+     * @return array<string, string>
+     */
+    function schuld_kategorie_optionen(): array
+    {
+        return [
+            'getraenke' => 'Getränke',
+            'abrechnung' => 'Abrechnung',
+            'sonstige' => 'Sonstige',
+        ];
+    }
+}
+
+if (!function_exists('schuld_kategorie_label')) {
+    function schuld_kategorie_label(?string $kategorie): string
+    {
+        return schuld_kategorie_optionen()[$kategorie] ?? (string) $kategorie;
+    }
+}
+
 if (!function_exists('buchungsart_label')) {
     function buchungsart_label(?string $buchungsart): string
     {

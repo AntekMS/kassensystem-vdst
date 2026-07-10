@@ -51,6 +51,18 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
         $routes->get('export/zip', 'BelegeController::exportZip');
     });
 
+    // ==================== SCHULDEN & INVENTUR ====================
+    $routes->group('schulden', function ($routes) {
+        $routes->get('/', 'SchuldenController::index');
+        $routes->get('person', 'SchuldenController::person');
+        $routes->get('create', 'SchuldenController::create');
+        $routes->post('store', 'SchuldenController::store');
+        $routes->get('edit/(:num)', 'SchuldenController::edit/$1');
+        $routes->post('update/(:num)', 'SchuldenController::update/$1');
+        $routes->post('delete/(:num)', 'SchuldenController::delete/$1');
+        $routes->get('export/inventur', 'SchuldenController::exportInventur');
+    });
+
     // ==================== AH²- UND HV-ABRECHNUNGEN ====================
     foreach (['ah' => 'AhAbrechnungenController', 'hv' => 'HvAbrechnungenController'] as $typ => $controller) {
         $routes->group("abrechnungen/{$typ}", function ($routes) use ($controller) {

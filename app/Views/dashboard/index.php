@@ -88,7 +88,7 @@
 
         <!-- Statistiken -->
         <div class="row mb-4">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card">
                     <div class="card-header bg-dark text-white">
                         <strong>Belege</strong>
@@ -120,7 +120,7 @@
                 </div>
             </div>
 
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card">
                     <div class="card-header bg-dark text-white">
                         <strong>Buchungen</strong>
@@ -153,7 +153,7 @@
                 </div>
             </div>
 
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card">
                     <div class="card-header bg-dark text-white">
                         <strong>Abrechnungen</strong>
@@ -177,6 +177,25 @@
                                 <td class="text-end"><strong><?= $hv_stats['ausstehend'] ?></strong></td>
                             </tr>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <strong>Schulden</strong>
+                    </div>
+                    <div class="card-body text-center">
+                        <h3 class="<?= $schulden_offen > 0 ? 'text-danger' : 'saldo-positiv' ?>">
+                            <?= formatiere_betrag($schulden_offen) ?>
+                        </h3>
+                        <small class="text-muted">Offene Forderungen</small>
+                    </div>
+                    <div class="card-footer text-center">
+                        <a href="<?= base_url('/schulden') ?>" class="btn btn-outline-vdst btn-sm">
+                            Schuldenliste öffnen
+                        </a>
                     </div>
                 </div>
             </div>

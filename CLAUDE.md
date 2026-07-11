@@ -77,6 +77,22 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   Namen werden getrimmt, Gruppierung case-insensitiv über die DB-Kollation).
   Personen-Detail läuft über `/schulden/person?name=…` (GET-Param wegen
   Leerzeichen/Umlauten, kein URI-Segment).
+- **Schulden-Verknüpfung** (Issue #38): `schulden` hat Quell-Spalten `beleg_id`/
+  `buchung_id` (FK, ON DELETE CASCADE) und `abrechnung_typ`+`abrechnung_id` (kein FK,
+  da zwei Abrechnungs-Tabellen). Automatische Einträge entstehen aus drei Quellen:
+  (1) Beleg mit `erstattung_person` → Verbindlichkeit
+  (`SchuldModel::syncBelegVerbindlichkeit`, Hook in BelegeController::store/update),
+  (2) Abrechnungs-Statuswechsel → Forderung gegen „AH²-Bund"/„Heimverein" bei
+  eingereicht, zusätzlich negativer Ausgleich bei bezahlt, Zurückstufen entfernt
+  die Einträge (`syncAbrechnungForderung`, idempotent; Hook in
+  `AbstractAbrechnungenController::changeStatus` — Forderung und Ausgleich werden
+  am Vorzeichen unterschieden),
+  (3) Buchung mit „Schuld ausgleichen" → negativer Rückzahlungs-Eintrag
+  (`erstelleBuchungsAusgleich` bei store, `syncBuchungAusgleich` bei update).
+  Automatische Einträge (`SchuldModel::istAutomatisch`) sind in der Schulden-UI
+  gesperrt und werden NUR über ihre Quelle gepflegt; Löschen der Quelle räumt
+  per FK-Cascade auf (Abrechnungen sind nur als entwurf/ausstehend löschbar,
+  wo keine verknüpften Einträge existieren).
 
 ## Konventionen & Invarianten
 - **Upload-Pfade** sind relativ zu FCPATH (= `public/`): `uploads/belege/YYYY/MM/`.

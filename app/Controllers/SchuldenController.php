@@ -127,6 +127,10 @@ class SchuldenController extends BaseController
             throw new \CodeIgniter\Exceptions\PageNotFoundException('Eintrag nicht gefunden');
         }
 
+        if ($fehler = $this->verweigereAutomatischenEintrag($eintrag)) {
+            return $fehler;
+        }
+
         $data = [
             'title' => 'Schulden-Eintrag bearbeiten',
             'eintrag' => $eintrag,
@@ -145,6 +149,10 @@ class SchuldenController extends BaseController
 
         if (!$eintrag) {
             return redirect()->to('/schulden')->with('error', 'Eintrag nicht gefunden.');
+        }
+
+        if ($fehler = $this->verweigereAutomatischenEintrag($eintrag)) {
+            return $fehler;
         }
 
         $daten = $this->bereiteDatenAuf($this->request->getPost());
@@ -171,6 +179,10 @@ class SchuldenController extends BaseController
 
         if (!$eintrag) {
             return redirect()->to('/schulden')->with('error', 'Eintrag nicht gefunden.');
+        }
+
+        if ($fehler = $this->verweigereAutomatischenEintrag($eintrag)) {
+            return $fehler;
         }
 
         if ($this->schuldModel->delete($id)) {
@@ -226,6 +238,21 @@ class SchuldenController extends BaseController
     }
 
     // ==================== PRIVATE HELPER METHODS ====================
+
+    /**
+     * Automatische Einträge (aus Beleg/Buchung/Abrechnung) sind manuell
+     * nicht änderbar — sie werden über ihre Quelle gepflegt (Issue #38).
+     * Gibt bei so einem Eintrag eine Redirect-Response zurück, sonst null.
+     */
+    private function verweigereAutomatischenEintrag(array $eintrag)
+    {
+        if (!SchuldModel::istAutomatisch($eintrag)) {
+            return null;
+        }
+
+        return redirect()->to('/schulden/person?name=' . urlencode($eintrag['person']))
+            ->with('error', 'Dieser Eintrag wird automatisch über Beleg, Buchung bzw. Abrechnung verwaltet. Bitte die Quelle bearbeiten oder löschen.');
+    }
 
     /**
      * Normalisiert POST-Daten (Name trimmen, Betrag normalisieren)

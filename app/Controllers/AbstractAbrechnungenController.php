@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\AbrechnungBelegModel;
+use App\Models\SchuldModel;
 
 /**
  * AbstractAbrechnungenController - Gemeinsame Logik für AH²- und HV-Abrechnungen
@@ -256,6 +257,10 @@ abstract class AbstractAbrechnungenController extends BaseController
         $neuerStatus = $this->request->getPost('status');
 
         if ($this->abrechnungModel->aendereStatus($id, $neuerStatus)) {
+            // Schuldenliste nachziehen: eingereicht → Forderung gegen AH²-Bund/Heimverein,
+            // bezahlt → zusätzlich Ausgleich; Zurückstufen entfernt die Einträge wieder
+            (new SchuldModel())->syncAbrechnungForderung($this->typ, $this->abrechnungModel->find($id));
+
             $statusText = abrechnung_status_label($neuerStatus);
 
             return redirect()->back()->with('success', "Status wurde zu '{$statusText}' geändert!");

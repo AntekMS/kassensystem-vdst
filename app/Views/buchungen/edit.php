@@ -129,6 +129,17 @@
                                           name="notizen"
                                           rows="2"><?= esc(old('notizen', $buchung['notizen'] ?? '')) ?></textarea>
                             </div>
+
+                            <?php if (!empty($schuld_eintrag)): ?>
+                                <div class="alert alert-info mb-3">
+                                    Diese Buchung gleicht eine Schuld von
+                                    <a href="<?= base_url('/schulden/person?name=' . urlencode($schuld_eintrag['person'])) ?>">
+                                        <strong><?= esc($schuld_eintrag['person']) ?></strong>
+                                    </a> aus.
+                                    Betrag und Datum des Schulden-Eintrags werden beim Speichern automatisch angepasst;
+                                    beim Löschen der Buchung wird er entfernt.
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>

@@ -71,6 +71,7 @@ class BelegUpload
                     'beschreibung' => $daten['beschreibung'],
                     'betrag' => $daten['betrag'],
                     'lieferant' => $daten['lieferant'] ?? null,
+                    'erstattung_person' => $daten['erstattung_person'] ?? null,
                     'dateiname_original' => $originalName,
                     'dateiname_system' => $systemDateiname,
                     'dateipfad' => $vollstaendigerPfad,

@@ -66,6 +66,18 @@
                                 <td><?= $beleg['lieferant'] ? esc($beleg['lieferant']) : '<span class="text-muted">Nicht angegeben</span>' ?></td>
                             </tr>
                             <tr>
+                                <td><strong>Erstattung an:</strong></td>
+                                <td>
+                                    <?php if (!empty($beleg['erstattung_person'])): ?>
+                                        <a href="<?= base_url('/schulden/person?name=' . urlencode($beleg['erstattung_person'])) ?>">
+                                            <?= esc($beleg['erstattung_person']) ?>
+                                        </a>
+                                    <?php else: ?>
+                                        <span class="text-muted">Keine Erstattung</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <tr>
                                 <td><strong>Kategorie:</strong></td>
                                 <td>
                                 <span class="badge bg-<?= $beleg['kategorie'] === 'normal' ? 'secondary' : 'primary' ?>">

@@ -19,7 +19,8 @@ nachhalten (Schuldenliste + Inventur-Export).
 Auf diesem Rechner gibt es **kein Host-PHP/Composer** — alles im laufenden Web-Container
 ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
 - `docker exec kassensystem-vdst-web vendor/bin/phpunit tests/unit/` — Tests
-  (`HealthTest`, `BetragTest`, `SchuldLabelTest`); entspricht `composer test`
+  (`HealthTest`, `BetragTest`, `SchuldLabelTest`, `GetraenkeBeglichenTest`);
+  entspricht `composer test`
 - `docker exec kassensystem-vdst-web php spark migrate` — Migrationen (auch die
   Datei-/Trigger-Cleanup-Migrationen)
 - `docker exec kassensystem-vdst-web php spark routes` — Routenliste
@@ -118,6 +119,13 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   werden NIE gegeneinander verrechnet. Betrag 0 lehnt der Controller ab. Ab
   `GETRAENKESTOPP_LIMIT` (50 €, `Config/Constants.php`) Getränke-Forderungen zeigt
   die UI ein Getränkestopp-Badge.
+- **1-Klick-Getränkeausgleich** (Issue #43): „Beglichen"-Button (Schulden-Index +
+  Personen-Seite) legt einen manuellen negativen Getränke-Eintrag über die volle
+  offene Forderung an; erkannt über `SchuldModel::GETRAENKE_BEGLICHEN_GRUND` +
+  `istGetraenkeAusgleich()` (KEIN Ad-hoc-Grund-Matching). „Rückgängig" wird nur
+  angeboten, solange der Ausgleich der neueste Getränke-Eintrag der Person ist —
+  danach normal in der Personen-Ansicht löschen. Beide Buttons bewusst ohne
+  JS-Confirm (gegenseitig 1-Klick-umkehrbar); Test: `tests/unit/GetraenkeBeglichenTest.php`.
 - **Auth**: ein Master-Passwort aus `.env` (`vdst.master_password`), Session 8h
   (`Config/Session.php::$expiration` muss zu `vdst.session_timeout` passen).
   Auth-Filter kommt ausschließlich aus der Routen-Gruppe in `Routes.php`; `AuthFilter`

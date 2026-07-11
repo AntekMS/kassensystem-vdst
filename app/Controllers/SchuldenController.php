@@ -28,9 +28,15 @@ class SchuldenController extends BaseController
     {
         $inventur = $this->schuldModel->berechneInventur();
 
+        $personen = $this->schuldModel->getPersonenUebersicht();
+        foreach ($personen as &$p) {
+            $p['getraenke_undo'] = $this->schuldModel->letzterGetraenkeAusgleich($p['person']) !== null;
+        }
+        unset($p);
+
         $data = [
             'title' => 'Schuldenliste',
-            'personen' => $this->schuldModel->getPersonenUebersicht(),
+            'personen' => $personen,
             'summe_forderungen' => $inventur['forderung']['summe'],
             'summe_verbindlichkeiten' => $inventur['verbindlichkeit']['summe'],
         ];
@@ -61,7 +67,16 @@ class SchuldenController extends BaseController
             'verbindlichkeiten' => 0.0,
         ];
 
+        // Undo nur, solange der 1-Klick-Ausgleich der neueste Getränke-Eintrag
+        // ist (Liste ist DESC-sortiert → der erste Getränke-Treffer zählt)
+        $getraenkeUndo = false;
+        $erster = true;
+
         foreach ($eintraege as $eintrag) {
+            if ($eintrag['kategorie'] === 'getraenke' && $erster) {
+                $getraenkeUndo = SchuldModel::istGetraenkeAusgleich($eintrag);
+                $erster = false;
+            }
             if ($eintrag['typ'] === 'forderung') {
                 $summen['forderungen'] += (float) $eintrag['betrag'];
                 if ($eintrag['kategorie'] === 'getraenke') {
@@ -77,6 +92,7 @@ class SchuldenController extends BaseController
             'person' => $person,
             'eintraege' => $eintraege,
             'summen' => $summen,
+            'getraenke_undo' => $getraenkeUndo,
         ];
 
         return view('schulden/person', $data);
@@ -191,6 +207,58 @@ class SchuldenController extends BaseController
         }
 
         return redirect()->to('/schulden')->with('error', 'Fehler beim Löschen des Eintrags.');
+    }
+
+    /**
+     * 1-Klick: offene Getränkerechnung einer Person begleichen (Issue #43)
+     *
+     * Legt einen manuellen Ausgleichs-Eintrag über die volle offene
+     * Getränke-Forderung an (negativ = Rückzahlung).
+     */
+    public function getraenkeBeglichen()
+    {
+        $person = trim((string) $this->request->getPost('person'));
+
+        if ($person === '') {
+            return redirect()->to('/schulden')->with('error', 'Person nicht angegeben.');
+        }
+
+        $summe = $this->schuldModel->offeneGetraenkeForderung($person);
+
+        if ($summe < 0.01) {
+            return redirect()->back()->with('error', 'Keine offene Getränkerechnung für ' . $person . '.');
+        }
+
+        $this->schuldModel->erstelleGetraenkeAusgleich($person, $summe);
+
+        return redirect()->back()
+            ->with('success', 'Getränkerechnung von ' . $person . ' über ' . formatiere_betrag($summe) . ' beglichen.');
+    }
+
+    /**
+     * 1-Klick-Undo: den zuletzt angelegten Getränkeausgleich zurücknehmen.
+     *
+     * Nur möglich, solange der Ausgleich der neueste Getränke-Eintrag der
+     * Person ist (der Fehlklick-Fall) — danach normal löschen.
+     */
+    public function getraenkeBeglichenUndo()
+    {
+        $person = trim((string) $this->request->getPost('person'));
+
+        if ($person === '') {
+            return redirect()->to('/schulden')->with('error', 'Person nicht angegeben.');
+        }
+
+        $ausgleich = $this->schuldModel->letzterGetraenkeAusgleich($person);
+
+        if (!$ausgleich) {
+            return redirect()->back()->with('error', 'Kein rückgängig machbarer Getränkeausgleich für ' . $person . ' gefunden.');
+        }
+
+        $this->schuldModel->delete($ausgleich['id']);
+
+        return redirect()->back()
+            ->with('success', 'Getränkeausgleich von ' . $person . ' über ' . formatiere_betrag(abs((float) $ausgleich['betrag'])) . ' rückgängig gemacht.');
     }
 
     /**

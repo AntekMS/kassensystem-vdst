@@ -14,6 +14,12 @@ use CodeIgniter\Model;
  */
 class SchuldModel extends Model
 {
+    /**
+     * Grund-Marker für 1-Klick-Getränkeausgleiche (Issue #43) —
+     * identifiziert die Einträge zusammen mit istGetraenkeAusgleich().
+     */
+    public const GETRAENKE_BEGLICHEN_GRUND = 'Getränkerechnung beglichen';
+
     protected $table = 'schulden';
     protected $primaryKey = 'id';
     protected $useAutoIncrement = true;
@@ -297,6 +303,65 @@ class SchuldModel extends Model
             'grund' => mb_substr('Ausgleich per Buchung: ' . $buchung['beschreibung'], 0, 255),
             'betrag' => -abs((float) $buchung['betrag']),
         ]);
+    }
+
+    /**
+     * Eintrag ist ein 1-Klick-Getränkeausgleich (Issue #43).
+     */
+    public static function istGetraenkeAusgleich(array $eintrag): bool
+    {
+        return $eintrag['typ'] === 'forderung'
+            && $eintrag['kategorie'] === 'getraenke'
+            && (float) $eintrag['betrag'] < 0
+            && $eintrag['grund'] === self::GETRAENKE_BEGLICHEN_GRUND
+            && !self::istAutomatisch($eintrag);
+    }
+
+    /**
+     * Offene Getränke-Forderung einer Person (Rückzahlungen sind negativ → SUM).
+     */
+    public function offeneGetraenkeForderung(string $person): float
+    {
+        $zeile = $this->selectSum('betrag', 'summe')
+            ->where('person', $person)
+            ->where('typ', 'forderung')
+            ->where('kategorie', 'getraenke')
+            ->get()
+            ->getRowArray();
+
+        return (float) ($zeile['summe'] ?? 0);
+    }
+
+    /**
+     * Legt den 1-Klick-Getränkeausgleich an (Issue #43).
+     *
+     * Bewusst ohne Quell-IDs: der Eintrag bleibt manuell löschbar.
+     */
+    public function erstelleGetraenkeAusgleich(string $person, float $betrag): void
+    {
+        $this->insert([
+            'person' => $person,
+            'typ' => 'forderung',
+            'kategorie' => 'getraenke',
+            'datum' => date('Y-m-d'),
+            'grund' => self::GETRAENKE_BEGLICHEN_GRUND,
+            'betrag' => -abs($betrag),
+        ]);
+    }
+
+    /**
+     * Neuester Getränke-Eintrag einer Person, sofern er ein 1-Klick-Ausgleich
+     * ist — sonst null. Nur dann wird das 1-Klick-Undo angeboten.
+     */
+    public function letzterGetraenkeAusgleich(string $person): ?array
+    {
+        $eintrag = $this->where('person', $person)
+            ->where('kategorie', 'getraenke')
+            ->orderBy('datum', 'DESC')
+            ->orderBy('id', 'DESC')
+            ->first();
+
+        return ($eintrag && self::istGetraenkeAusgleich($eintrag)) ? $eintrag : null;
     }
 
     /**

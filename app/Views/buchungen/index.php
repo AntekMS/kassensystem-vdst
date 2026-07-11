@@ -88,17 +88,17 @@
                         <!-- Export-Dropdown -->
                         <div class="btn-group">
                             <button type="button" class="btn btn-outline-vdst dropdown-toggle" data-bs-toggle="dropdown">
-                                📊 Export
+                                <i class="bi bi-download" aria-hidden="true"></i> Export
                             </button>
                             <ul class="dropdown-menu">
                                 <li>
                                     <a class="dropdown-item" href="<?= base_url('/buchungen/exportExcel?' . http_build_query($filter)) ?>">
-                                        📋 Kassenbuch (Excel)
+                                        <i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Kassenbuch (Excel)
                                     </a>
                                 </li>
                                 <li>
                                     <a class="dropdown-item" href="<?= base_url('/buchungen/export/zip?' . http_build_query($filter)) ?>">
-                                        📦 Kassenbuch + Belege (ZIP)
+                                        <i class="bi bi-file-earmark-zip" aria-hidden="true"></i> Kassenbuch + Belege (ZIP)
                                     </a>
                                 </li>
                             </ul>
@@ -226,7 +226,7 @@
                                         <?php if (!empty($buchung['belegnummer'])): ?>
                                             <a href="<?= base_url('/belege/show/' . $buchung['beleg_id']) ?>"
                                                target="_blank" class="btn btn-outline-dark btn-sm">
-                                                📄 <?= esc($buchung['belegnummer']) ?>
+                                                <i class="bi bi-receipt" aria-hidden="true"></i> <?= esc($buchung['belegnummer']) ?>
                                             </a>
                                         <?php else: ?>
                                             <span class="text-muted">Kein Beleg</span>
@@ -255,14 +255,14 @@
                                         <div class="btn-group btn-group-sm">
                                             <a href="<?= base_url('/buchungen/edit/' . $buchung['id']) ?>"
                                                class="btn btn-outline-dark" title="Bearbeiten" aria-label="Buchung bearbeiten">
-                                                <span aria-hidden="true">✏️</span>
+                                                <i class="bi bi-pencil" aria-hidden="true"></i>
                                             </a>
                                             <form method="post" class="d-inline"
                                                   action="<?= base_url('/buchungen/delete/' . $buchung['id']) ?>"
                                                   onsubmit="return confirmDelete('Buchung wirklich löschen?')">
                                                 <?= csrf_field() ?>
                                                 <button type="submit" class="btn btn-outline-danger" title="Löschen" aria-label="Buchung löschen">
-                                                    <span aria-hidden="true">🗑️</span>
+                                                    <i class="bi bi-trash" aria-hidden="true"></i>
                                                 </button>
                                             </form>
                                         </div>

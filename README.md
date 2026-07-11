@@ -34,7 +34,7 @@ Heimverein (HV) als Excel/ZIP.
 
 - **CodeIgniter 4** (PHP 8.1+), **MySQL 8**
 - **PhpOffice/PhpSpreadsheet** für die Excel-Exporte
-- **Bootstrap 5** (CDN) + Vanilla JS – geteilte Logik in `public/js/app.js`, Rest inline in den Views
+- **Bootstrap 5 + Bootstrap Icons** (CDN) + Vanilla JS – geteilte Logik in `public/js/app.js`, Rest inline in den Views
 - **Docker** (`docker-compose`): App auf `:8080`, phpMyAdmin auf `:8081`
 
 ---

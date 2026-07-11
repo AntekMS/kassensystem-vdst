@@ -116,17 +116,17 @@
                 <?php if (!empty($belege)): ?>
                     <div class="btn-group">
                         <button type="button" class="btn btn-outline-light btn-sm dropdown-toggle" data-bs-toggle="dropdown">
-                            📊 Export
+                            <i class="bi bi-download" aria-hidden="true"></i> Export
                         </button>
                         <ul class="dropdown-menu">
                             <li>
                                 <a class="dropdown-item" href="<?= base_url('/belege/export/excel?' . http_build_query($filter)) ?>">
-                                    📋 Nur Excel-Liste
+                                    <i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Nur Excel-Liste
                                 </a>
                             </li>
                             <li>
                                 <a class="dropdown-item" href="<?= base_url('/belege/export/zip?' . http_build_query($filter)) ?>">
-                                    📦 Excel + alle Beleg-Dateien (ZIP)
+                                    <i class="bi bi-file-earmark-zip" aria-hidden="true"></i> Excel + alle Beleg-Dateien (ZIP)
                                 </a>
                             </li>
                         </ul>
@@ -226,17 +226,17 @@
                                         <div class="btn-group btn-group-sm">
                                             <a href="<?= base_url('/belege/show/' . $beleg['id']) ?>"
                                                class="btn btn-outline-dark" title="Anzeigen" aria-label="Beleg anzeigen">
-                                                <span aria-hidden="true">👁️</span>
+                                                <i class="bi bi-eye" aria-hidden="true"></i>
                                             </a>
                                             <?php if ($beleg['status'] === 'erfasst'): ?>
                                                 <a href="<?= base_url('/belege/edit/' . $beleg['id']) ?>"
                                                    class="btn btn-outline-dark" title="Bearbeiten" aria-label="Beleg bearbeiten">
-                                                    <span aria-hidden="true">✏️</span>
+                                                    <i class="bi bi-pencil" aria-hidden="true"></i>
                                                 </a>
                                             <?php endif; ?>
                                             <a href="<?= base_url('/belege/download/' . $beleg['id']) ?>"
                                                class="btn btn-outline-success" title="Download" aria-label="Beleg herunterladen">
-                                                <span aria-hidden="true">📥</span>
+                                                <i class="bi bi-download" aria-hidden="true"></i>
                                             </a>
                                             <?php if (empty($beleg['abrechnungen']) && $beleg['status'] === 'erfasst'): ?>
                                                 <form method="post" class="d-inline"
@@ -244,7 +244,7 @@
                                                       onsubmit="return confirmDelete('Beleg <?= esc($beleg['belegnummer'], 'js') ?> wirklich löschen? Die Datei wird ebenfalls gelöscht!')">
                                                     <?= csrf_field() ?>
                                                     <button type="submit" class="btn btn-outline-danger btn-sm" title="Löschen" aria-label="Beleg löschen">
-                                                        <span aria-hidden="true">🗑️</span>
+                                                        <i class="bi bi-trash" aria-hidden="true"></i>
                                                     </button>
                                                 </form>
                                             <?php endif; ?>

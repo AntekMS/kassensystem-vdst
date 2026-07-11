@@ -9,11 +9,11 @@
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h1 class="page-title mb-1">📄 Neuen Beleg hinzufügen</h1>
+                        <h1 class="page-title mb-1"><i class="bi bi-receipt" aria-hidden="true"></i> Neuen Beleg hinzufügen</h1>
                         <p class="text-muted mb-0">Laden Sie einen Beleg hoch und erfassen Sie die dazugehörigen Informationen</p>
                     </div>
                     <a href="<?= base_url('/belege') ?>" class="btn btn-outline-vdst">
-                        ← Zurück zur Übersicht
+                        <i class="bi bi-arrow-left" aria-hidden="true"></i> Zurück zur Übersicht
                     </a>
                 </div>
             </div>
@@ -27,7 +27,7 @@
                 <div class="col-lg-5">
                     <div class="card card-vdst h-100">
                         <div class="card-header">
-                            <h5 class="mb-0">📤 Datei hochladen</h5>
+                            <h5 class="mb-0"><i class="bi bi-send" aria-hidden="true"></i> Datei hochladen</h5>
                         </div>
                         <div class="card-body">
                             <!-- Upload-Bereich -->
@@ -35,7 +35,7 @@
                                 <div class="text-center p-4 border-2 border-dashed border-secondary rounded" id="uploadZone">
                                     <div id="uploadDefault">
                                         <div class="mb-3">
-                                            <i class="display-4">📁</i>
+                                            <i class="bi bi-cloud-arrow-up display-4" aria-hidden="true"></i>
                                         </div>
                                         <h5 class="mb-2">Datei auswählen</h5>
                                         <p class="text-muted mb-2">Klicken Sie hier oder ziehen Sie eine Datei hinein</p>
@@ -43,7 +43,7 @@
                                     </div>
                                     <div id="uploadPreview" style="display: none;">
                                         <div class="mb-2">
-                                            <i class="display-5">✓</i>
+                                            <i class="bi bi-check-circle display-5 text-success" aria-hidden="true"></i>
                                         </div>
                                         <div class="fw-bold" id="fileName"></div>
                                         <small class="text-muted" id="fileSize"></small>
@@ -65,7 +65,7 @@
 
                             <!-- Upload-Hinweise -->
                             <div class="mt-4">
-                                <h6 class="fw-bold">💡 Hinweise zum Upload:</h6>
+                                <h6 class="fw-bold"><i class="bi bi-lightbulb" aria-hidden="true"></i> Hinweise zum Upload:</h6>
                                 <ul class="small text-muted mb-0">
                                     <li>Erlaubte Dateitypen: PDF, JPG, PNG</li>
                                     <li>Maximale Dateigröße: <?= $max_upload_size ?> MB</li>
@@ -81,7 +81,7 @@
                 <div class="col-lg-7">
                     <div class="card card-vdst h-100">
                         <div class="card-header">
-                            <h5 class="mb-0">📋 Beleg-Informationen</h5>
+                            <h5 class="mb-0"><i class="bi bi-card-list" aria-hidden="true"></i> Beleg-Informationen</h5>
                         </div>
                         <div class="card-body">
                             <!-- Grunddaten -->
@@ -215,7 +215,7 @@
                             <div class="alert alert-info">
                                 <div class="row">
                                     <div class="col-1 text-center">
-                                        <i class="fs-4">ℹ️</i>
+                                        <i class="bi bi-info-circle fs-4" aria-hidden="true"></i>
                                     </div>
                                     <div class="col-11">
                                         <strong>Automatische Verarbeitung:</strong><br>
@@ -248,7 +248,7 @@
                                         Abbrechen
                                     </a>
                                     <button type="submit" class="btn btn-vdst btn-lg" id="submitBtn">
-                                        <strong>📄 Beleg speichern</strong>
+                                        <strong><i class="bi bi-receipt" aria-hidden="true"></i> Beleg speichern</strong>
                                     </button>
                                 </div>
                             </div>
@@ -365,13 +365,13 @@
 
             // Form-Submission mit Loading-State
             form.addEventListener('submit', function(e) {
-                submitBtn.innerHTML = '🔄 Wird gespeichert...';
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Wird gespeichert...';
                 submitBtn.disabled = true;
 
                 // Falls Fehler auftreten, Button nach 5 Sekunden wieder aktivieren
                 setTimeout(function() {
                     if (submitBtn.disabled) {
-                        submitBtn.innerHTML = '<strong>📄 Beleg speichern</strong>';
+                        submitBtn.innerHTML = '<strong><i class="bi bi-receipt" aria-hidden="true"></i> Beleg speichern</strong>';
                         submitBtn.disabled = false;
                     }
                 }, 5000);

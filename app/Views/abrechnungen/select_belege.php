@@ -12,11 +12,11 @@
             </div>
             <div>
                 <a href="<?= base_url('/abrechnungen/' . $typ) ?>" class="btn btn-outline-secondary">
-                    ← Abrechnungen-Übersicht
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i> Abrechnungen-Übersicht
                 </a>
                 <a href="<?= base_url('/abrechnungen/' . $typ . '/preview/' . $abrechnung['id']) ?>"
                    class="btn btn-info">
-                    👁️ Zur Vorschau
+                    <i class="bi bi-eye" aria-hidden="true"></i> Zur Vorschau
                 </a>
 
                 <?php if (count($zugeordnete_belege) > 0): ?>
@@ -24,19 +24,19 @@
                     <div class="btn-group">
                         <button type="button" class="btn btn-success dropdown-toggle"
                                 data-bs-toggle="dropdown" aria-expanded="false">
-                            📊 Export
+                            <i class="bi bi-download" aria-hidden="true"></i> Export
                         </button>
                         <ul class="dropdown-menu">
                             <li>
                                 <a class="dropdown-item"
                                    href="<?= base_url('/abrechnungen/' . $typ . '/exportExcel/' . $abrechnung['id']) ?>">
-                                    📊 Excel-Export
+                                    <i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Excel-Export
                                 </a>
                             </li>
                             <li>
                                 <a class="dropdown-item"
                                    href="<?= base_url('/abrechnungen/' . $typ . '/downloadZip/' . $abrechnung['id']) ?>">
-                                    📁 ZIP-Archiv
+                                    <i class="bi bi-file-earmark-zip" aria-hidden="true"></i> ZIP-Archiv
                                 </a>
                             </li>
                         </ul>
@@ -72,7 +72,7 @@
                             <div class="col-md-2 text-end">
                                 <?php if ($abrechnung['status'] === 'entwurf' && count($zugeordnete_belege) > 0): ?>
                                     <button class="btn btn-warning btn-sm" onclick="markAsAusstehend()">
-                                        📤 Ausstehend markieren
+                                        <i class="bi bi-send" aria-hidden="true"></i> Ausstehend markieren
                                     </button>
                                 <?php endif; ?>
                             </div>
@@ -144,7 +144,7 @@
                                                 <button class="btn btn-success btn-sm add-beleg-btn"
                                                         data-beleg-id="<?= $beleg['id'] ?>"
                                                         title="Zur Abrechnung hinzufügen" aria-label="Zur Abrechnung hinzufügen">
-                                                    <span aria-hidden="true">➡️</span>
+                                                    <i class="bi bi-arrow-right" aria-hidden="true"></i>
                                                 </button>
                                             </div>
                                         </div>
@@ -200,7 +200,7 @@
                                                 <button class="btn btn-danger btn-sm remove-beleg-btn"
                                                         data-beleg-id="<?= $beleg['id'] ?>"
                                                         title="Aus Abrechnung entfernen" aria-label="Aus Abrechnung entfernen">
-                                                    <span aria-hidden="true">❌</span>
+                                                    <i class="bi bi-x-lg" aria-hidden="true"></i>
                                                 </button>
                                             </div>
                                         </div>
@@ -226,11 +226,13 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             document.addEventListener('click', function(e) {
-                if (e.target.classList.contains('add-beleg-btn')) {
-                    sendeBelegAktion('addBeleg', e.target.dataset.belegId);
+                const addBtn = e.target.closest('.add-beleg-btn');
+                if (addBtn) {
+                    sendeBelegAktion('addBeleg', addBtn.dataset.belegId);
                 }
-                if (e.target.classList.contains('remove-beleg-btn')) {
-                    sendeBelegAktion('removeBeleg', e.target.dataset.belegId);
+                const removeBtn = e.target.closest('.remove-beleg-btn');
+                if (removeBtn) {
+                    sendeBelegAktion('removeBeleg', removeBtn.dataset.belegId);
                 }
             });
         });

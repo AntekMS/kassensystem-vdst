@@ -11,7 +11,7 @@ nachhalten (Schuldenliste + Inventur-Export).
 ## Stack
 - CodeIgniter 4 (PHP 8.1+), MySQL 8
 - PhpOffice/PhpSpreadsheet für Excel-Exporte
-- Bootstrap 5 via CDN, geteiltes JS in `public/js/app.js`, Rest inline in den Views
+- Bootstrap 5 + Bootstrap Icons via CDN, geteiltes JS in `public/js/app.js`, Rest inline in den Views
 - Docker-Setup (`docker-compose up -d` → App auf :8080, phpMyAdmin auf :8081)
 - Lokal alternativ: `php spark serve` + MySQL (XAMPP-Default in `app/Config/Database.php`)
 
@@ -134,6 +134,11 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   `select_belege.php` aktualisiert den Token daraus (defensiv geparst, bei 403 Reload).
 - **Ausgaben in Views** immer mit `esc()` — auch `old()`-Werte in `<textarea>`; destruktive
   Aktionen (Löschen) nur per POST-Formular mit `csrf_field()`.
+- **UI-Icons**: Bootstrap Icons (`<i class="bi bi-…" aria-hidden="true"></i>`, CDN-Link in
+  `layouts/main.php` UND `auth/login.php` — Login ist standalone), KEINE Emojis. Icons sind
+  dekorativ neben Textlabels; Icon-only-Buttons brauchen `title` + `aria-label`. In
+  `<option>`-Elementen keine Icons (HTML wird dort nicht gerendert). Ladezustände mit
+  Bootstrap-Spinner (`spinner-border spinner-border-sm`), nicht mit Icon.
 
 ## Bewusst entfernt — nicht wieder einbauen
 Multi-User/Rollen, Session-Timeout-Warnsystem mit Auto-Refresh, Keyboard-Shortcuts,

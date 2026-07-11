@@ -14,7 +14,9 @@ Heimverein (HV) als Excel/ZIP.
 - **Kassenbuch** mit 3 Konten (Aktivenkasse, Getränkekasse, Barkasse) und Live-Kontostand
 - **Beleg-Upload** (PDF/JPG/PNG, max. 10 MB) mit automatischer Belegnummer aus dem
   Rechnungsdatum (`YYYY-MM-DD-NNN`) und Ablage nach `uploads/belege/YYYY/MM/`
-- **AH²- und HV-Abrechnungen** mit AJAX-Beleg-Zuordnung; HV zusätzlich mit Freitext-Begründung
+- **AH²- und HV-Abrechnungen** mit AJAX-Beleg-Zuordnung; HV zusätzlich mit Freitext-Begründung.
+  Per 1 Klick lassen sich alle verfügbaren Belege übernehmen („Alle hinzufügen" bzw.
+  Checkbox beim Erstellen)
 - **Exporte** – pro Bereich genau zwei Formate: **Excel** und **Komplett-ZIP** (Excel + Beleg-Dateien)
 - **Schuldenliste** – Forderungen/Verbindlichkeiten pro Person (Freitext-Name)
   mit nachvollziehbarer Historie (z.B. monatliche Getränkerechnungen, Rückzahlungen als

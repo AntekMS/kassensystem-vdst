@@ -105,8 +105,13 @@
             <!-- Verfügbare Belege -->
             <div class="col-md-6">
                 <div class="card">
-                    <div class="card-header bg-dark text-white">
+                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
                         <strong>Verfügbare <?= $typ === 'ah' ? 'AH²' : 'HV' ?> Belege (<?= count($verfuegbare_belege) ?>)</strong>
+                        <?php if (!empty($verfuegbare_belege) && !in_array($abrechnung['status'], ['eingereicht', 'bezahlt'], true)): ?>
+                            <button class="btn btn-light btn-sm" id="add-alle-btn">
+                                <i class="bi bi-chevron-double-right" aria-hidden="true"></i> Alle hinzufügen
+                            </button>
+                        <?php endif; ?>
                     </div>
                     <div class="card-body p-0" style="max-height: 600px; overflow-y: auto;">
                         <?php if (empty($verfuegbare_belege)): ?>
@@ -234,13 +239,22 @@
                 if (removeBtn) {
                     sendeBelegAktion('removeBeleg', removeBtn.dataset.belegId);
                 }
+                const addAlleBtn = e.target.closest('#add-alle-btn');
+                if (addAlleBtn) {
+                    addAlleBtn.disabled = true;
+                    addAlleBtn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Alle hinzufügen';
+                    sendeBelegAktion('addAlleBelege', null);
+                }
             });
         });
 
-        // Beleg hinzufügen/entfernen (AJAX), danach Seite neu laden
+        // Beleg hinzufügen/entfernen (AJAX), danach Seite neu laden.
+        // belegId = null für Sammel-Aktionen ohne einzelnen Beleg.
         function sendeBelegAktion(aktion, belegId) {
             const formData = new FormData();
-            formData.append('beleg_id', belegId);
+            if (belegId != null) {
+                formData.append('beleg_id', belegId);
+            }
             formData.append(csrfToken, csrfHash);
 
             fetch(`${baseUrl}/abrechnungen/${abrechnungTyp}/${aktion}/${abrechnungId}`, {
@@ -275,12 +289,23 @@
                         setTimeout(() => location.reload(), 500);
                     } else {
                         showMessage(data.message, 'error');
+                        resetAddAlleButton();
                     }
                 })
                 .catch(error => {
                     console.error('Fetch error:', error);
                     showMessage('Netzwerkfehler bei der Beleg-Zuordnung', 'error');
+                    resetAddAlleButton();
                 });
+        }
+
+        // Spinner-Zustand des Sammel-Buttons zurücknehmen (nur im Fehlerfall nötig)
+        function resetAddAlleButton() {
+            const btn = document.getElementById('add-alle-btn');
+            if (btn && btn.disabled) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-chevron-double-right" aria-hidden="true"></i> Alle hinzufügen';
+            }
         }
 
         // Status auf "Ausstehend" setzen

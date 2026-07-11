@@ -362,6 +362,26 @@ class AbrechnungBelegModel extends Model
     }
 
     /**
+     * Fügt alle verfügbaren Belege zu einer Abrechnung hinzu.
+     * Jeder Beleg läuft einzeln durch fuegeZuordnungHinzu(), damit alle
+     * Guards (Duplikat, andere Abrechnung, Berechtigung) aktiv bleiben.
+     *
+     * @return int Anzahl tatsächlich hinzugefügter Belege
+     */
+    public function fuegeAlleVerfuegbarenHinzu(string $abrechnungsTyp, int $abrechnungsId): int
+    {
+        $anzahl = 0;
+
+        foreach ($this->getVerfuegbareBelege($abrechnungsTyp, $abrechnungsId) as $beleg) {
+            if ($this->fuegeZuordnungHinzu($beleg['id'], $abrechnungsTyp, $abrechnungsId)) {
+                $anzahl++;
+            }
+        }
+
+        return $anzahl;
+    }
+
+    /**
      * Holt bereits zugeordnete Belege für eine Abrechnung
      */
     public function getZugeordneteBelege($abrechnungsTyp, $abrechnungsId)

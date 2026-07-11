@@ -76,6 +76,7 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
             $routes->post('store', "{$controller}::store");
             $routes->get('belege/(:num)', "{$controller}::selectBelege/$1");
             $routes->post('addBeleg/(:num)', "{$controller}::addBeleg/$1");
+            $routes->post('addAlleBelege/(:num)', "{$controller}::addAlleBelege/$1");
             $routes->post('removeBeleg/(:num)', "{$controller}::removeBeleg/$1");
             $routes->get('edit/(:num)', "{$controller}::edit/$1");
             $routes->post('update/(:num)', "{$controller}::update/$1");

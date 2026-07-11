@@ -126,6 +126,53 @@ if (!function_exists('schuld_kategorie_label')) {
     }
 }
 
+if (!function_exists('beleg_status_badge_class')) {
+    /**
+     * CSS-Klassen für den Soft-Status-Badge eines Belegs (Design-System app.css).
+     */
+    function beleg_status_badge_class(?string $status): string
+    {
+        $klassen = [
+            'erfasst' => 'badge-status-neutral',
+            'in_abrechnung' => 'badge-status-rot',
+            'abgerechnet' => 'badge-status-amber',
+            'bezahlt' => 'badge-status-gruen',
+        ];
+
+        return 'badge-status ' . ($klassen[$status] ?? 'badge-status-neutral');
+    }
+}
+
+if (!function_exists('abrechnung_status_badge_class')) {
+    /**
+     * CSS-Klassen für den Soft-Status-Badge einer Abrechnung (Design-System app.css).
+     */
+    function abrechnung_status_badge_class(?string $status): string
+    {
+        $klassen = [
+            'entwurf' => 'badge-status-neutral',
+            'ausstehend' => 'badge-status-amber',
+            'eingereicht' => 'badge-status-rot',
+            'bezahlt' => 'badge-status-gruen',
+        ];
+
+        return 'badge-status ' . ($klassen[$status] ?? 'badge-status-neutral');
+    }
+}
+
+if (!function_exists('kategorie_badge_class')) {
+    /**
+     * CSS-Klassen für den Kategorie-Badge eines Belegs: abrechnungsfähige
+     * Kategorien (AH²/HV) bekommen den umrandeten Badge, Normales bleibt neutral.
+     */
+    function kategorie_badge_class(?string $kategorie): string
+    {
+        return 'badge-status ' . ($kategorie === 'normal' || $kategorie === null
+            ? 'badge-status-neutral'
+            : 'badge-status-outline');
+    }
+}
+
 if (!function_exists('buchungsart_label')) {
     function buchungsart_label(?string $buchungsart): string
     {

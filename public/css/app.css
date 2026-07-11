@@ -311,6 +311,13 @@ body {
     --bs-btn-focus-shadow-rgb: 108, 117, 125;
 }
 
+/* Segment-Umschalter (z.B. AH²/HV): aktives Segment dunkel */
+.btn-outline-vdst.active {
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: var(--grau-900);
+    --bs-btn-active-border-color: var(--grau-900);
+}
+
 /* Leiser Icon-Button für Zeilen-Aktionen in Listen */
 .btn-icon {
     display: inline-flex;
@@ -377,11 +384,22 @@ body {
 }
 
 .kontostand-card h2,
-.kontostand-card h3 {
+.kontostand-card h3,
+.kontostand-card h4 {
     font-variant-numeric: tabular-nums;
     font-size: 1.5rem;
     font-weight: 700;
     margin-bottom: 0;
+}
+
+/* Einnahmen/Ausgaben-Zeilen in Kontostand-Karten (Kassenbuch) */
+.kontostand-card .konto-detail {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: .5rem;
+    font-variant-numeric: tabular-nums;
+    font-size: .85rem;
 }
 
 /* Gesamtsaldo-Karte: roter Top-Akzent statt roter Fläche */
@@ -504,6 +522,10 @@ thead.table-vdst th {
 .table td.text-end,
 .table th.text-end {
     font-variant-numeric: tabular-nums;
+}
+
+.table .spalte-notizen {
+    max-width: 150px;
 }
 
 tfoot.table-light {
@@ -655,13 +677,39 @@ tfoot.table-light {
     }
 
     .table-stack td.stack-actions .btn,
+    .table-stack td.stack-actions .btn-icon,
     .table-stack td.stack-actions a {
         flex: 1 1 0;
+        width: auto;
         min-height: 44px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: .4rem;
+    }
+
+    /* Ghost-Icons bekommen gestapelt sichtbare Flächen */
+    .table-stack td.stack-actions .btn-icon {
+        background: #fff;
+        border: 1px solid var(--grau-300);
+        color: var(--grau-700);
+        border-radius: var(--radius-sm);
+        font-size: .85rem;
+    }
+
+    /* Formulare (z.B. Löschen) reihen sich als gleichberechtigte Fläche ein */
+    .table-stack td.stack-actions .stack-form {
+        flex: 1 1 0;
+        display: flex;
+    }
+
+    .table-stack td.stack-actions .stack-form .btn-icon {
+        width: 100%;
+    }
+
+    /* Zellen, die in dieser Zeile leer sind (z.B. Einnahme ODER Ausgabe) */
+    .table-stack td.stack-leer {
+        display: none;
     }
 
     .table-stack tfoot {

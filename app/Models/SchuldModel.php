@@ -22,7 +22,8 @@ class SchuldModel extends Model
     protected $protectFields = true;
 
     protected $allowedFields = [
-        'person', 'typ', 'kategorie', 'datum', 'grund', 'betrag'
+        'person', 'typ', 'kategorie', 'datum', 'grund', 'betrag',
+        'beleg_id', 'buchung_id', 'abrechnung_typ', 'abrechnung_id'
     ];
 
     protected $useTimestamps = true;
@@ -150,6 +151,152 @@ class SchuldModel extends Model
         }
 
         return $inventur;
+    }
+
+    /**
+     * Eintrag stammt aus einer Quelle (Beleg/Buchung/Abrechnung) und wird
+     * automatisch verwaltet — manuelles Bearbeiten/Löschen ist gesperrt.
+     */
+    public static function istAutomatisch(array $eintrag): bool
+    {
+        return !empty($eintrag['beleg_id'])
+            || !empty($eintrag['buchung_id'])
+            || !empty($eintrag['abrechnung_id']);
+    }
+
+    /**
+     * Synchronisiert die automatische Verbindlichkeit zu einem Beleg (Issue #38).
+     *
+     * erstattung_person gesetzt → Eintrag anlegen bzw. aktualisieren,
+     * leer → Eintrag entfernen. Ausgleichs-Einträge hängen an der Buchung
+     * (buchung_id), nicht am Beleg, und bleiben daher unberührt.
+     */
+    public function syncBelegVerbindlichkeit(array $beleg): void
+    {
+        $vorhanden = $this->where('beleg_id', $beleg['id'])->first();
+        $person = trim((string) ($beleg['erstattung_person'] ?? ''));
+
+        if ($person === '') {
+            if ($vorhanden) {
+                $this->delete($vorhanden['id']);
+            }
+            return;
+        }
+
+        $daten = [
+            'person' => $person,
+            'typ' => 'verbindlichkeit',
+            'kategorie' => 'sonstige',
+            'datum' => $beleg['rechnungsdatum'],
+            'grund' => mb_substr('Beleg ' . $beleg['belegnummer'] . ': ' . $beleg['beschreibung'], 0, 255),
+            'betrag' => $beleg['betrag'],
+            'beleg_id' => $beleg['id'],
+        ];
+
+        if ($vorhanden) {
+            $this->update($vorhanden['id'], $daten);
+        } else {
+            $this->insert($daten);
+        }
+    }
+
+    /**
+     * Synchronisiert die Einträge zu einer Abrechnung (Issue #38), idempotent:
+     * - eingereicht/bezahlt → Forderung gegen AH²-Bund bzw. Heimverein
+     * - bezahlt → zusätzlich negativer Ausgleichs-Eintrag
+     * - Zurückstufen entfernt die jeweiligen Einträge wieder
+     *
+     * Forderung und Ausgleich werden am Vorzeichen unterschieden.
+     */
+    public function syncAbrechnungForderung(string $typ, array $abrechnung): void
+    {
+        $eintraege = $this->where('abrechnung_typ', $typ)
+            ->where('abrechnung_id', $abrechnung['id'])
+            ->findAll();
+
+        $forderung = null;
+        $ausgleich = null;
+        foreach ($eintraege as $eintrag) {
+            if ((float) $eintrag['betrag'] >= 0) {
+                $forderung = $eintrag;
+            } else {
+                $ausgleich = $eintrag;
+            }
+        }
+
+        $summe = (float) $abrechnung['gesamtsumme'];
+        $sollForderung = $summe > 0 && in_array($abrechnung['status'], ['eingereicht', 'bezahlt'], true);
+        $sollAusgleich = $summe > 0 && $abrechnung['status'] === 'bezahlt';
+
+        $basis = [
+            'person' => $typ === 'ah' ? 'AH²-Bund' : 'Heimverein',
+            'typ' => 'forderung',
+            'kategorie' => 'abrechnung',
+            'abrechnung_typ' => $typ,
+            'abrechnung_id' => $abrechnung['id'],
+        ];
+        $titel = mb_substr($abrechnung['titel'], 0, 220);
+
+        if ($sollForderung) {
+            $daten = $basis + [
+                'datum' => $abrechnung['eingereicht_am'] ?? date('Y-m-d'),
+                'grund' => 'Abrechnung eingereicht: ' . $titel,
+                'betrag' => $summe,
+            ];
+            $forderung ? $this->update($forderung['id'], $daten) : $this->insert($daten);
+        } elseif ($forderung) {
+            $this->delete($forderung['id']);
+        }
+
+        if ($sollAusgleich) {
+            $daten = $basis + [
+                'datum' => $abrechnung['bezahlt_am'] ?? date('Y-m-d'),
+                'grund' => 'Abrechnung bezahlt: ' . $titel,
+                'betrag' => -$summe,
+            ];
+            $ausgleich ? $this->update($ausgleich['id'], $daten) : $this->insert($daten);
+        } elseif ($ausgleich) {
+            $this->delete($ausgleich['id']);
+        }
+    }
+
+    /**
+     * Legt den Ausgleichs-Eintrag zu einer Buchung an (Issue #38).
+     *
+     * Einnahme → Person zahlt an den Verein (Forderung sinkt),
+     * Ausgabe → Verein zahlt an die Person (Verbindlichkeit sinkt).
+     * Der Betrag ist daher immer negativ (= Rückzahlung).
+     */
+    public function erstelleBuchungsAusgleich(array $buchung, string $person, string $kategorie): void
+    {
+        $this->insert([
+            'person' => $person,
+            'typ' => $buchung['buchungsart'] === 'einnahme' ? 'forderung' : 'verbindlichkeit',
+            'kategorie' => $kategorie,
+            'datum' => $buchung['buchungsdatum'],
+            'grund' => mb_substr('Ausgleich per Buchung: ' . $buchung['beschreibung'], 0, 255),
+            'betrag' => -abs((float) $buchung['betrag']),
+            'buchung_id' => $buchung['id'],
+        ]);
+    }
+
+    /**
+     * Hält den Ausgleichs-Eintrag nach einer Buchungs-Änderung aktuell.
+     */
+    public function syncBuchungAusgleich(array $buchung): void
+    {
+        $vorhanden = $this->where('buchung_id', $buchung['id'])->first();
+
+        if (!$vorhanden) {
+            return;
+        }
+
+        $this->update($vorhanden['id'], [
+            'typ' => $buchung['buchungsart'] === 'einnahme' ? 'forderung' : 'verbindlichkeit',
+            'datum' => $buchung['buchungsdatum'],
+            'grund' => mb_substr('Ausgleich per Buchung: ' . $buchung['beschreibung'], 0, 255),
+            'betrag' => -abs((float) $buchung['betrag']),
+        ]);
     }
 
     /**

@@ -106,6 +106,29 @@
                                 </div>
                             </div>
 
+                            <!-- Erstattung -->
+                            <div class="mb-3">
+                                <label for="erstattung_person" class="form-label">
+                                    <strong>Erstattung an</strong> <small class="text-muted">(optional)</small>
+                                </label>
+                                <input type="text"
+                                       class="form-control <?= isset($errors['erstattung_person']) ? 'is-invalid' : '' ?>"
+                                       id="erstattung_person"
+                                       name="erstattung_person"
+                                       list="personen-namen"
+                                       value="<?= esc(old('erstattung_person', $beleg['erstattung_person'] ?? ''), 'attr') ?>"
+                                       placeholder="Wer hat den Beleg ausgelegt und bekommt das Geld zurück?">
+                                <datalist id="personen-namen">
+                                    <?php foreach ($personen_namen as $name): ?>
+                                        <option value="<?= esc($name, 'attr') ?>">
+                                    <?php endforeach; ?>
+                                </datalist>
+                                <?php if (isset($errors['erstattung_person'])): ?>
+                                    <div class="invalid-feedback"><?= esc($errors['erstattung_person']) ?></div>
+                                <?php endif; ?>
+                                <small class="text-muted">Hält die zugehörige Verbindlichkeit in der Schuldenliste aktuell</small>
+                            </div>
+
                             <!-- Beschreibung -->
                             <div class="mb-3">
                                 <label for="beschreibung" class="form-label">

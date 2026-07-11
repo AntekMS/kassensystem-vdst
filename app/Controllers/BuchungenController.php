@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Libraries\BelegUpload;
 use App\Models\BelegModel;
 use App\Models\BuchungModel;
+use App\Models\SchuldModel;
 
 /**
  * BuchungenController - Kassenbuch-Verwaltung
@@ -51,6 +52,8 @@ class BuchungenController extends BaseController
             'title' => 'Neue Buchung',
             'verfuegbare_belege' => $this->buchungModel->getVerfuegbareBelegeFuerBuchung(),
             'konten' => konto_optionen(),
+            'personen_namen' => (new SchuldModel())->getPersonenNamen(),
+            'schuld_kategorien' => schuld_kategorie_optionen(),
         ];
 
         return view('buchungen/create', $data);
@@ -63,6 +66,7 @@ class BuchungenController extends BaseController
     {
         $daten = $this->request->getPost();
         $daten['betrag'] = normalisiere_betrag($daten['betrag'] ?? null);
+        $daten['schuld_person'] = trim(preg_replace('/\s+/', ' ', $daten['schuld_person'] ?? ''));
 
         $validation = \Config\Services::validation();
         $validation->setRules([
@@ -71,6 +75,8 @@ class BuchungenController extends BaseController
             'betrag' => 'required|decimal|greater_than[0]',
             'konto_typ' => 'required|in_list[aktivenkasse,getraenkekasse,barkasse]',
             'buchungsart' => 'required|in_list[ausgabe,einnahme]',
+            'schuld_person' => 'permit_empty|min_length[2]|max_length[100]',
+            'schuld_kategorie' => 'permit_empty|in_list[getraenke,abrechnung,sonstige]',
         ]);
 
         if (!$validation->run($daten)) {
@@ -125,7 +131,18 @@ class BuchungenController extends BaseController
             'notizen' => $daten['notizen'] ?? null,
         ];
 
-        if ($this->buchungModel->erstelleBuchung($buchungsDaten)) {
+        $buchungId = $this->buchungModel->erstelleBuchung($buchungsDaten);
+
+        if ($buchungId) {
+            // Schulden-Ausgleich angegeben → Rückzahlungs-Eintrag in der Schuldenliste
+            if ($daten['schuld_person'] !== '') {
+                (new SchuldModel())->erstelleBuchungsAusgleich(
+                    $this->buchungModel->find($buchungId),
+                    $daten['schuld_person'],
+                    $daten['schuld_kategorie'] ?: 'getraenke'
+                );
+            }
+
             return redirect()->to('/buchungen')->with('success', 'Buchung wurde erfolgreich erstellt!');
         }
 
@@ -148,6 +165,7 @@ class BuchungenController extends BaseController
             'buchung' => $buchung,
             'verfuegbare_belege' => $this->buchungModel->getVerfuegbareBelegeFuerBuchung(),
             'konten' => konto_optionen(),
+            'schuld_eintrag' => (new SchuldModel())->where('buchung_id', $id)->first(),
         ];
 
         return view('buchungen/edit', $data);
@@ -191,6 +209,9 @@ class BuchungenController extends BaseController
         ];
 
         if ($this->buchungModel->update($id, $updateData)) {
+            // Verknüpften Schulden-Ausgleich nachziehen (Betrag/Datum/Richtung)
+            (new SchuldModel())->syncBuchungAusgleich($this->buchungModel->find($id));
+
             return redirect()->to('/buchungen')->with('success', 'Buchung wurde erfolgreich aktualisiert!');
         }
 

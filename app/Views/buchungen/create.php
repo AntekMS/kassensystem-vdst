@@ -132,6 +132,45 @@
                                           rows="2"
                                           placeholder="Zusätzliche Informationen..."><?= esc(old('notizen') ?? '') ?></textarea>
                             </div>
+
+                            <!-- Schulden-Ausgleich -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="schuld_person" class="form-label">
+                                        <strong>Schuld ausgleichen</strong> <small class="text-muted">(optional)</small>
+                                    </label>
+                                    <input type="text"
+                                           class="form-control <?= isset($errors['schuld_person']) ? 'is-invalid' : '' ?>"
+                                           id="schuld_person"
+                                           name="schuld_person"
+                                           list="personen-namen"
+                                           value="<?= esc(old('schuld_person') ?? '', 'attr') ?>"
+                                           placeholder="Person aus der Schuldenliste">
+                                    <datalist id="personen-namen">
+                                        <?php foreach ($personen_namen as $name): ?>
+                                            <option value="<?= esc($name, 'attr') ?>">
+                                        <?php endforeach; ?>
+                                    </datalist>
+                                    <?php if (isset($errors['schuld_person'])): ?>
+                                        <div class="invalid-feedback"><?= esc($errors['schuld_person']) ?></div>
+                                    <?php endif; ?>
+                                    <small class="text-muted">Einnahme = Person zahlt an den Verein,
+                                        Ausgabe = Verein zahlt an die Person</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="schuld_kategorie" class="form-label">
+                                        <strong>Schulden-Kategorie</strong>
+                                    </label>
+                                    <select class="form-control" id="schuld_kategorie" name="schuld_kategorie">
+                                        <?php foreach ($schuld_kategorien as $value => $label): ?>
+                                            <option value="<?= $value ?>" <?= old('schuld_kategorie') === $value ? 'selected' : '' ?>>
+                                                <?= $label ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <small class="text-muted">Nur relevant, wenn eine Person angegeben ist</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

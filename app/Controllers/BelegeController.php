@@ -6,6 +6,7 @@ use App\Libraries\BelegUpload;
 use App\Models\AbrechnungBelegModel;
 use App\Models\BelegModel;
 use App\Models\BuchungModel;
+use App\Models\SchuldModel;
 
 /**
  * BelegeController - Kern-Controller für Beleg-Verwaltung
@@ -67,6 +68,7 @@ class BelegeController extends BaseController
             'title' => 'Neuen Beleg hinzufügen',
             'kategorien' => kategorie_optionen(),
             'max_upload_size' => BelegUpload::maxUploadSizeMb(),
+            'personen_namen' => (new SchuldModel())->getPersonenNamen(),
         ];
 
         return view('belege/create', $data);
@@ -79,6 +81,7 @@ class BelegeController extends BaseController
     {
         $daten = $this->request->getPost();
         $daten['betrag'] = normalisiere_betrag($daten['betrag'] ?? null);
+        $daten['erstattung_person'] = trim(preg_replace('/\s+/', ' ', $daten['erstattung_person'] ?? ''));
 
         $validation = \Config\Services::validation();
         $validation->setRules([
@@ -86,6 +89,7 @@ class BelegeController extends BaseController
             'beschreibung' => 'required|min_length[3]|max_length[500]',
             'betrag' => 'required|decimal|greater_than[0]',
             'kategorie' => 'required|in_list[normal,ah_berechtigt,hv_berechtigt]',
+            'erstattung_person' => 'permit_empty|min_length[2]|max_length[100]',
             'beleg_datei' => 'uploaded[beleg_datei]|max_size[beleg_datei,10240]|ext_in[beleg_datei,pdf,jpg,jpeg,png]|mime_in[beleg_datei,application/pdf,image/jpeg,image/png,image/pjpeg]',
         ]);
 
@@ -101,14 +105,18 @@ class BelegeController extends BaseController
 
         try {
             $upload = new BelegUpload($this->belegModel);
-            $upload->speichereBeleg($file, [
+            $belegId = $upload->speichereBeleg($file, [
                 'rechnungsdatum' => $daten['rechnungsdatum'],
                 'beschreibung' => $daten['beschreibung'],
                 'betrag' => $daten['betrag'],
                 'lieferant' => $daten['lieferant'] ?: null,
+                'erstattung_person' => $daten['erstattung_person'] ?: null,
                 'kategorie' => $daten['kategorie'],
                 'notizen' => $daten['notizen'] ?: null,
             ]);
+
+            // Erstattung angegeben → Verbindlichkeit in der Schuldenliste anlegen
+            (new SchuldModel())->syncBelegVerbindlichkeit($this->belegModel->find($belegId));
 
             return redirect()->to('/belege')->with('success', 'Beleg wurde erfolgreich erstellt!');
         } catch (\Exception $e) {
@@ -160,6 +168,7 @@ class BelegeController extends BaseController
             'title' => 'Beleg bearbeiten: ' . $beleg['belegnummer'],
             'beleg' => $beleg,
             'kategorien' => kategorie_optionen(),
+            'personen_namen' => (new SchuldModel())->getPersonenNamen(),
         ];
 
         return view('belege/edit', $data);
@@ -178,6 +187,7 @@ class BelegeController extends BaseController
 
         $daten = $this->request->getPost();
         $daten['betrag'] = normalisiere_betrag($daten['betrag'] ?? null);
+        $daten['erstattung_person'] = trim(preg_replace('/\s+/', ' ', $daten['erstattung_person'] ?? ''));
 
         $validation = \Config\Services::validation();
         $validation->setRules([
@@ -185,6 +195,7 @@ class BelegeController extends BaseController
             'beschreibung' => 'required|min_length[3]|max_length[500]',
             'betrag' => 'required|decimal|greater_than[0]',
             'kategorie' => 'required|in_list[normal,ah_berechtigt,hv_berechtigt]',
+            'erstattung_person' => 'permit_empty|min_length[2]|max_length[100]',
         ]);
 
         if (!$validation->run($daten)) {
@@ -199,6 +210,7 @@ class BelegeController extends BaseController
             'beschreibung' => $daten['beschreibung'],
             'betrag' => $daten['betrag'],
             'lieferant' => $daten['lieferant'] ?: null,
+            'erstattung_person' => $daten['erstattung_person'] ?: null,
             'kategorie' => $daten['kategorie'],
             'notizen' => $daten['notizen'] ?: null,
         ];
@@ -222,6 +234,9 @@ class BelegeController extends BaseController
 
         if ($this->belegModel->update($id, $updateData)) {
             $belegnummer = $datumGeaendert ? $updateData['belegnummer'] : $beleg['belegnummer'];
+
+            // Verbindlichkeit in der Schuldenliste nachziehen (anlegen/ändern/entfernen)
+            (new SchuldModel())->syncBelegVerbindlichkeit($this->belegModel->find($id));
 
             return redirect()->to("/belege/show/{$id}")
                 ->with('success', "Beleg {$belegnummer} wurde erfolgreich aktualisiert!");

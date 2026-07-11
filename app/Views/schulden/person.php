@@ -85,7 +85,16 @@
                                         </span>
                                     </td>
                                     <td><?= schuld_kategorie_label($eintrag['kategorie']) ?></td>
-                                    <td><?= esc($eintrag['grund']) ?></td>
+                                    <td>
+                                        <?= esc($eintrag['grund']) ?>
+                                        <?php if (!empty($eintrag['beleg_id'])): ?>
+                                            <br><small><a href="<?= base_url('/belege/show/' . $eintrag['beleg_id']) ?>">📄 Zum Beleg</a></small>
+                                        <?php elseif (!empty($eintrag['buchung_id'])): ?>
+                                            <br><small class="text-muted">📖 Aus Buchung</small>
+                                        <?php elseif (!empty($eintrag['abrechnung_id'])): ?>
+                                            <br><small><a href="<?= base_url('/abrechnungen/' . $eintrag['abrechnung_typ'] . '/preview/' . $eintrag['abrechnung_id']) ?>">📋 Zur Abrechnung</a></small>
+                                        <?php endif; ?>
+                                    </td>
                                     <td class="text-end">
                                         <strong class="<?= $eintrag['betrag'] < 0 ? 'text-success' : '' ?>">
                                             <?= number_format($eintrag['betrag'], 2, ',', '.') ?> €
@@ -95,20 +104,26 @@
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-center">
-                                        <div class="btn-group btn-group-sm">
-                                            <a href="<?= base_url('/schulden/edit/' . $eintrag['id']) ?>"
-                                               class="btn btn-outline-dark" title="Bearbeiten" aria-label="Eintrag bearbeiten">
-                                                <span aria-hidden="true">✏️</span>
-                                            </a>
-                                            <form method="post" class="d-inline"
-                                                  action="<?= base_url('/schulden/delete/' . $eintrag['id']) ?>"
-                                                  onsubmit="return confirmDelete('Eintrag wirklich löschen?')">
-                                                <?= csrf_field() ?>
-                                                <button type="submit" class="btn btn-outline-danger" title="Löschen" aria-label="Eintrag löschen">
-                                                    <span aria-hidden="true">🗑️</span>
-                                                </button>
-                                            </form>
-                                        </div>
+                                        <?php if (\App\Models\SchuldModel::istAutomatisch($eintrag)): ?>
+                                            <span class="badge bg-light text-muted border" title="Wird über Beleg/Buchung/Abrechnung verwaltet">
+                                                automatisch
+                                            </span>
+                                        <?php else: ?>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="<?= base_url('/schulden/edit/' . $eintrag['id']) ?>"
+                                                   class="btn btn-outline-dark" title="Bearbeiten" aria-label="Eintrag bearbeiten">
+                                                    <span aria-hidden="true">✏️</span>
+                                                </a>
+                                                <form method="post" class="d-inline"
+                                                      action="<?= base_url('/schulden/delete/' . $eintrag['id']) ?>"
+                                                      onsubmit="return confirmDelete('Eintrag wirklich löschen?')">
+                                                    <?= csrf_field() ?>
+                                                    <button type="submit" class="btn btn-outline-danger" title="Löschen" aria-label="Eintrag löschen">
+                                                        <span aria-hidden="true">🗑️</span>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

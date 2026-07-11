@@ -23,8 +23,9 @@ class BelegModel extends Model
 
     protected $allowedFields = [
         'belegnummer', 'rechnungsdatum', 'eingabedatum', 'beschreibung',
-        'betrag', 'lieferant', 'dateiname_original', 'dateiname_system',
-        'dateipfad', 'dateityp', 'dateigroesse', 'kategorie', 'status', 'notizen'
+        'betrag', 'lieferant', 'erstattung_person', 'dateiname_original',
+        'dateiname_system', 'dateipfad', 'dateityp', 'dateigroesse',
+        'kategorie', 'status', 'notizen'
     ];
 
     protected $useTimestamps = true;

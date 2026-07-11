@@ -8,6 +8,9 @@
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+
     <!-- VDSt Custom CSS -->
     <style>
         :root {
@@ -21,6 +24,11 @@
         body {
             background-color: var(--vdst-grau);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Icon-Ausrichtung neben Text */
+        .bi {
+            vertical-align: -.125em;
         }
 
         /* VDSt Navigation */
@@ -189,7 +197,7 @@
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                 aria-controls="navbarNav" aria-expanded="false" aria-label="Navigation ein-/ausblenden"
                 style="border-color: var(--vdst-rot);">
-            <span style="color: var(--vdst-weiss);" aria-hidden="true">☰</span>
+            <i class="bi bi-list" style="color: var(--vdst-weiss);" aria-hidden="true"></i>
         </button>
 
         <div class="collapse navbar-collapse" id="navbarNav">
@@ -197,41 +205,41 @@
                 <li class="nav-item">
                     <a class="nav-link <?= uri_string() === 'dashboard' ? 'active' : '' ?>"
                        href="<?= base_url('/dashboard') ?>">
-                        📊 Dashboard
+                        <i class="bi bi-speedometer2" aria-hidden="true"></i> Dashboard
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link <?= strpos(uri_string(), 'buchungen') === 0 ? 'active' : '' ?>"
                        href="<?= base_url('/buchungen') ?>">
-                        📖 Kassenbuch
+                        <i class="bi bi-journal-text" aria-hidden="true"></i> Kassenbuch
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link <?= strpos(uri_string(), 'belege') === 0 ? 'active' : '' ?>"
                        href="<?= base_url('/belege') ?>">
-                        📄 Belege
+                        <i class="bi bi-receipt" aria-hidden="true"></i> Belege
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link <?= strpos(uri_string(), 'schulden') === 0 ? 'active' : '' ?>"
                        href="<?= base_url('/schulden') ?>">
-                        💰 Schulden
+                        <i class="bi bi-cash-coin" aria-hidden="true"></i> Schulden
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link <?= uri_string() === 'inventur' ? 'active' : '' ?>"
                        href="<?= base_url('/inventur') ?>">
-                        🧮 Inventur
+                        <i class="bi bi-calculator" aria-hidden="true"></i> Inventur
                     </a>
                 </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle <?= strpos(uri_string(), 'abrechnungen') === 0 ? 'active' : '' ?>"
                        href="#" role="button" data-bs-toggle="dropdown">
-                        📋 Abrechnungen
+                        <i class="bi bi-clipboard-data" aria-hidden="true"></i> Abrechnungen
                     </a>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="<?= base_url('/abrechnungen/ah') ?>">🏛️ AH² Abrechnungen</a></li>
-                        <li><a class="dropdown-item" href="<?= base_url('/abrechnungen/hv') ?>">🏠 HV Abrechnungen</a></li>
+                        <li><a class="dropdown-item" href="<?= base_url('/abrechnungen/ah') ?>"><i class="bi bi-bank" aria-hidden="true"></i> AH² Abrechnungen</a></li>
+                        <li><a class="dropdown-item" href="<?= base_url('/abrechnungen/hv') ?>"><i class="bi bi-house" aria-hidden="true"></i> HV Abrechnungen</a></li>
                     </ul>
                 </li>
             </ul>
@@ -239,13 +247,13 @@
             <!-- Session Info und Logout -->
             <div class="session-info">
                 <span class="navbar-text text-white">
-                    <strong>👤 <?= esc(session('kassenwart_name') ?? 'VDSt Kassenwart') ?></strong>
+                    <strong><i class="bi bi-person-circle" aria-hidden="true"></i> <?= esc(session('kassenwart_name') ?? 'VDSt Kassenwart') ?></strong>
                 </span>
                 <form action="<?= base_url('/auth/logout') ?>" method="post" class="d-inline"
                       onsubmit="return confirm('Wirklich abmelden?')">
                     <?= csrf_field() ?>
                     <button type="submit" class="btn btn-logout">
-                        🚪 Abmelden
+                        <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Abmelden
                     </button>
                 </form>
             </div>
@@ -257,7 +265,7 @@
 <?php if (session()->getFlashdata('success')): ?>
     <div class="container-fluid mt-3">
         <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <strong>✅ Erfolg!</strong> <?= esc(session()->getFlashdata('success')) ?>
+            <strong><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Erfolg!</strong> <?= esc(session()->getFlashdata('success')) ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     </div>
@@ -266,7 +274,7 @@
 <?php if (session()->getFlashdata('error')): ?>
     <div class="container-fluid mt-3">
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <strong>❌ Fehler!</strong> <?= esc(session()->getFlashdata('error')) ?>
+            <strong><i class="bi bi-x-circle-fill" aria-hidden="true"></i> Fehler!</strong> <?= esc(session()->getFlashdata('error')) ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     </div>
@@ -275,7 +283,7 @@
 <?php if (session()->getFlashdata('errors')): ?>
     <div class="container-fluid mt-3">
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <strong>❌ Validierungsfehler:</strong>
+            <strong><i class="bi bi-x-circle-fill" aria-hidden="true"></i> Validierungsfehler:</strong>
             <ul class="mb-0 mt-2">
                 <?php foreach (session()->getFlashdata('errors') as $error): ?>
                     <li><?= esc($error) ?></li>

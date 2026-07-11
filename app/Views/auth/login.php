@@ -8,6 +8,9 @@
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+
     <!-- VDSt Styling -->
     <style>
         :root {
@@ -96,8 +99,7 @@
             margin-bottom: 1.5rem;
         }
 
-        .vdst-logo::before {
-            content: "🏛️";
+        .vdst-logo .bi {
             font-size: 3rem;
             display: block;
             margin-bottom: 0.5rem;
@@ -149,7 +151,7 @@
 
     <!-- Login Form -->
     <div class="login-body">
-        <div class="vdst-logo"></div>
+        <div class="vdst-logo"><i class="bi bi-bank" aria-hidden="true"></i></div>
 
         <!-- Error Messages -->
         <?php if (!empty($error)): ?>
@@ -181,7 +183,7 @@
                            required
                            autofocus>
                     <button type="button" class="password-toggle-btn" id="togglePassword" aria-label="Passwort anzeigen oder verbergen">
-                        👁️
+                        <i class="bi bi-eye" aria-hidden="true"></i>
                     </button>
                 </div>
                 <small class="text-muted">
@@ -190,7 +192,7 @@
             </div>
 
             <button type="submit" class="btn btn-vdst">
-                🔐 Anmelden
+                <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Anmelden
             </button>
         </form>
 
@@ -213,12 +215,13 @@
         const toggleBtn = document.getElementById('togglePassword');
 
         toggleBtn.addEventListener('click', function() {
+            const icon = toggleBtn.querySelector('.bi');
             if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
-                toggleBtn.textContent = '🙈';
+                icon.classList.replace('bi-eye', 'bi-eye-slash');
             } else {
                 passwordInput.type = 'password';
-                toggleBtn.textContent = '👁️';
+                icon.classList.replace('bi-eye-slash', 'bi-eye');
             }
         });
 
@@ -227,7 +230,7 @@
         const submitBtn = form.querySelector('button[type="submit"]');
 
         form.addEventListener('submit', function() {
-            submitBtn.innerHTML = '🔄 Wird überprüft...';
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Wird überprüft...';
             submitBtn.disabled = true;
         });
 

@@ -129,11 +129,11 @@
                                         <div class="btn-group btn-group-sm">
                                             <a href="<?= base_url('/abrechnungen/' . $typ . '/belege/' . $abrechnung['id']) ?>"
                                                class="btn btn-outline-dark" title="Belege verwalten">
-                                                📄 Belege
+                                                <i class="bi bi-receipt" aria-hidden="true"></i> Belege
                                             </a>
                                             <a href="<?= base_url('/abrechnungen/' . $typ . '/preview/' . $abrechnung['id']) ?>"
                                                class="btn btn-outline-info" title="Vorschau">
-                                                👁️ Vorschau
+                                                <i class="bi bi-eye" aria-hidden="true"></i> Vorschau
                                             </a>
 
                                             <?php if ($abrechnung['anzahl_belege'] > 0): ?>
@@ -141,19 +141,19 @@
                                                 <div class="btn-group btn-group-sm">
                                                     <button type="button" class="btn btn-success dropdown-toggle"
                                                             data-bs-toggle="dropdown" aria-expanded="false" title="Export-Optionen">
-                                                        📊 Export
+                                                        <i class="bi bi-download" aria-hidden="true"></i> Export
                                                     </button>
                                                     <ul class="dropdown-menu">
                                                         <li>
                                                             <a class="dropdown-item"
                                                                href="<?= base_url('/abrechnungen/' . $typ . '/exportExcel/' . $abrechnung['id']) ?>">
-                                                                📊 Excel-Datei
+                                                                <i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Excel-Datei
                                                             </a>
                                                         </li>
                                                         <li>
                                                             <a class="dropdown-item"
                                                                href="<?= base_url('/abrechnungen/' . $typ . '/downloadZip/' . $abrechnung['id']) ?>">
-                                                                📁 ZIP-Archiv (alle Belege)
+                                                                <i class="bi bi-file-earmark-zip" aria-hidden="true"></i> ZIP-Archiv (alle Belege)
                                                             </a>
                                                         </li>
                                                     </ul>
@@ -166,7 +166,7 @@
                                                       onsubmit="return confirmDelete('Abrechnung <?= esc($abrechnung['titel'], 'js') ?> wirklich löschen? Die Beleg-Zuordnungen werden entfernt, die Belege bleiben erhalten.')">
                                                     <?= csrf_field() ?>
                                                     <button type="submit" class="btn btn-outline-danger btn-sm" title="Abrechnung löschen">
-                                                        🗑️ Löschen
+                                                        <i class="bi bi-trash" aria-hidden="true"></i> Löschen
                                                     </button>
                                                 </form>
                                             <?php endif; ?>

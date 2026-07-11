@@ -8,7 +8,7 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="page-title">Buchung bearbeiten</h1>
             <a href="<?= base_url('/buchungen') ?>" class="btn btn-outline-vdst">
-                ← Zurück zum Kassenbuch
+                <i class="bi bi-arrow-left" aria-hidden="true"></i> Zurück zum Kassenbuch
             </a>
         </div>
 
@@ -70,13 +70,13 @@
                                         <input type="radio" class="btn-check" name="buchungsart" id="ausgabe"
                                                value="ausgabe" <?= old('buchungsart', $buchung['buchungsart']) === 'ausgabe' ? 'checked' : '' ?>>
                                         <label class="btn btn-outline-danger" for="ausgabe">
-                                            📉 Ausgabe
+                                            <i class="bi bi-arrow-down-circle" aria-hidden="true"></i> Ausgabe
                                         </label>
 
                                         <input type="radio" class="btn-check" name="buchungsart" id="einnahme"
                                                value="einnahme" <?= old('buchungsart', $buchung['buchungsart']) === 'einnahme' ? 'checked' : '' ?>>
                                         <label class="btn btn-outline-success" for="einnahme">
-                                            📈 Einnahme
+                                            <i class="bi bi-arrow-up-circle" aria-hidden="true"></i> Einnahme
                                         </label>
                                     </div>
                                     <?php if (isset($errors['buchungsart'])): ?>

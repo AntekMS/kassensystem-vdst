@@ -40,7 +40,7 @@
                     <strong>+ Neuer Eintrag</strong>
                 </a>
                 <a href="<?= base_url('/inventur') ?>" class="btn btn-outline-vdst">
-                    🧮 Zur Inventur
+                    <i class="bi bi-calculator" aria-hidden="true"></i> Zur Inventur
                 </a>
             </div>
         </div>
@@ -95,7 +95,7 @@
                                     <td><?= date('d.m.Y', strtotime($p['letzter_eintrag'])) ?></td>
                                     <td class="text-center">
                                         <?php if ($p['forderungen_getraenke'] >= GETRAENKESTOPP_LIMIT): ?>
-                                            <span class="badge bg-danger">🛑 Getränkestopp</span>
+                                            <span class="badge bg-danger"><i class="bi bi-sign-stop-fill" aria-hidden="true"></i> Getränkestopp</span>
                                         <?php endif; ?>
                                     </td>
                                 </tr>

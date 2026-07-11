@@ -9,10 +9,10 @@
             <h1 class="page-title"><?= $typ === 'ah' ? 'AH²' : 'HV' ?> Abrechnung bearbeiten</h1>
             <div>
                 <a href="<?= base_url('/abrechnungen/' . $typ . '/preview/' . $abrechnung['id']) ?>" class="btn btn-outline-info">
-                    👁️ Vorschau
+                    <i class="bi bi-eye" aria-hidden="true"></i> Vorschau
                 </a>
                 <a href="<?= base_url('/abrechnungen/' . $typ) ?>" class="btn btn-outline-vdst">
-                    ← Zurück zur Übersicht
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i> Zurück zur Übersicht
                 </a>
             </div>
         </div>

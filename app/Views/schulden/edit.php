@@ -8,7 +8,7 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="page-title">Schulden-Eintrag bearbeiten</h1>
             <a href="<?= base_url('/schulden/person?name=' . urlencode($eintrag['person'])) ?>" class="btn btn-outline-vdst">
-                ← Zurück zu <?= esc($eintrag['person']) ?>
+                <i class="bi bi-arrow-left" aria-hidden="true"></i> Zurück zu <?= esc($eintrag['person']) ?>
             </a>
         </div>
 

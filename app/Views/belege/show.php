@@ -9,15 +9,15 @@
             <h1 class="page-title">Beleg: <?= esc($beleg['belegnummer']) ?></h1>
             <div>
                 <a href="<?= base_url('/belege') ?>" class="btn btn-outline-vdst">
-                    ← Zurück zur Übersicht
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i> Zurück zur Übersicht
                 </a>
                 <?php if ($kann_bearbeitet_werden): ?>
                     <a href="<?= base_url('/belege/edit/' . $beleg['id']) ?>" class="btn btn-outline-vdst">
-                        ✏️ Bearbeiten
+                        <i class="bi bi-pencil" aria-hidden="true"></i> Bearbeiten
                     </a>
                 <?php endif; ?>
                 <a href="<?= base_url('/belege/download/' . $beleg['id']) ?>" class="btn btn-vdst">
-                    📥 Download
+                    <i class="bi bi-download" aria-hidden="true"></i> Download
                 </a>
                 <?php if (empty($abrechnungen) && $beleg['status'] === 'erfasst'): ?>
                     <form method="post" class="d-inline"
@@ -25,7 +25,7 @@
                           onsubmit="return confirmDelete('Beleg <?= esc($beleg['belegnummer'], 'js') ?> wirklich löschen? Die Datei wird ebenfalls unwiderruflich gelöscht!')">
                         <?= csrf_field() ?>
                         <button type="submit" class="btn btn-danger" title="Beleg und Datei löschen">
-                            🗑️ Löschen
+                            <i class="bi bi-trash" aria-hidden="true"></i> Löschen
                         </button>
                     </form>
                 <?php endif; ?>
@@ -139,9 +139,9 @@
                                 <td><strong>Datei-Status:</strong></td>
                                 <td>
                                     <?php if ($datei_existiert): ?>
-                                        <span class="text-success">✓ Verfügbar</span>
+                                        <span class="text-success"><i class="bi bi-check-circle" aria-hidden="true"></i> Verfügbar</span>
                                     <?php else: ?>
-                                        <span class="text-danger">✗ Datei nicht gefunden</span>
+                                        <span class="text-danger"><i class="bi bi-x-circle" aria-hidden="true"></i> Datei nicht gefunden</span>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -182,7 +182,7 @@
                     <div class="card-body p-0">
                         <?php if (!$datei_existiert): ?>
                             <div class="text-center p-5">
-                                <h4 class="text-danger">❌ Datei nicht gefunden</h4>
+                                <h4 class="text-danger"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> Datei nicht gefunden</h4>
                                 <p class="text-muted">
                                     Die Datei <code><?= esc($beleg['dateipfad']) ?></code> konnte nicht gefunden werden.
                                 </p>
@@ -196,7 +196,7 @@
                                         <small class="text-muted">Klicken Sie auf "PDF laden" um das Dokument anzuzeigen</small>
                                     </p>
                                     <button class="btn btn-vdst" onclick="loadPDF()">
-                                        📄 PDF laden
+                                        <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> PDF laden
                                     </button>
                                 </div>
                                 <iframe id="pdf-frame"
@@ -219,11 +219,11 @@
                         <div class="card-footer text-center">
                             <a href="<?= base_url('/belege/download/' . $beleg['id']) ?>"
                                class="btn btn-outline-vdst">
-                                📥 Original herunterladen
+                                <i class="bi bi-download" aria-hidden="true"></i> Original herunterladen
                             </a>
                             <?php if ($beleg['dateityp'] !== 'pdf'): ?>
                                 <button class="btn btn-outline-secondary" onclick="openImageModal('<?= base_url('/belege/preview/' . $beleg['id']) ?>')">
-                                    🔍 Vollbild anzeigen
+                                    <i class="bi bi-arrows-fullscreen" aria-hidden="true"></i> Vollbild anzeigen
                                 </button>
                             <?php endif; ?>
                         </div>
@@ -270,13 +270,13 @@
             frame.onerror = function() {
                 container.innerHTML = `
             <div class="text-center p-4">
-                <h5 class="text-warning">⚠️ PDF-Vorschau nicht verfügbar</h5>
+                <h5 class="text-warning"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> PDF-Vorschau nicht verfügbar</h5>
                 <p class="text-muted">
                     Das PDF kann in diesem Browser nicht angezeigt werden.
                 </p>
                 <a href="<?= base_url('/belege/download/' . $beleg['id']) ?>"
                    class="btn btn-vdst">
-                    📥 PDF herunterladen
+                    <i class="bi bi-download" aria-hidden="true"></i> PDF herunterladen
                 </a>
             </div>
         `;

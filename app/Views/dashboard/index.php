@@ -35,7 +35,7 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <strong id="saldo-titel">GESAMTSALDO</strong>
                             <button class="btn btn-sm btn-outline-light" id="toggle-barkasse" title="Mit/Ohne Barkasse">
-                                ⇄
+                                <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
                             </button>
                         </div>
                     </div>
@@ -67,17 +67,17 @@
                             </div>
                             <div class="col-md-3">
                                 <a href="<?= base_url('/buchungen') ?>" class="btn btn-outline-vdst w-100 mb-2">
-                                    📖 Kassenbuch öffnen
+                                    <i class="bi bi-journal-text" aria-hidden="true"></i> Kassenbuch öffnen
                                 </a>
                             </div>
                             <div class="col-md-3">
                                 <a href="<?= base_url('/belege') ?>" class="btn btn-outline-vdst w-100 mb-2">
-                                    📄 Belege verwalten
+                                    <i class="bi bi-receipt" aria-hidden="true"></i> Belege verwalten
                                 </a>
                             </div>
                             <div class="col-md-3">
                                 <a href="<?= base_url('/abrechnungen/ah') ?>" class="btn btn-outline-vdst w-100 mb-2">
-                                    📊 Abrechnungen
+                                    <i class="bi bi-clipboard-data" aria-hidden="true"></i> Abrechnungen
                                 </a>
                             </div>
                         </div>

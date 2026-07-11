@@ -9,7 +9,7 @@
             <h1 class="page-title mb-0">
                 Schulden: <?= esc($person) ?>
                 <?php if ($summen['forderungen_getraenke'] >= GETRAENKESTOPP_LIMIT): ?>
-                    <span class="badge bg-danger align-middle">🛑 Getränkestopp</span>
+                    <span class="badge bg-danger align-middle"><i class="bi bi-sign-stop-fill" aria-hidden="true"></i> Getränkestopp</span>
                 <?php endif; ?>
             </h1>
             <div>
@@ -17,7 +17,7 @@
                     <strong>+ Neuer Eintrag</strong>
                 </a>
                 <a href="<?= base_url('/schulden') ?>" class="btn btn-outline-vdst">
-                    ← Zurück zur Übersicht
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i> Zurück zur Übersicht
                 </a>
             </div>
         </div>
@@ -88,11 +88,11 @@
                                     <td>
                                         <?= esc($eintrag['grund']) ?>
                                         <?php if (!empty($eintrag['beleg_id'])): ?>
-                                            <br><small><a href="<?= base_url('/belege/show/' . $eintrag['beleg_id']) ?>">📄 Zum Beleg</a></small>
+                                            <br><small><a href="<?= base_url('/belege/show/' . $eintrag['beleg_id']) ?>"><i class="bi bi-receipt" aria-hidden="true"></i> Zum Beleg</a></small>
                                         <?php elseif (!empty($eintrag['buchung_id'])): ?>
-                                            <br><small class="text-muted">📖 Aus Buchung</small>
+                                            <br><small class="text-muted"><i class="bi bi-journal-text" aria-hidden="true"></i> Aus Buchung</small>
                                         <?php elseif (!empty($eintrag['abrechnung_id'])): ?>
-                                            <br><small><a href="<?= base_url('/abrechnungen/' . $eintrag['abrechnung_typ'] . '/preview/' . $eintrag['abrechnung_id']) ?>">📋 Zur Abrechnung</a></small>
+                                            <br><small><a href="<?= base_url('/abrechnungen/' . $eintrag['abrechnung_typ'] . '/preview/' . $eintrag['abrechnung_id']) ?>"><i class="bi bi-clipboard-data" aria-hidden="true"></i> Zur Abrechnung</a></small>
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-end">
@@ -112,14 +112,14 @@
                                             <div class="btn-group btn-group-sm">
                                                 <a href="<?= base_url('/schulden/edit/' . $eintrag['id']) ?>"
                                                    class="btn btn-outline-dark" title="Bearbeiten" aria-label="Eintrag bearbeiten">
-                                                    <span aria-hidden="true">✏️</span>
+                                                    <i class="bi bi-pencil" aria-hidden="true"></i>
                                                 </a>
                                                 <form method="post" class="d-inline"
                                                       action="<?= base_url('/schulden/delete/' . $eintrag['id']) ?>"
                                                       onsubmit="return confirmDelete('Eintrag wirklich löschen?')">
                                                     <?= csrf_field() ?>
                                                     <button type="submit" class="btn btn-outline-danger" title="Löschen" aria-label="Eintrag löschen">
-                                                        <span aria-hidden="true">🗑️</span>
+                                                        <i class="bi bi-trash" aria-hidden="true"></i>
                                                     </button>
                                                 </form>
                                             </div>

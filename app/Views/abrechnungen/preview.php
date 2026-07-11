@@ -13,11 +13,11 @@
             <div>
                 <a href="<?= base_url('/abrechnungen/' . $typ . '/belege/' . $abrechnung['id']) ?>"
                    class="btn btn-vdst">
-                    📄 Belege verwalten
+                    <i class="bi bi-receipt" aria-hidden="true"></i> Belege verwalten
                 </a>
                 <a href="<?= base_url('/abrechnungen/' . $typ) ?>"
                    class="btn btn-outline-vdst">
-                    ← Zurück zur Übersicht
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i> Zurück zur Übersicht
                 </a>
 
                 <?php if (count($belege) > 0): ?>
@@ -25,13 +25,13 @@
                     <div class="btn-group">
                         <button type="button" class="btn btn-success btn-lg dropdown-toggle"
                                 data-bs-toggle="dropdown" aria-expanded="false">
-                            📊 Export herunterladen
+                            <i class="bi bi-download" aria-hidden="true"></i> Export herunterladen
                         </button>
                         <ul class="dropdown-menu">
                             <li>
                                 <a class="dropdown-item d-flex align-items-center"
                                    href="<?= base_url('/abrechnungen/' . $typ . '/exportExcel/' . $abrechnung['id']) ?>">
-                                    <span class="me-2">📊</span>
+                                    <i class="bi bi-file-earmark-excel me-2" aria-hidden="true"></i>
                                     <div>
                                         <strong>Excel-Datei</strong><br>
                                         <small class="text-muted">Tabelle mit allen Beleg-Daten</small>
@@ -42,7 +42,7 @@
                             <li>
                                 <a class="dropdown-item d-flex align-items-center"
                                    href="<?= base_url('/abrechnungen/' . $typ . '/downloadZip/' . $abrechnung['id']) ?>">
-                                    <span class="me-2">📁</span>
+                                    <i class="bi bi-file-earmark-zip me-2" aria-hidden="true"></i>
                                     <div>
                                         <strong>ZIP-Archiv</strong><br>
                                         <small class="text-muted">Alle <?= count($belege) ?> Beleg-Dateien + Info</small>
@@ -135,16 +135,16 @@
                                 <div class="mb-3">
                                     <select name="status" class="form-control" required>
                                         <option value="entwurf" <?= $abrechnung['status'] === 'entwurf' ? 'selected' : '' ?>>
-                                            📝 Entwurf
+                                            Entwurf
                                         </option>
                                         <option value="ausstehend" <?= $abrechnung['status'] === 'ausstehend' ? 'selected' : '' ?>>
-                                            ⏳ Ausstehend
+                                            Ausstehend
                                         </option>
                                         <option value="eingereicht" <?= $abrechnung['status'] === 'eingereicht' ? 'selected' : '' ?>>
-                                            📤 Eingereicht
+                                            Eingereicht
                                         </option>
                                         <option value="bezahlt" <?= $abrechnung['status'] === 'bezahlt' ? 'selected' : '' ?>>
-                                            ✅ Bezahlt
+                                            Bezahlt
                                         </option>
                                     </select>
                                     <small class="text-muted mt-1 d-block">
@@ -160,7 +160,7 @@
                 <?php else: ?>
                     <div class="card">
                         <div class="card-header bg-success text-white">
-                            <strong>✅ Abrechnung bezahlt</strong>
+                            <strong><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Abrechnung bezahlt</strong>
                         </div>
                         <div class="card-body">
                             <p class="text-muted mb-0">
@@ -223,12 +223,12 @@
                                         <div class="btn-group btn-group-sm">
                                             <a href="<?= base_url('/belege/show/' . $beleg['id']) ?>"
                                                target="_blank"
-                                               class="btn btn-outline-dark" title="Beleg anzeigen">
-                                                👁️
+                                               class="btn btn-outline-dark" title="Beleg anzeigen" aria-label="Beleg anzeigen">
+                                                <i class="bi bi-eye" aria-hidden="true"></i>
                                             </a>
                                             <a href="<?= base_url('/belege/download/' . $beleg['id']) ?>"
-                                               class="btn btn-outline-success" title="Herunterladen">
-                                                📥
+                                               class="btn btn-outline-success" title="Herunterladen" aria-label="Beleg herunterladen">
+                                                <i class="bi bi-download" aria-hidden="true"></i>
                                             </a>
                                         </div>
                                     </td>
@@ -258,7 +258,7 @@
                 <div class="col-md-6">
                     <div class="card">
                         <div class="card-header bg-success text-white">
-                            <strong>📊 Excel-Export</strong>
+                            <strong><i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Excel-Export</strong>
                         </div>
                         <div class="card-body">
                             <p><strong>Strukturierte Tabelle</strong> mit allen Beleg-Daten:</p>
@@ -269,7 +269,7 @@
                             </ul>
                             <a href="<?= base_url('/abrechnungen/' . $typ . '/exportExcel/' . $abrechnung['id']) ?>"
                                class="btn btn-success w-100">
-                                📊 Excel herunterladen
+                                <i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Excel herunterladen
                             </a>
                         </div>
                     </div>
@@ -278,7 +278,7 @@
                 <div class="col-md-6">
                     <div class="card">
                         <div class="card-header bg-dark text-white">
-                            <strong>📁 ZIP-Archiv</strong>
+                            <strong><i class="bi bi-file-earmark-zip" aria-hidden="true"></i> ZIP-Archiv</strong>
                         </div>
                         <div class="card-body">
                             <p><strong>Komplettes Beleg-Archiv</strong> mit allen Originaldateien:</p>
@@ -291,7 +291,7 @@
                             </ul>
                             <a href="<?= base_url('/abrechnungen/' . $typ . '/downloadZip/' . $abrechnung['id']) ?>"
                                class="btn btn-dark w-100">
-                                📁 ZIP-Archiv herunterladen
+                                <i class="bi bi-file-earmark-zip" aria-hidden="true"></i> ZIP-Archiv herunterladen
 
                             </a>
                         </div>

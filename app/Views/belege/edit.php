@@ -9,10 +9,10 @@
             <h1 class="page-title">Beleg bearbeiten: <?= esc($beleg['belegnummer']) ?></h1>
             <div>
                 <a href="<?= base_url('/belege/show/' . $beleg['id']) ?>" class="btn btn-outline-vdst">
-                    👁️ Ansicht
+                    <i class="bi bi-eye" aria-hidden="true"></i> Ansicht
                 </a>
                 <a href="<?= base_url('/belege') ?>" class="btn btn-outline-vdst">
-                    ← Zurück zur Übersicht
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i> Zurück zur Übersicht
                 </a>
             </div>
         </div>
@@ -201,7 +201,7 @@
                         <div class="card-body p-1">
                             <?php if ($beleg['dateityp'] === 'pdf'): ?>
                                 <div class="text-center p-2">
-                                    <p class="mb-2">📄 PDF-Dokument</p>
+                                    <p class="mb-2"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> PDF-Dokument</p>
                                     <a href="<?= base_url('/belege/preview/' . $beleg['id']) ?>"
                                        target="_blank" class="btn btn-outline-dark btn-sm">
                                         PDF öffnen
@@ -217,7 +217,7 @@
                         <div class="card-footer text-center">
                             <a href="<?= base_url('/belege/download/' . $beleg['id']) ?>"
                                class="btn btn-outline-success btn-sm">
-                                📥 Download
+                                <i class="bi bi-download" aria-hidden="true"></i> Download
                             </a>
                         </div>
                     </div>

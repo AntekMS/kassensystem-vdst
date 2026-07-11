@@ -11,7 +11,7 @@
         <div class="row mb-4">
             <div class="col-md-12">
                 <a href="<?= base_url('/schulden/export/inventur') ?>" class="btn btn-vdst">
-                    📊 Als Excel herunterladen
+                    <i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Als Excel herunterladen
                 </a>
                 <a href="<?= base_url('/schulden') ?>" class="btn btn-outline-vdst">
                     Zur Schuldenliste

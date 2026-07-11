@@ -8,7 +8,7 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="page-title">Neue <?= $typ === 'ah' ? 'AH²' : 'HV' ?> Abrechnung erstellen</h1>
             <a href="<?= base_url('/abrechnungen/' . $typ) ?>" class="btn btn-outline-vdst">
-                ← Zurück zur Übersicht
+                <i class="bi bi-arrow-left" aria-hidden="true"></i> Zurück zur Übersicht
             </a>
         </div>
 
@@ -163,7 +163,7 @@
                         </ol>
 
                         <div class="alert alert-info mt-3">
-                            <strong>💡 Tipp:</strong> Nach dem Erstellen kannst du über "📄 Belege" die gewünschten
+                            <strong><i class="bi bi-lightbulb" aria-hidden="true"></i> Tipp:</strong> Nach dem Erstellen kannst du über "Belege" die gewünschten
                             Belege für diese Abrechnung auswählen.
                         </div>
                     </div>

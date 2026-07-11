@@ -98,6 +98,24 @@
                                     Diese Notizen sind nur intern sichtbar und erscheinen nicht in der Excel-Datei.
                                 </small>
                             </div>
+
+                            <!-- Alle verfügbaren Belege direkt übernehmen -->
+                            <div class="form-check mb-3">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="alle_belege_uebernehmen"
+                                       name="alle_belege_uebernehmen"
+                                       value="1"
+                                       <?= old('alle_belege_uebernehmen') ? 'checked' : '' ?>
+                                       <?= $verfuegbare_belege_count === 0 ? 'disabled' : '' ?>>
+                                <label class="form-check-label" for="alle_belege_uebernehmen">
+                                    <strong>Alle verfügbaren Belege direkt übernehmen</strong>
+                                    (<?= $verfuegbare_belege_count ?> Belege)
+                                </label>
+                                <?php if ($verfuegbare_belege_count === 0): ?>
+                                    <br><small class="text-muted">Aktuell sind keine Belege verfügbar.</small>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
 
@@ -164,7 +182,7 @@
 
                         <div class="alert alert-info mt-3">
                             <strong><i class="bi bi-lightbulb" aria-hidden="true"></i> Tipp:</strong> Nach dem Erstellen kannst du über "Belege" die gewünschten
-                            Belege für diese Abrechnung auswählen.
+                            Belege für diese Abrechnung auswählen — oder mit der Checkbox oben direkt alle verfügbaren Belege übernehmen.
                         </div>
                     </div>
                 </div>

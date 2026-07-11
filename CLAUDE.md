@@ -113,6 +113,11 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   (in beiden Modellen `Ah`/`HvAbrechnungModel` identisch pflegen).
 - **Gesamtsummen** der Abrechnungen berechnet PHP (`berechneGesamtsumme()`) bei jedem
   Hinzufügen/Entfernen — es gibt KEINE DB-Trigger mehr (per Migration entfernt).
+- **Sammel-Zuordnung** (Issue #11): „Alle hinzufügen"-Button (select_belege, AJAX
+  `addAlleBelege`) und Checkbox „alle Belege direkt übernehmen" (create/store) laufen
+  beide über `AbrechnungBelegModel::fuegeAlleVerfuegbarenHinzu()` — jeder Beleg einzeln
+  durch `fuegeZuordnungHinzu()` (alle Guards bleiben aktiv), `berechneGesamtsumme()`
+  genau EINMAL nach dem Batch. Keinen Bulk-Insert daran vorbei bauen.
 - **Schulden-Vorzeichen**: Beträge normal positiv, **Rückzahlungen negativ** (grün
   dargestellt); offener Stand = einfache `SUM(betrag)`. `typ` trennt Forderung
   (Person schuldet Verein) und Verbindlichkeit (Verein schuldet Person) — die beiden

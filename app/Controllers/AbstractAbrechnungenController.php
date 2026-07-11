@@ -93,8 +93,22 @@ abstract class AbstractAbrechnungenController extends BaseController
         $abrechnungId = $this->abrechnungModel->erstelleAbrechnung($data);
 
         if ($abrechnungId) {
+            $meldung = "{$this->typName} Abrechnung wurde erstellt! Wählen Sie nun die Belege aus.";
+
+            if ($this->request->getPost('alle_belege_uebernehmen')) {
+                $anzahl = $this->abrechnungBelegModel->fuegeAlleVerfuegbarenHinzu($this->typ, (int) $abrechnungId);
+
+                if ($anzahl > 0) {
+                    $this->abrechnungModel->berechneGesamtsumme($abrechnungId);
+                    $belegText = $anzahl === 1 ? '1 Beleg wurde übernommen' : "{$anzahl} Belege wurden übernommen";
+                    $meldung = "{$this->typName} Abrechnung wurde erstellt und {$belegText}!";
+                } else {
+                    $meldung = "{$this->typName} Abrechnung wurde erstellt — es waren keine Belege zum Übernehmen verfügbar.";
+                }
+            }
+
             return redirect()->to("/abrechnungen/{$this->typ}/belege/{$abrechnungId}")
-                ->with('success', "{$this->typName} Abrechnung wurde erstellt! Wählen Sie nun die Belege aus.");
+                ->with('success', $meldung);
         }
 
         return redirect()->back()->withInput()->with('errors', $this->abrechnungModel->errors());
@@ -147,6 +161,35 @@ abstract class AbstractAbrechnungenController extends BaseController
         $abrechnung = $this->abrechnungModel->find($abrechnungId);
 
         return $this->jsonAntwort(true, 'Beleg wurde hinzugefügt', $abrechnung['gesamtsumme']);
+    }
+
+    /**
+     * Alle verfügbaren Belege zur Abrechnung hinzufügen (AJAX)
+     */
+    public function addAlleBelege($abrechnungId)
+    {
+        $abrechnung = $this->abrechnungModel->find($abrechnungId);
+
+        if (!$abrechnung) {
+            return $this->jsonAntwort(false, 'Abrechnung nicht gefunden');
+        }
+
+        if (in_array($abrechnung['status'], ['eingereicht', 'bezahlt'], true)) {
+            return $this->jsonAntwort(false, 'Eingereichte oder bezahlte Abrechnungen können nicht mehr bearbeitet werden');
+        }
+
+        $anzahl = $this->abrechnungBelegModel->fuegeAlleVerfuegbarenHinzu($this->typ, (int) $abrechnungId);
+
+        if ($anzahl === 0) {
+            return $this->jsonAntwort(false, 'Keine verfügbaren Belege vorhanden');
+        }
+
+        $this->abrechnungModel->berechneGesamtsumme($abrechnungId);
+        $abrechnung = $this->abrechnungModel->find($abrechnungId);
+
+        $meldung = $anzahl === 1 ? '1 Beleg wurde hinzugefügt' : "{$anzahl} Belege wurden hinzugefügt";
+
+        return $this->jsonAntwort(true, $meldung, $abrechnung['gesamtsumme']);
     }
 
     /**

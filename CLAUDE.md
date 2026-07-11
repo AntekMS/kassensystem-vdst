@@ -11,7 +11,9 @@ nachhalten (Schuldenliste + Inventur-Export).
 ## Stack
 - CodeIgniter 4 (PHP 8.1+), MySQL 8
 - PhpOffice/PhpSpreadsheet für Excel-Exporte
-- Bootstrap 5 + Bootstrap Icons via CDN, geteiltes JS in `public/js/app.js`, Rest inline in den Views
+- Bootstrap 5 + Bootstrap Icons via CDN, geteiltes JS in `public/js/app.js`;
+  Theme/CSS zentral in `public/css/app.css` (siehe Design-System unten), KEINE
+  `<style>`-Blöcke mehr in Views (Ausnahme: seitenspezifische `renderSection('styles')`)
 - Docker-Setup (`docker-compose up -d` → App auf :8080, phpMyAdmin auf :8081)
 - Lokal alternativ: `php spark serve` + MySQL (XAMPP-Default in `app/Config/Database.php`)
 
@@ -64,6 +66,20 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   `beleg_status_label()`, `abrechnung_status_label()`, `konto_label()`,
   `schuld_typ_label()`, `schuld_kategorie_label()` (je mit `_optionen()`-Pendant),
   `formatiere_betrag()`, `normalisiere_betrag()`, `schaetze_archiv_groesse()`.
+- **Design-System** (Issue #47): `public/css/app.css` ist die EINZIGE Theme-Quelle,
+  eingebunden von `layouts/main.php` und `auth/login.php` (Cache-Buster `?v=N` bei
+  CSS-Änderungen hochzählen). Tokens: Vereinsfarben (`--vdst-rot` #dc143c nur als
+  Akzent — genau EIN roter `.btn-vdst` = Primäraktion pro Seite), Grau-Rampe
+  `--grau-50…900`, Statusfarben, Radius/Schatten. Legacy-Klassen (`.btn-vdst`,
+  `.btn-outline-vdst`, `.card-vdst`, `.table-vdst`, `.kontostand-card`,
+  `.page-title`, `.saldo-positiv/-negativ`) wurden umgestylt, NICHT umbenannt.
+  Layout: schwarze Sidebar (`.app-sidebar`, Bootstrap `offcanvas-lg` — ab lg feste
+  Spalte, darunter Drawer per Burger in `.app-topbar`); Aktiv-Zustand über
+  `uri_string()`-Checks in `main.php`. `<main class="main-content">` muss diese
+  Klasse behalten (app.js `showMessage()` injiziert dorthin). Für Listen-Views
+  vorbereitet: `.table-stack` (+ `data-label` je `<td>`, Aktions-Zelle
+  `.stack-actions`, Summe als `.summe-mobile d-lg-none`), `.badge-status-*`,
+  `.filter-bar`, `.empty-state`, `.btn-icon`.
 - **Geteiltes JS** (`public/js/app.js`, in `layouts/main.php` eingebunden):
   `confirmDelete()`, `showMessage()`, Export-Toasts; Views binden Verhalten per CSS-Klasse
   `js-autosubmit` (Filter-Selects) bzw. `js-betrag-format` (Betrag-Eingaben) — solche

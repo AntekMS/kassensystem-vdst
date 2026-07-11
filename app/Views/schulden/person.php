@@ -27,7 +27,7 @@
                           action="<?= base_url('/schulden/getraenke-beglichen-undo') ?>">
                         <?= csrf_field() ?>
                         <input type="hidden" name="person" value="<?= esc($person) ?>">
-                        <button type="submit" class="btn btn-outline-secondary">
+                        <button type="submit" class="btn btn-outline-vdst">
                             <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Beglichen rückgängig
                         </button>
                     </form>

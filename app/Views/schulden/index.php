@@ -114,7 +114,7 @@
                                                   action="<?= base_url('/schulden/getraenke-beglichen-undo') ?>">
                                                 <?= csrf_field() ?>
                                                 <input type="hidden" name="person" value="<?= esc($p['person']) ?>">
-                                                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                                <button type="submit" class="btn btn-sm btn-outline-vdst">
                                                     <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Rückgängig
                                                 </button>
                                             </form>

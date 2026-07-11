@@ -26,10 +26,6 @@
     --grau-700: #495057;
     --grau-900: #212529;
 
-    /* Legacy-Aliase — werden noch inline in Views referenziert */
-    --vdst-grau: var(--grau-50);
-    --vdst-dunkelgrau: var(--grau-700);
-
     /* Semantische Statusfarben */
     --status-positiv: #198754;
     --status-negativ: var(--vdst-rot);
@@ -686,13 +682,6 @@ tfoot.table-light {
     max-height: 200px;
     width: 100%;
     object-fit: contain;
-}
-
-/* ---------- Alerts ---------- */
-.alert-vdst {
-    background-color: var(--vdst-rot-tint);
-    border-color: var(--vdst-rot);
-    color: #a30f2d;
 }
 
 /* ---------- Mobile: Tabellen als gestapelte Karten ----------

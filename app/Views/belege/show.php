@@ -222,7 +222,7 @@
                                 <i class="bi bi-download" aria-hidden="true"></i> Original herunterladen
                             </a>
                             <?php if ($beleg['dateityp'] !== 'pdf'): ?>
-                                <button class="btn btn-outline-secondary" onclick="openImageModal('<?= base_url('/belege/preview/' . $beleg['id']) ?>')">
+                                <button class="btn btn-outline-vdst" onclick="openImageModal('<?= base_url('/belege/preview/' . $beleg['id']) ?>')">
                                     <i class="bi bi-arrows-fullscreen" aria-hidden="true"></i> Vollbild anzeigen
                                 </button>
                             <?php endif; ?>

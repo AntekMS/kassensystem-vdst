@@ -73,6 +73,12 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   `--grau-50…900`, Statusfarben, Radius/Schatten. Legacy-Klassen (`.btn-vdst`,
   `.btn-outline-vdst`, `.card-vdst`, `.table-vdst`, `.kontostand-card`,
   `.page-title`, `.saldo-positiv/-negativ`) wurden umgestylt, NICHT umbenannt.
+  Button-Hierarchie: `.btn-vdst` = rote Primäraktion (max. eine pro Seite),
+  `.btn-outline-vdst` = ALLE Sekundäraktionen (kein btn-outline-secondary/-dark/
+  -info mehr); Status-Badges NUR über die `*_badge_class()`-Helper in
+  `label_helper.php` (Soft-Badges `badge-status-*`), keine `badge bg-*` mehr.
+  `style="display:none"` ist nur für JS-gesteuerte Toggles erlaubt — sonstige
+  Inline-Styles gehören als Klasse in app.css.
   Layout: schwarze Sidebar (`.app-sidebar`, Bootstrap `offcanvas-lg` — ab lg feste
   Spalte, darunter Drawer per Burger in `.app-topbar`); Aktiv-Zustand über
   `uri_string()`-Checks in `main.php`. `<main class="main-content">` muss diese

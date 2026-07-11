@@ -60,7 +60,7 @@
                                     <label for="typ" class="form-label">
                                         <strong>Typ</strong> <span class="text-danger">*</span>
                                     </label>
-                                    <select class="form-control" id="typ" name="typ" required>
+                                    <select class="form-select" id="typ" name="typ" required>
                                         <?php foreach (schuld_typ_optionen() as $value => $label): ?>
                                             <option value="<?= $value ?>" <?= old('typ', $eintrag['typ']) === $value ? 'selected' : '' ?>>
                                                 <?= $label ?>
@@ -72,7 +72,7 @@
                                     <label for="kategorie" class="form-label">
                                         <strong>Kategorie</strong> <span class="text-danger">*</span>
                                     </label>
-                                    <select class="form-control" id="kategorie" name="kategorie" required>
+                                    <select class="form-select" id="kategorie" name="kategorie" required>
                                         <?php foreach (schuld_kategorie_optionen() as $value => $label): ?>
                                             <option value="<?= $value ?>" <?= old('kategorie', $eintrag['kategorie']) === $value ? 'selected' : '' ?>>
                                                 <?= $label ?>
@@ -101,7 +101,7 @@
                                     </label>
                                     <div class="input-group">
                                         <input type="number"
-                                               class="form-control"
+                                               class="form-control js-betrag-format"
                                                id="betrag"
                                                name="betrag"
                                                step="0.01"
@@ -123,11 +123,11 @@
                 <div class="col-md-8">
                     <div class="d-flex justify-content-between">
                         <a href="<?= base_url('/schulden/person?name=' . urlencode($eintrag['person'])) ?>"
-                           class="btn btn-outline-secondary">
+                           class="btn btn-outline-vdst">
                             Abbrechen
                         </a>
-                        <button type="submit" class="btn btn-vdst btn-lg">
-                            <strong>Änderungen speichern</strong>
+                        <button type="submit" class="btn btn-vdst">
+                            Änderungen speichern
                         </button>
                     </div>
                 </div>

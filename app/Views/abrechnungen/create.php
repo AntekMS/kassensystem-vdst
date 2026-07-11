@@ -123,11 +123,11 @@
                     <div class="row mt-4">
                         <div class="col-12">
                             <div class="d-flex justify-content-between">
-                                <a href="<?= base_url('/abrechnungen/' . $typ) ?>" class="btn btn-outline-secondary">
+                                <a href="<?= base_url('/abrechnungen/' . $typ) ?>" class="btn btn-outline-vdst">
                                     Abbrechen
                                 </a>
-                                <button type="submit" class="btn btn-vdst btn-lg">
-                                    <strong>Abrechnung erstellen</strong>
+                                <button type="submit" class="btn btn-vdst">
+                                    Abrechnung erstellen
                                 </button>
                             </div>
                         </div>
@@ -138,8 +138,8 @@
             <!-- Info-Sidebar -->
             <div class="col-md-4">
                 <div class="card">
-                    <div class="card-header bg-<?= $typ === 'ah' ? 'info' : 'warning' ?> text-<?= $typ === 'ah' ? 'white' : 'dark' ?>">
-                        <strong><?= $typ === 'ah' ? 'AH²' : 'HV' ?> Abrechnung - Info</strong>
+                    <div class="card-header">
+                        <strong><?= $typ === 'ah' ? 'AH²' : 'HV' ?> Abrechnung – Info</strong>
                     </div>
                     <div class="card-body">
                         <?php if ($typ === 'ah'): ?>
@@ -189,17 +189,17 @@
 
                 <!-- Quick-Statistiken -->
                 <div class="card mt-3">
-                    <div class="card-header bg-dark text-white">
+                    <div class="card-header">
                         <strong>Aktueller Status</strong>
                     </div>
                     <div class="card-body">
                         <div class="row text-center">
                             <div class="col-6">
-                                <h4 class="text-secondary"><?= $stats['entwuerfe'] ?? 0 ?></h4>
+                                <h4 class="mb-0"><?= $stats['entwuerfe'] ?? 0 ?></h4>
                                 <small class="text-muted">Entwürfe</small>
                             </div>
                             <div class="col-6">
-                                <h4 class="text-warning"><?= $stats['ausstehend'] ?? 0 ?></h4>
+                                <h4 class="mb-0"><?= $stats['ausstehend'] ?? 0 ?></h4>
                                 <small class="text-muted">Ausstehend</small>
                             </div>
                         </div>

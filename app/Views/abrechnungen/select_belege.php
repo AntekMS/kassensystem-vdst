@@ -10,19 +10,19 @@
                 <h1 class="page-title">Belege auswählen</h1>
                 <h4 class="text-muted"><?= esc($abrechnung['titel']) ?></h4>
             </div>
-            <div>
-                <a href="<?= base_url('/abrechnungen/' . $typ) ?>" class="btn btn-outline-secondary">
+            <div class="d-flex flex-wrap gap-2">
+                <a href="<?= base_url('/abrechnungen/' . $typ) ?>" class="btn btn-outline-vdst">
                     <i class="bi bi-arrow-left" aria-hidden="true"></i> Abrechnungen-Übersicht
                 </a>
                 <a href="<?= base_url('/abrechnungen/' . $typ . '/preview/' . $abrechnung['id']) ?>"
-                   class="btn btn-info">
+                   class="btn btn-outline-vdst">
                     <i class="bi bi-eye" aria-hidden="true"></i> Zur Vorschau
                 </a>
 
                 <?php if (count($zugeordnete_belege) > 0): ?>
                     <!-- Export-Optionen -->
                     <div class="btn-group">
-                        <button type="button" class="btn btn-success dropdown-toggle"
+                        <button type="button" class="btn btn-outline-vdst dropdown-toggle"
                                 data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-download" aria-hidden="true"></i> Export
                         </button>
@@ -53,25 +53,25 @@
                         <div class="row align-items-center">
                             <div class="col-md-3">
                                 <strong>Status:</strong>
-                                <span class="badge bg-<?= $abrechnung['status'] === 'entwurf' ? 'secondary' : 'warning' ?> ms-2">
-                                <?= ucfirst($abrechnung['status']) ?>
+                                <span class="<?= abrechnung_status_badge_class($abrechnung['status']) ?> ms-2">
+                                <?= abrechnung_status_label($abrechnung['status']) ?>
                             </span>
                             </div>
                             <div class="col-md-3">
                                 <strong>Belege:</strong>
-                                <span class="badge bg-dark ms-2" id="anzahl-belege">
+                                <span class="badge-status badge-status-neutral ms-2" id="anzahl-belege">
                                 <?= count($zugeordnete_belege) ?> ausgewählt
                             </span>
                             </div>
                             <div class="col-md-4">
                                 <strong>Gesamtsumme:</strong>
-                                <span class="badge bg-success ms-2" id="gesamtsumme" style="font-size: 1.1em;">
+                                <span class="badge-status badge-status-gruen betrag-gross ms-2" id="gesamtsumme">
                                 <?= number_format($abrechnung['gesamtsumme'], 2, ',', '.') ?> €
                             </span>
                             </div>
                             <div class="col-md-2 text-end">
                                 <?php if ($abrechnung['status'] === 'entwurf' && count($zugeordnete_belege) > 0): ?>
-                                    <button class="btn btn-warning btn-sm" onclick="markAsAusstehend()">
+                                    <button class="btn btn-outline-vdst btn-sm" onclick="markAsAusstehend()">
                                         <i class="bi bi-send" aria-hidden="true"></i> Ausstehend markieren
                                     </button>
                                 <?php endif; ?>
@@ -83,7 +83,7 @@
             <div class="col-md-4">
                 <?php if ($typ === 'hv'): ?>
                     <div class="card">
-                        <div class="card-header bg-warning text-dark">
+                        <div class="card-header">
                             <strong>HV-Begründung</strong>
                         </div>
                         <div class="card-body">
@@ -93,7 +93,7 @@
                                 <input type="hidden" name="notizen" value="<?= esc($abrechnung['notizen'] ?? '', 'attr') ?>">
                             <textarea name="begruendung" class="form-control" rows="3"
                                       placeholder="Begründung für Heimverein..."><?= esc($abrechnung['begruendung'] ?? '') ?></textarea>
-                                <button type="submit" class="btn btn-outline-warning btn-sm mt-2">Speichern</button>
+                                <button type="submit" class="btn btn-outline-vdst btn-sm mt-2">Speichern</button>
                             </form>
                         </div>
                     </div>
@@ -105,15 +105,15 @@
             <!-- Verfügbare Belege -->
             <div class="col-md-6">
                 <div class="card">
-                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <strong>Verfügbare <?= $typ === 'ah' ? 'AH²' : 'HV' ?> Belege (<?= count($verfuegbare_belege) ?>)</strong>
                         <?php if (!empty($verfuegbare_belege) && !in_array($abrechnung['status'], ['eingereicht', 'bezahlt'], true)): ?>
-                            <button class="btn btn-light btn-sm" id="add-alle-btn">
+                            <button class="btn btn-outline-vdst btn-sm" id="add-alle-btn">
                                 <i class="bi bi-chevron-double-right" aria-hidden="true"></i> Alle hinzufügen
                             </button>
                         <?php endif; ?>
                     </div>
-                    <div class="card-body p-0" style="max-height: 600px; overflow-y: auto;">
+                    <div class="card-body p-0 beleg-scroll">
                         <?php if (empty($verfuegbare_belege)): ?>
                             <div class="text-center p-4">
                                 <p class="text-muted">Keine verfügbaren Belege gefunden.</p>
@@ -146,7 +146,7 @@
                                                 </div>
                                             </div>
                                             <div class="ms-3">
-                                                <button class="btn btn-success btn-sm add-beleg-btn"
+                                                <button class="btn btn-outline-success btn-sm add-beleg-btn"
                                                         data-beleg-id="<?= $beleg['id'] ?>"
                                                         title="Zur Abrechnung hinzufügen" aria-label="Zur Abrechnung hinzufügen">
                                                     <i class="bi bi-arrow-right" aria-hidden="true"></i>
@@ -164,10 +164,10 @@
             <!-- Ausgewählte Belege -->
             <div class="col-md-6">
                 <div class="card">
-                    <div class="card-header" style="background-color: var(--vdst-rot); color: white;">
+                    <div class="card-header card-header-rot">
                         <strong>Ausgewählte Belege (<?= count($zugeordnete_belege) ?>)</strong>
                     </div>
-                    <div class="card-body p-0" style="max-height: 600px; overflow-y: auto;" id="zugeordnete-belege">
+                    <div class="card-body p-0 beleg-scroll" id="zugeordnete-belege">
                         <?php if (empty($zugeordnete_belege)): ?>
                             <div class="text-center p-4" id="keine-belege-text">
                                 <p class="text-muted">Noch keine Belege ausgewählt.</p>
@@ -202,7 +202,7 @@
                                                 </div>
                                             </div>
                                             <div class="ms-3">
-                                                <button class="btn btn-danger btn-sm remove-beleg-btn"
+                                                <button class="btn btn-outline-danger btn-sm remove-beleg-btn"
                                                         data-beleg-id="<?= $beleg['id'] ?>"
                                                         title="Aus Abrechnung entfernen" aria-label="Aus Abrechnung entfernen">
                                                     <i class="bi bi-x-lg" aria-hidden="true"></i>

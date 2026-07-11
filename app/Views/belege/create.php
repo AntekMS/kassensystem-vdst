@@ -9,7 +9,7 @@
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h1 class="page-title mb-1"><i class="bi bi-receipt" aria-hidden="true"></i> Neuen Beleg hinzufügen</h1>
+                        <h1 class="page-title mb-1">Neuen Beleg hinzufügen</h1>
                         <p class="text-muted mb-0">Laden Sie einen Beleg hoch und erfassen Sie die dazugehörigen Informationen</p>
                     </div>
                     <a href="<?= base_url('/belege') ?>" class="btn btn-outline-vdst">
@@ -31,7 +31,7 @@
                         </div>
                         <div class="card-body">
                             <!-- Upload-Bereich -->
-                            <div class="upload-area mb-3" onclick="document.getElementById('beleg_datei').click()" style="cursor: pointer;">
+                            <div class="upload-area mb-3" onclick="document.getElementById('beleg_datei').click()">
                                 <div class="text-center p-4 border-2 border-dashed border-secondary rounded" id="uploadZone">
                                     <div id="uploadDefault">
                                         <div class="mb-3">
@@ -244,11 +244,11 @@
                                     </span>
                                 </div>
                                 <div class="d-flex gap-2">
-                                    <a href="<?= base_url('/belege') ?>" class="btn btn-outline-secondary">
+                                    <a href="<?= base_url('/belege') ?>" class="btn btn-outline-vdst">
                                         Abbrechen
                                     </a>
-                                    <button type="submit" class="btn btn-vdst btn-lg" id="submitBtn">
-                                        <strong><i class="bi bi-receipt" aria-hidden="true"></i> Beleg speichern</strong>
+                                    <button type="submit" class="btn btn-vdst" id="submitBtn">
+                                        <i class="bi bi-receipt" aria-hidden="true"></i> Beleg speichern
                                     </button>
                                 </div>
                             </div>
@@ -258,42 +258,6 @@
             </div>
         </form>
     </div>
-<?= $this->endSection() ?>
-
-<?= $this->section('styles') ?>
-    <style>
-        .upload-area {
-            transition: all 0.3s ease;
-        }
-
-        .upload-area:hover {
-            background-color: rgba(0,0,0,0.02);
-        }
-
-        .upload-area.dragover {
-            background-color: rgba(220, 20, 60, 0.1);
-            border-color: var(--vdst-rot) !important;
-        }
-
-        .form-label.fw-bold {
-            color: var(--vdst-schwarz);
-        }
-
-        .card-header h5 {
-            color: var(--vdst-weiss);
-        }
-
-        .input-group-text {
-            background-color: var(--vdst-grau);
-            border-color: #ddd;
-        }
-
-        .form-control:focus,
-        .form-select:focus {
-            border-color: var(--vdst-rot);
-            box-shadow: 0 0 0 0.2rem rgba(220, 20, 60, 0.25);
-        }
-    </style>
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
@@ -371,7 +335,7 @@
                 // Falls Fehler auftreten, Button nach 5 Sekunden wieder aktivieren
                 setTimeout(function() {
                     if (submitBtn.disabled) {
-                        submitBtn.innerHTML = '<strong><i class="bi bi-receipt" aria-hidden="true"></i> Beleg speichern</strong>';
+                        submitBtn.innerHTML = '<i class="bi bi-receipt" aria-hidden="true"></i> Beleg speichern';
                         submitBtn.disabled = false;
                     }
                 }, 5000);

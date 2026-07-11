@@ -90,7 +90,7 @@
                                     <label for="kategorie" class="form-label">
                                         <strong>Kategorie</strong> <span class="text-danger">*</span>
                                     </label>
-                                    <select class="form-control <?= isset($errors['kategorie']) ? 'is-invalid' : '' ?>"
+                                    <select class="form-select <?= isset($errors['kategorie']) ? 'is-invalid' : '' ?>"
                                             id="kategorie"
                                             name="kategorie"
                                             required>
@@ -177,7 +177,7 @@
                                 <tr>
                                     <td><strong>Status:</strong></td>
                                     <td>
-                                    <span class="badge bg-secondary">
+                                    <span class="<?= beleg_status_badge_class($beleg['status']) ?>">
                                         <?= beleg_status_label($beleg['status']) ?>
                                     </span>
                                     </td>
@@ -185,7 +185,7 @@
                                 <tr>
                                     <td><strong>Dateityp:</strong></td>
                                     <td>
-                                    <span class="badge bg-dark">
+                                    <span class="badge-status badge-status-neutral">
                                         <?= strtoupper($beleg['dateityp']) ?>
                                     </span>
                                     </td>
@@ -195,7 +195,7 @@
                     </div>
 
                     <div class="card mt-3">
-                        <div class="card-header bg-dark text-white">
+                        <div class="card-header">
                             <strong>Datei-Vorschau</strong>
                         </div>
                         <div class="card-body p-1">
@@ -203,20 +203,19 @@
                                 <div class="text-center p-2">
                                     <p class="mb-2"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> PDF-Dokument</p>
                                     <a href="<?= base_url('/belege/preview/' . $beleg['id']) ?>"
-                                       target="_blank" class="btn btn-outline-dark btn-sm">
+                                       target="_blank" class="btn btn-outline-vdst btn-sm">
                                         PDF öffnen
                                     </a>
                                 </div>
                             <?php else: ?>
                                 <img src="<?= base_url('/belege/preview/' . $beleg['id']) ?>"
                                      alt="Beleg-Vorschau"
-                                     class="img-fluid"
-                                     style="max-height: 200px; width: 100%; object-fit: contain;">
+                                     class="img-fluid vorschau-bild-klein">
                             <?php endif; ?>
                         </div>
                         <div class="card-footer text-center">
                             <a href="<?= base_url('/belege/download/' . $beleg['id']) ?>"
-                               class="btn btn-outline-success btn-sm">
+                               class="btn btn-outline-vdst btn-sm">
                                 <i class="bi bi-download" aria-hidden="true"></i> Download
                             </a>
                         </div>
@@ -228,11 +227,11 @@
             <div class="row mt-4">
                 <div class="col-12">
                     <div class="d-flex justify-content-between">
-                        <a href="<?= base_url('/belege/show/' . $beleg['id']) ?>" class="btn btn-outline-secondary">
+                        <a href="<?= base_url('/belege/show/' . $beleg['id']) ?>" class="btn btn-outline-vdst">
                             Abbrechen
                         </a>
-                        <button type="submit" class="btn btn-vdst btn-lg">
-                            <strong>Änderungen speichern</strong>
+                        <button type="submit" class="btn btn-vdst">
+                            Änderungen speichern
                         </button>
                     </div>
                 </div>

@@ -4,18 +4,17 @@
 
 <?= $this->section('content') ?>
     <div class="container-fluid">
-        <!-- Page Title -->
-        <h1 class="page-title">VDSt Kassensystem - Übersicht</h1>
+        <h1 class="page-title">Übersicht</h1>
 
-        <!-- Kontostand-Übersicht -->
-        <div class="row mb-4">
+        <!-- 1. Kontostände (mobil 2×2, ab lg nebeneinander) -->
+        <div class="row g-3 mb-4">
             <?php
             $gesamtsaldo = 0;
             foreach($kontostaende as $konto => $daten):
                 $gesamtsaldo += $daten['saldo'];
                 ?>
-                <div class="col-md-3">
-                    <div class="card kontostand-card">
+                <div class="col-6 col-lg-3">
+                    <div class="card kontostand-card h-100">
                         <div class="card-header">
                             <?= konto_label($konto) ?>
                         </div>
@@ -28,16 +27,15 @@
                 </div>
             <?php endforeach; ?>
 
-            <!-- Gesamtsaldo -->
-            <div class="col-md-3">
-                <div class="card border-3" style="border-color: var(--vdst-rot) !important;">
-                    <div class="card-header text-center" style="background-color: var(--vdst-rot); color: white;">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <strong id="saldo-titel">GESAMTSALDO</strong>
-                            <button class="btn btn-sm btn-outline-light" id="toggle-barkasse" title="Mit/Ohne Barkasse">
-                                <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
-                            </button>
-                        </div>
+            <!-- Gesamtsaldo mit Barkasse-Umschalter -->
+            <div class="col-6 col-lg-3">
+                <div class="card kontostand-card kontostand-total h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span id="saldo-titel">Gesamtsaldo</span>
+                        <button type="button" class="btn-icon" id="toggle-barkasse"
+                                title="Mit/Ohne Barkasse" aria-label="Gesamtsaldo mit oder ohne Barkasse anzeigen">
+                            <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+                        </button>
                     </div>
                     <div class="card-body text-center">
                         <h2 id="gesamtsaldo-betrag" class="<?= $gesamtsaldo >= 0 ? 'saldo-positiv' : 'saldo-negativ' ?>">
@@ -51,201 +49,48 @@
             </div>
         </div>
 
-        <!-- Schnellzugriff -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card card-vdst">
+        <!-- 2. Primäraktionen -->
+        <div class="d-flex flex-wrap gap-2 mb-4">
+            <a href="<?= base_url('/belege/create') ?>" class="btn btn-vdst">
+                <i class="bi bi-plus-lg" aria-hidden="true"></i> Beleg erfassen
+            </a>
+            <a href="<?= base_url('/buchungen/create') ?>" class="btn btn-outline-vdst">
+                <i class="bi bi-journal-plus" aria-hidden="true"></i> Neue Buchung
+            </a>
+            <a href="<?= base_url('/buchungen') ?>" class="btn btn-outline-vdst">
+                <i class="bi bi-journal-text" aria-hidden="true"></i> Kassenbuch
+            </a>
+            <a href="<?= base_url('/abrechnungen/ah') ?>" class="btn btn-outline-vdst">
+                <i class="bi bi-clipboard-data" aria-hidden="true"></i> Abrechnungen
+            </a>
+        </div>
+
+        <!-- 3. Letzte Bewegungen -->
+        <div class="row g-3 mb-4">
+            <div class="col-lg-6">
+                <div class="card h-100">
                     <div class="card-header">
-                        <strong>Schnellzugriff</strong>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-3">
-                                <a href="<?= base_url('/buchungen/create') ?>" class="btn btn-vdst w-100 mb-2">
-                                    <strong>+ Neue Buchung</strong>
-                                </a>
-                            </div>
-                            <div class="col-md-3">
-                                <a href="<?= base_url('/buchungen') ?>" class="btn btn-outline-vdst w-100 mb-2">
-                                    <i class="bi bi-journal-text" aria-hidden="true"></i> Kassenbuch öffnen
-                                </a>
-                            </div>
-                            <div class="col-md-3">
-                                <a href="<?= base_url('/belege') ?>" class="btn btn-outline-vdst w-100 mb-2">
-                                    <i class="bi bi-receipt" aria-hidden="true"></i> Belege verwalten
-                                </a>
-                            </div>
-                            <div class="col-md-3">
-                                <a href="<?= base_url('/abrechnungen/ah') ?>" class="btn btn-outline-vdst w-100 mb-2">
-                                    <i class="bi bi-clipboard-data" aria-hidden="true"></i> Abrechnungen
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Statistiken -->
-        <div class="row mb-4">
-            <div class="col-md">
-                <div class="card">
-                    <div class="card-header bg-dark text-white">
-                        <strong>Belege</strong>
-                    </div>
-                    <div class="card-body">
-                        <table class="table table-sm mb-0">
-                            <tr>
-                                <td>Gesamt:</td>
-                                <td class="text-end"><strong><?= $beleg_stats['gesamt_belege'] ?></strong></td>
-                            </tr>
-                            <tr>
-                                <td>Neue (erfasst):</td>
-                                <td class="text-end"><strong><?= $beleg_stats['neue_belege'] ?></strong></td>
-                            </tr>
-                            <tr>
-                                <td>In Abrechnung:</td>
-                                <td class="text-end"><?= $beleg_stats['in_abrechnung'] ?></td>
-                            </tr>
-                            <tr>
-                                <td>AH² berechtigt:</td>
-                                <td class="text-end"><?= $beleg_stats['ah_berechtigt'] ?></td>
-                            </tr>
-                            <tr>
-                                <td>HV berechtigt:</td>
-                                <td class="text-end"><?= $beleg_stats['hv_berechtigt'] ?></td>
-                            </tr>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md">
-                <div class="card">
-                    <div class="card-header bg-dark text-white">
-                        <strong>Buchungen</strong>
-                    </div>
-                    <div class="card-body">
-                        <table class="table table-sm mb-0">
-                            <tr>
-                                <td>Heute:</td>
-                                <td class="text-end"><strong><?= $buchung_stats['buchungen_heute'] ?></strong></td>
-                            </tr>
-                            <tr>
-                                <td>Diesen Monat:</td>
-                                <td class="text-end"><strong><?= $buchung_stats['buchungen_monat'] ?></strong></td>
-                            </tr>
-                            <tr>
-                                <td>Gesamt:</td>
-                                <td class="text-end"><?= $buchung_stats['gesamt_buchungen'] ?? '-' ?></td>
-                            </tr>
-                            <tr>
-                                <td colspan="2">
-                                    <?php if (!empty($buchung_stats['letzte_buchung'])): ?>
-                                        <small class="text-muted">
-                                            Letzte: <?= date('d.m.Y', strtotime($buchung_stats['letzte_buchung']['buchungsdatum'])) ?>
-                                        </small>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md">
-                <div class="card">
-                    <div class="card-header bg-dark text-white">
-                        <strong>Abrechnungen</strong>
-                    </div>
-                    <div class="card-body">
-                        <table class="table table-sm mb-0">
-                            <tr>
-                                <td>AH² Entwürfe:</td>
-                                <td class="text-end"><?= $ah_stats['entwuerfe'] ?></td>
-                            </tr>
-                            <tr>
-                                <td>AH² Ausstehend:</td>
-                                <td class="text-end"><strong><?= $ah_stats['ausstehend'] ?></strong></td>
-                            </tr>
-                            <tr>
-                                <td>HV Entwürfe:</td>
-                                <td class="text-end"><?= $hv_stats['entwuerfe'] ?></td>
-                            </tr>
-                            <tr>
-                                <td>HV Ausstehend:</td>
-                                <td class="text-end"><strong><?= $hv_stats['ausstehend'] ?></strong></td>
-                            </tr>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md">
-                <div class="card">
-                    <div class="card-header bg-dark text-white">
-                        <strong>Schulden</strong>
-                    </div>
-                    <div class="card-body text-center">
-                        <h3 class="<?= $schulden_offen > 0 ? 'text-danger' : 'saldo-positiv' ?>">
-                            <?= formatiere_betrag($schulden_offen) ?>
-                        </h3>
-                        <small class="text-muted">Offene Forderungen</small>
-                    </div>
-                    <div class="card-footer text-center">
-                        <a href="<?= base_url('/schulden') ?>" class="btn btn-outline-vdst btn-sm">
-                            Schuldenliste öffnen
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md">
-                <div class="card">
-                    <div class="card-header bg-dark text-white">
-                        <strong>Inventur</strong>
-                    </div>
-                    <div class="card-body text-center">
-                        <h3 class="<?= $inventur_gesamt >= 0 ? 'saldo-positiv' : 'saldo-negativ' ?>">
-                            <?= formatiere_betrag($inventur_gesamt) ?>
-                        </h3>
-                        <small class="text-muted">Aktueller Bestand gesamt</small>
-                    </div>
-                    <div class="card-footer text-center">
-                        <a href="<?= base_url('/inventur') ?>" class="btn btn-outline-vdst btn-sm">
-                            Inventur öffnen
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Aktuelle Infos -->
-        <div class="row">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-dark text-white">
-                        <strong>Letzte 5 Buchungen</strong>
+                        <strong>Letzte Buchungen</strong>
                     </div>
                     <div class="card-body p-0">
                         <?php if (empty($neueste_buchungen)): ?>
-                            <div class="p-3 text-center text-muted">
+                            <div class="p-4 text-center text-muted">
                                 Noch keine Buchungen vorhanden.
                             </div>
                         <?php else: ?>
-                            <table class="table table-sm mb-0">
+                            <table class="table table-sm mini-tabelle mb-0">
                                 <?php foreach($neueste_buchungen as $buchung): ?>
                                     <tr>
-                                        <td style="width: 80px;">
+                                        <td class="spalte-datum">
                                             <small><?= date('d.m.', strtotime($buchung['buchungsdatum'])) ?></small>
                                         </td>
                                         <td>
                                             <?= esc(substr($buchung['beschreibung'], 0, 40)) ?><?= strlen($buchung['beschreibung']) > 40 ? '...' : '' ?>
                                         </td>
-                                        <td class="text-end" style="width: 80px;">
-                                    <span class="<?= $buchung['buchungsart'] === 'einnahme' ? 'text-success' : 'text-danger' ?>">
-                                        <?= $buchung['buchungsart'] === 'einnahme' ? '+' : '-' ?><?= number_format($buchung['betrag'], 2, ',', '.') ?> €
-                                    </span>
+                                        <td class="text-end spalte-betrag">
+                                            <span class="<?= $buchung['buchungsart'] === 'einnahme' ? 'text-success' : 'text-danger' ?>">
+                                                <?= $buchung['buchungsart'] === 'einnahme' ? '+' : '-' ?><?= number_format($buchung['betrag'], 2, ',', '.') ?> €
+                                            </span>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -260,33 +105,33 @@
                 </div>
             </div>
 
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-dark text-white">
-                        <strong>Letzte 5 Belege</strong>
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <strong>Neueste Belege</strong>
                     </div>
                     <div class="card-body p-0">
                         <?php if (empty($neueste_belege)): ?>
-                            <div class="p-3 text-center text-muted">
+                            <div class="p-4 text-center text-muted">
                                 Noch keine Belege vorhanden.
                             </div>
                         <?php else: ?>
-                            <table class="table table-sm mb-0">
+                            <table class="table table-sm mini-tabelle mb-0">
                                 <?php foreach($neueste_belege as $beleg): ?>
                                     <tr>
-                                        <td style="width: 100px;">
+                                        <td class="spalte-beleg">
                                             <small><?= esc($beleg['belegnummer']) ?></small>
                                         </td>
                                         <td>
                                             <?= esc(substr($beleg['beschreibung'], 0, 30)) ?><?= strlen($beleg['beschreibung']) > 30 ? '...' : '' ?>
                                         </td>
-                                        <td class="text-end" style="width: 80px;">
+                                        <td class="text-end spalte-betrag">
                                             <?= number_format($beleg['betrag'], 2, ',', '.') ?> €
                                         </td>
-                                        <td style="width: 60px;">
-                                    <span class="badge bg-<?= $beleg['status'] === 'erfasst' ? 'secondary' : 'primary' ?> badge-sm">
-                                        <?= beleg_status_label($beleg['status']) ?>
-                                    </span>
+                                        <td class="spalte-status">
+                                            <span class="badge-status <?= $beleg['status'] === 'erfasst' ? 'badge-status-neutral' : 'badge-status-rot' ?>">
+                                                <?= beleg_status_label($beleg['status']) ?>
+                                            </span>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -302,7 +147,54 @@
             </div>
         </div>
 
-
+        <!-- 4. Zahlen kompakt -->
+        <div class="row g-3">
+            <div class="col-6 col-lg">
+                <div class="card stat-tile h-100">
+                    <div class="card-body">
+                        <div class="stat-tile-value"><?= $beleg_stats['gesamt_belege'] ?></div>
+                        <div class="stat-tile-label">Belege · <?= $beleg_stats['neue_belege'] ?> neu, <?= $beleg_stats['in_abrechnung'] ?> in Abrechnung</div>
+                        <a href="<?= base_url('/belege') ?>" class="stretched-link" aria-label="Belege öffnen"></a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg">
+                <div class="card stat-tile h-100">
+                    <div class="card-body">
+                        <div class="stat-tile-value"><?= $buchung_stats['gesamt_buchungen'] ?? '–' ?></div>
+                        <div class="stat-tile-label">Buchungen · <?= $buchung_stats['buchungen_monat'] ?> diesen Monat</div>
+                        <a href="<?= base_url('/buchungen') ?>" class="stretched-link" aria-label="Kassenbuch öffnen"></a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg">
+                <div class="card stat-tile h-100">
+                    <div class="card-body">
+                        <div class="stat-tile-value"><?= $ah_stats['ausstehend'] + $hv_stats['ausstehend'] ?></div>
+                        <div class="stat-tile-label">Abrechnungen ausstehend · <?= $ah_stats['entwuerfe'] + $hv_stats['entwuerfe'] ?> Entwürfe</div>
+                        <a href="<?= base_url('/abrechnungen/ah') ?>" class="stretched-link" aria-label="Abrechnungen öffnen"></a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg">
+                <div class="card stat-tile h-100">
+                    <div class="card-body">
+                        <div class="stat-tile-value <?= $schulden_offen > 0 ? 'text-danger' : '' ?>"><?= formatiere_betrag($schulden_offen) ?></div>
+                        <div class="stat-tile-label">Offene Forderungen</div>
+                        <a href="<?= base_url('/schulden') ?>" class="stretched-link" aria-label="Schuldenliste öffnen"></a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg">
+                <div class="card stat-tile h-100">
+                    <div class="card-body">
+                        <div class="stat-tile-value <?= $inventur_gesamt >= 0 ? '' : 'text-danger' ?>"><?= formatiere_betrag($inventur_gesamt) ?></div>
+                        <div class="stat-tile-label">Inventur-Bestand</div>
+                        <a href="<?= base_url('/inventur') ?>" class="stretched-link" aria-label="Inventur öffnen"></a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 <?= $this->endSection() ?>
 
@@ -343,10 +235,10 @@
                 saldoBetrag.className = saldo >= 0 ? 'saldo-positiv' : 'saldo-negativ';
 
                 if (mitBarkasse) {
-                    saldoTitel.textContent = 'GESAMTSALDO';
+                    saldoTitel.textContent = 'Gesamtsaldo';
                     saldoHinweis.style.display = 'none';
                 } else {
-                    saldoTitel.textContent = 'SALDO OHNE BAR';
+                    saldoTitel.textContent = 'Saldo ohne Bar';
                     saldoHinweis.style.display = 'block';
                 }
             }

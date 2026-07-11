@@ -70,6 +70,7 @@
                                 <th class="text-center">Einträge</th>
                                 <th>Letzter Eintrag</th>
                                 <th class="text-center">Status</th>
+                                <th class="text-center">Aktion</th>
                             </tr>
                             </thead>
                             <tbody>
@@ -96,6 +97,27 @@
                                     <td class="text-center">
                                         <?php if ($p['forderungen_getraenke'] >= GETRAENKESTOPP_LIMIT): ?>
                                             <span class="badge bg-danger"><i class="bi bi-sign-stop-fill" aria-hidden="true"></i> Getränkestopp</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-center">
+                                        <?php if ($p['forderungen_getraenke'] >= 0.01): ?>
+                                            <form method="post" class="d-inline"
+                                                  action="<?= base_url('/schulden/getraenke-beglichen') ?>">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="person" value="<?= esc($p['person']) ?>">
+                                                <button type="submit" class="btn btn-sm btn-outline-success">
+                                                    <i class="bi bi-check2-circle" aria-hidden="true"></i> Beglichen
+                                                </button>
+                                            </form>
+                                        <?php elseif ($p['getraenke_undo']): ?>
+                                            <form method="post" class="d-inline"
+                                                  action="<?= base_url('/schulden/getraenke-beglichen-undo') ?>">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="person" value="<?= esc($p['person']) ?>">
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                                    <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Rückgängig
+                                                </button>
+                                            </form>
                                         <?php endif; ?>
                                     </td>
                                 </tr>

@@ -13,6 +13,25 @@
                 <?php endif; ?>
             </h1>
             <div>
+                <?php if ($summen['forderungen_getraenke'] >= 0.01): ?>
+                    <form method="post" class="d-inline"
+                          action="<?= base_url('/schulden/getraenke-beglichen') ?>">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="person" value="<?= esc($person) ?>">
+                        <button type="submit" class="btn btn-outline-success">
+                            <i class="bi bi-check2-circle" aria-hidden="true"></i> Getränke beglichen
+                        </button>
+                    </form>
+                <?php elseif ($getraenke_undo): ?>
+                    <form method="post" class="d-inline"
+                          action="<?= base_url('/schulden/getraenke-beglichen-undo') ?>">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="person" value="<?= esc($person) ?>">
+                        <button type="submit" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Beglichen rückgängig
+                        </button>
+                    </form>
+                <?php endif; ?>
                 <a href="<?= base_url('/schulden/create?person=' . urlencode($person)) ?>" class="btn btn-vdst">
                     <strong>+ Neuer Eintrag</strong>
                 </a>

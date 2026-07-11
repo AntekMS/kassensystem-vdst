@@ -28,10 +28,10 @@
                         <span class="float-end">Stand: <?= date('d.m.Y') ?></span>
                     </div>
                     <div class="card-body p-0">
-                        <table class="table table-striped mb-0">
+                        <table class="table mb-0">
                             <tbody>
                             <!-- I. Kassenbestand -->
-                            <tr class="table-secondary">
+                            <tr class="table-light">
                                 <th colspan="2">I. Kassenbestand</th>
                             </tr>
                             <?php foreach ($kontostaende as $konto => $daten): ?>
@@ -57,7 +57,7 @@
                             ];
                             ?>
                             <?php foreach ($bloecke as $typ => $block): ?>
-                                <tr class="table-secondary">
+                                <tr class="table-light">
                                     <th colspan="2"><?= esc($block['titel']) ?></th>
                                 </tr>
                                 <?php foreach (schuld_kategorie_optionen() as $kategorie => $label): ?>
@@ -73,7 +73,7 @@
                             <?php endforeach; ?>
 
                             <!-- Summe Gesamt -->
-                            <tr class="table-dark">
+                            <tr class="zeile-summe-gesamt">
                                 <th>Summe Gesamt (I + II − III)</th>
                                 <th class="text-end"><?= formatiere_betrag($summe_gesamt) ?></th>
                             </tr>

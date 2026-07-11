@@ -24,7 +24,7 @@
                           action="<?= base_url('/belege/delete/' . $beleg['id']) ?>"
                           onsubmit="return confirmDelete('Beleg <?= esc($beleg['belegnummer'], 'js') ?> wirklich löschen? Die Datei wird ebenfalls unwiderruflich gelöscht!')">
                         <?= csrf_field() ?>
-                        <button type="submit" class="btn btn-danger" title="Beleg und Datei löschen">
+                        <button type="submit" class="btn btn-outline-danger" title="Beleg und Datei löschen">
                             <i class="bi bi-trash" aria-hidden="true"></i> Löschen
                         </button>
                     </form>
@@ -56,7 +56,7 @@
                             <tr>
                                 <td><strong>Betrag:</strong></td>
                                 <td>
-                                    <strong style="font-size: 1.2em;">
+                                    <strong class="betrag-gross">
                                         <?= number_format($beleg['betrag'], 2, ',', '.') ?> €
                                     </strong>
                                 </td>
@@ -80,7 +80,7 @@
                             <tr>
                                 <td><strong>Kategorie:</strong></td>
                                 <td>
-                                <span class="badge bg-<?= $beleg['kategorie'] === 'normal' ? 'secondary' : 'primary' ?>">
+                                <span class="<?= kategorie_badge_class($beleg['kategorie']) ?>">
                                     <?= kategorie_label($beleg['kategorie']) ?>
                                 </span>
                                 </td>
@@ -88,7 +88,7 @@
                             <tr>
                                 <td><strong>Status:</strong></td>
                                 <td>
-                                <span class="badge bg-<?= $beleg['status'] === 'erfasst' ? 'secondary' : 'info' ?>">
+                                <span class="<?= beleg_status_badge_class($beleg['status']) ?>">
                                     <?= beleg_status_label($beleg['status']) ?>
                                 </span>
                                 </td>
@@ -126,7 +126,7 @@
                             <tr>
                                 <td><strong>Dateityp:</strong></td>
                                 <td>
-                                <span class="badge bg-secondary">
+                                <span class="badge-status badge-status-neutral">
                                     <?= strtoupper($beleg['dateityp']) ?>
                                 </span>
                                 </td>
@@ -158,7 +158,7 @@
                         <div class="card-body">
                             <?php foreach($abrechnungen as $abrechnung): ?>
                                 <div class="mb-2">
-                            <span class="badge bg-<?= $abrechnung['typ'] === 'ah' ? 'info' : 'warning' ?>">
+                            <span class="badge-status badge-status-outline">
                                 <?= strtoupper($abrechnung['typ']) ?>
                             </span>
                                     <strong><?= esc($abrechnung['titel']) ?></strong><br>
@@ -176,7 +176,7 @@
             <!-- Datei-Vorschau -->
             <div class="col-md-8">
                 <div class="card">
-                    <div class="card-header bg-dark text-white">
+                    <div class="card-header">
                         <strong>Datei-Vorschau: <?= esc($beleg['dateiname_original']) ?></strong>
                     </div>
                     <div class="card-body p-0">
@@ -189,7 +189,7 @@
                             </div>
                         <?php elseif ($beleg['dateityp'] === 'pdf'): ?>
                             <!-- PDF-Vorschau -->
-                            <div id="pdf-container" style="height: 700px; background: #f8f9fa;">
+                            <div id="pdf-container" class="vorschau-container">
                                 <div class="text-center p-4">
                                     <p class="mb-3">
                                         <strong>PDF-Dokument</strong><br>
@@ -201,16 +201,16 @@
                                 </div>
                                 <iframe id="pdf-frame"
                                         src=""
-                                        style="width: 100%; height: 100%; border: none; display: none;">
+                                        class="vorschau-frame"
+                                        title="PDF-Vorschau">
                                 </iframe>
                             </div>
                         <?php else: ?>
                             <!-- Bild-Vorschau -->
-                            <div class="text-center" style="background: #f8f9fa;">
+                            <div class="text-center vorschau-flaeche">
                                 <img src="<?= base_url('/belege/preview/' . $beleg['id']) ?>"
                                      alt="<?= esc($beleg['beschreibung']) ?>"
-                                     class="img-fluid"
-                                     style="max-height: 700px; cursor: zoom-in;"
+                                     class="img-fluid vorschau-bild"
                                      onclick="openImageModal(this.src)">
                             </div>
                         <?php endif; ?>
@@ -242,7 +242,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body text-center p-0">
-                    <img id="modalImage" src="" class="img-fluid" style="max-width: 100%; height: auto;">
+                    <img id="modalImage" src="" class="img-fluid" alt="Beleg in Vollbild-Ansicht">
                 </div>
             </div>
         </div>

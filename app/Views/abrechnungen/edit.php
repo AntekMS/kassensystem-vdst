@@ -8,7 +8,7 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="page-title"><?= $typ === 'ah' ? 'AH²' : 'HV' ?> Abrechnung bearbeiten</h1>
             <div>
-                <a href="<?= base_url('/abrechnungen/' . $typ . '/preview/' . $abrechnung['id']) ?>" class="btn btn-outline-info">
+                <a href="<?= base_url('/abrechnungen/' . $typ . '/preview/' . $abrechnung['id']) ?>" class="btn btn-outline-vdst">
                     <i class="bi bi-eye" aria-hidden="true"></i> Vorschau
                 </a>
                 <a href="<?= base_url('/abrechnungen/' . $typ) ?>" class="btn btn-outline-vdst">
@@ -86,11 +86,11 @@
                     <div class="row mt-4">
                         <div class="col-12">
                             <div class="d-flex justify-content-between">
-                                <a href="<?= base_url('/abrechnungen/' . $typ . '/preview/' . $abrechnung['id']) ?>" class="btn btn-outline-secondary">
+                                <a href="<?= base_url('/abrechnungen/' . $typ . '/preview/' . $abrechnung['id']) ?>" class="btn btn-outline-vdst">
                                     Abbrechen
                                 </a>
-                                <button type="submit" class="btn btn-vdst btn-lg">
-                                    <strong>Änderungen speichern</strong>
+                                <button type="submit" class="btn btn-vdst">
+                                    Änderungen speichern
                                 </button>
                             </div>
                         </div>
@@ -101,7 +101,7 @@
             <!-- Info-Sidebar -->
             <div class="col-md-4">
                 <div class="card">
-                    <div class="card-header bg-warning text-dark">
+                    <div class="card-header">
                         <strong>Abrechnungs-Info</strong>
                     </div>
                     <div class="card-body">
@@ -113,7 +113,7 @@
                             <tr>
                                 <td><strong>Status:</strong></td>
                                 <td>
-                                <span class="badge bg-<?= $abrechnung['status'] === 'entwurf' ? 'secondary' : 'warning' ?>">
+                                <span class="<?= abrechnung_status_badge_class($abrechnung['status']) ?>">
                                     <?= abrechnung_status_label($abrechnung['status']) ?>
                                 </span>
                                 </td>

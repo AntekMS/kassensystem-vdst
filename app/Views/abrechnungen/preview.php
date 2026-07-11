@@ -10,7 +10,7 @@
                 <h1 class="page-title">Abrechnungs-Vorschau</h1>
                 <h4 class="text-muted"><?= esc($abrechnung['titel']) ?></h4>
             </div>
-            <div>
+            <div class="d-flex flex-wrap gap-2">
                 <a href="<?= base_url('/abrechnungen/' . $typ . '/belege/' . $abrechnung['id']) ?>"
                    class="btn btn-vdst">
                     <i class="bi bi-receipt" aria-hidden="true"></i> Belege verwalten
@@ -23,7 +23,7 @@
                 <?php if (count($belege) > 0): ?>
                     <!-- Export-Optionen als große Buttons -->
                     <div class="btn-group">
-                        <button type="button" class="btn btn-success btn-lg dropdown-toggle"
+                        <button type="button" class="btn btn-outline-vdst dropdown-toggle"
                                 data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-download" aria-hidden="true"></i> Export herunterladen
                         </button>
@@ -69,7 +69,7 @@
                                     <tr>
                                         <td><strong>Typ:</strong></td>
                                         <td>
-                                        <span class="badge bg-<?= $typ === 'ah' ? 'info' : 'warning' ?>">
+                                        <span class="badge-status badge-status-outline">
                                             <?= $typ === 'ah' ? 'AH² Abrechnung' : 'HV Abrechnung' ?>
                                         </span>
                                         </td>
@@ -85,11 +85,7 @@
                                     <tr>
                                         <td><strong>Status:</strong></td>
                                         <td>
-                                        <span class="badge bg-<?=
-                                        $abrechnung['status'] === 'entwurf' ? 'secondary' :
-                                                ($abrechnung['status'] === 'ausstehend' ? 'warning' :
-                                                        ($abrechnung['status'] === 'eingereicht' ? 'info' : 'success'))
-                                        ?>">
+                                        <span class="<?= abrechnung_status_badge_class($abrechnung['status']) ?>">
                                             <?= abrechnung_status_label($abrechnung['status']) ?>
                                         </span>
                                         </td>
@@ -100,12 +96,12 @@
                                 <table class="table table-sm">
                                     <tr>
                                         <td><strong>Anzahl Belege:</strong></td>
-                                        <td><span class="badge bg-dark"><?= count($belege) ?></span></td>
+                                        <td><span class="badge-status badge-status-neutral"><?= count($belege) ?></span></td>
                                     </tr>
                                     <tr>
                                         <td><strong>Gesamtsumme:</strong></td>
                                         <td>
-                                            <strong style="font-size: 1.2em; color: var(--vdst-rot);">
+                                            <strong class="betrag-gross">
                                                 <?= number_format($abrechnung['gesamtsumme'], 2, ',', '.') ?> €
                                             </strong>
                                         </td>
@@ -126,14 +122,14 @@
                 <!-- Status-Änderung - KORRIGIERT -->
                 <?php if ($abrechnung['status'] !== 'bezahlt'): ?>
                     <div class="card">
-                        <div class="card-header bg-warning text-dark">
+                        <div class="card-header">
                             <strong>Status ändern</strong>
                         </div>
                         <div class="card-body">
                             <form method="post" action="<?= base_url('/abrechnungen/' . $typ . '/changeStatus/' . $abrechnung['id']) ?>">
                                 <?= csrf_field() ?>
                                 <div class="mb-3">
-                                    <select name="status" class="form-control" required>
+                                    <select name="status" class="form-select" required>
                                         <option value="entwurf" <?= $abrechnung['status'] === 'entwurf' ? 'selected' : '' ?>>
                                             Entwurf
                                         </option>
@@ -151,7 +147,7 @@
                                         Aktuell: <strong><?= abrechnung_status_label($abrechnung['status']) ?></strong>
                                     </small>
                                 </div>
-                                <button type="submit" class="btn btn-warning w-100" onclick="return confirmStatusChange()">
+                                <button type="submit" class="btn btn-outline-vdst w-100" onclick="return confirmStatusChange()">
                                     Status ändern
                                 </button>
                             </form>
@@ -159,7 +155,7 @@
                     </div>
                 <?php else: ?>
                     <div class="card">
-                        <div class="card-header bg-success text-white">
+                        <div class="card-header text-success">
                             <strong><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Abrechnung bezahlt</strong>
                         </div>
                         <div class="card-body">
@@ -179,8 +175,9 @@
             </div>
             <div class="card-body p-0">
                 <?php if (empty($belege)): ?>
-                    <div class="text-center p-4">
-                        <p class="text-muted">Keine Belege in dieser Abrechnung.</p>
+                    <div class="empty-state">
+                        <i class="bi bi-receipt" aria-hidden="true"></i>
+                        <p>Keine Belege in dieser Abrechnung.</p>
                         <a href="<?= base_url('/abrechnungen/' . $typ . '/belege/' . $abrechnung['id']) ?>"
                            class="btn btn-vdst">
                             Belege hinzufügen
@@ -188,7 +185,7 @@
                     </div>
                 <?php else: ?>
                     <div class="table-responsive">
-                        <table class="table table-striped mb-0">
+                        <table class="table table-hover mb-0">
                             <thead class="table-vdst">
                             <tr>
                                 <th>Belegnummer</th>
@@ -220,17 +217,15 @@
                                         <strong><?= number_format($beleg['betrag'], 2, ',', '.') ?> €</strong>
                                     </td>
                                     <td class="text-center">
-                                        <div class="btn-group btn-group-sm">
-                                            <a href="<?= base_url('/belege/show/' . $beleg['id']) ?>"
-                                               target="_blank"
-                                               class="btn btn-outline-dark" title="Beleg anzeigen" aria-label="Beleg anzeigen">
-                                                <i class="bi bi-eye" aria-hidden="true"></i>
-                                            </a>
-                                            <a href="<?= base_url('/belege/download/' . $beleg['id']) ?>"
-                                               class="btn btn-outline-success" title="Herunterladen" aria-label="Beleg herunterladen">
-                                                <i class="bi bi-download" aria-hidden="true"></i>
-                                            </a>
-                                        </div>
+                                        <a href="<?= base_url('/belege/show/' . $beleg['id']) ?>"
+                                           target="_blank"
+                                           class="btn-icon" title="Beleg anzeigen" aria-label="Beleg anzeigen">
+                                            <i class="bi bi-eye" aria-hidden="true"></i>
+                                        </a>
+                                        <a href="<?= base_url('/belege/download/' . $beleg['id']) ?>"
+                                           class="btn-icon" title="Herunterladen" aria-label="Beleg herunterladen">
+                                            <i class="bi bi-download" aria-hidden="true"></i>
+                                        </a>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -239,7 +234,7 @@
                             <tr>
                                 <th colspan="4" class="text-end">Gesamtsumme:</th>
                                 <th class="text-end">
-                                    <strong style="font-size: 1.1em;">
+                                    <strong class="betrag-gross">
                                         <?= number_format($abrechnung['gesamtsumme'], 2, ',', '.') ?> €
                                     </strong>
                                 </th>
@@ -257,7 +252,7 @@
             <div class="row mt-4">
                 <div class="col-md-6">
                     <div class="card">
-                        <div class="card-header bg-success text-white">
+                        <div class="card-header">
                             <strong><i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Excel-Export</strong>
                         </div>
                         <div class="card-body">
@@ -268,7 +263,7 @@
                                 <li>Beträge und Gesamtsumme</li>
                             </ul>
                             <a href="<?= base_url('/abrechnungen/' . $typ . '/exportExcel/' . $abrechnung['id']) ?>"
-                               class="btn btn-success w-100">
+                               class="btn btn-outline-vdst w-100">
                                 <i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Excel herunterladen
                             </a>
                         </div>
@@ -277,7 +272,7 @@
 
                 <div class="col-md-6">
                     <div class="card">
-                        <div class="card-header bg-dark text-white">
+                        <div class="card-header">
                             <strong><i class="bi bi-file-earmark-zip" aria-hidden="true"></i> ZIP-Archiv</strong>
                         </div>
                         <div class="card-body">
@@ -290,9 +285,8 @@
                                 <li>Gesamtgröße: ca. <?= schaetze_archiv_groesse($belege) ?></li>
                             </ul>
                             <a href="<?= base_url('/abrechnungen/' . $typ . '/downloadZip/' . $abrechnung['id']) ?>"
-                               class="btn btn-dark w-100">
+                               class="btn btn-outline-vdst w-100">
                                 <i class="bi bi-file-earmark-zip" aria-hidden="true"></i> ZIP-Archiv herunterladen
-
                             </a>
                         </div>
                     </div>

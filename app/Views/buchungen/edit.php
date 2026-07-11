@@ -43,7 +43,7 @@
                                     <label for="konto_typ" class="form-label">
                                         <strong>Konto</strong> <span class="text-danger">*</span>
                                     </label>
-                                    <select class="form-control <?= isset($errors['konto_typ']) ? 'is-invalid' : '' ?>"
+                                    <select class="form-select <?= isset($errors['konto_typ']) ? 'is-invalid' : '' ?>"
                                             id="konto_typ"
                                             name="konto_typ"
                                             required>
@@ -89,7 +89,7 @@
                                     </label>
                                     <div class="input-group">
                                         <input type="number"
-                                               class="form-control <?= isset($errors['betrag']) ? 'is-invalid' : '' ?>"
+                                               class="form-control js-betrag-format <?= isset($errors['betrag']) ? 'is-invalid' : '' ?>"
                                                id="betrag"
                                                name="betrag"
                                                step="0.01"
@@ -168,7 +168,7 @@
                             <!-- Beleg ändern -->
                             <div class="mb-3">
                                 <label for="beleg_id" class="form-label">Beleg ändern</label>
-                                <select class="form-control" id="beleg_id" name="beleg_id">
+                                <select class="form-select" id="beleg_id" name="beleg_id">
                                     <option value="">Kein Beleg</option>
                                     <?php // Der aktuell verknüpfte Beleg fehlt in $verfuegbare_belege (nur Belege ohne
                                           // Buchung) — ohne diese Option würde Speichern die Verknüpfung lösen. ?>
@@ -199,11 +199,11 @@
             <div class="row mt-4">
                 <div class="col-12">
                     <div class="d-flex justify-content-between">
-                        <a href="<?= base_url('/buchungen') ?>" class="btn btn-outline-secondary">
+                        <a href="<?= base_url('/buchungen') ?>" class="btn btn-outline-vdst">
                             Abbrechen
                         </a>
-                        <button type="submit" class="btn btn-vdst btn-lg">
-                            <strong>Änderungen speichern</strong>
+                        <button type="submit" class="btn btn-vdst">
+                            Änderungen speichern
                         </button>
                     </div>
                 </div>

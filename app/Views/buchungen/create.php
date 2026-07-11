@@ -43,7 +43,7 @@
                                     <label for="konto_typ" class="form-label">
                                         <strong>Konto</strong> <span class="text-danger">*</span>
                                     </label>
-                                    <select class="form-control <?= isset($errors['konto_typ']) ? 'is-invalid' : '' ?>"
+                                    <select class="form-select <?= isset($errors['konto_typ']) ? 'is-invalid' : '' ?>"
                                             id="konto_typ"
                                             name="konto_typ"
                                             required>
@@ -161,7 +161,7 @@
                                     <label for="schuld_kategorie" class="form-label">
                                         <strong>Schulden-Kategorie</strong>
                                     </label>
-                                    <select class="form-control" id="schuld_kategorie" name="schuld_kategorie">
+                                    <select class="form-select" id="schuld_kategorie" name="schuld_kategorie">
                                         <?php foreach ($schuld_kategorien as $value => $label): ?>
                                             <option value="<?= $value ?>" <?= old('schuld_kategorie') === $value ? 'selected' : '' ?>>
                                                 <?= $label ?>
@@ -187,19 +187,19 @@
                                 <div class="btn-group w-100" role="group">
                                     <input type="radio" class="btn-check" name="beleg_option" id="kein_beleg"
                                            value="kein_beleg" checked>
-                                    <label class="btn btn-outline-secondary" for="kein_beleg">
+                                    <label class="btn btn-outline-vdst" for="kein_beleg">
                                         Kein Beleg
                                     </label>
 
                                     <input type="radio" class="btn-check" name="beleg_option" id="beleg_waehlen"
                                            value="beleg_waehlen">
-                                    <label class="btn btn-outline-primary" for="beleg_waehlen">
+                                    <label class="btn btn-outline-vdst" for="beleg_waehlen">
                                         Beleg wählen
                                     </label>
 
                                     <input type="radio" class="btn-check" name="beleg_option" id="beleg_upload"
                                            value="beleg_upload">
-                                    <label class="btn btn-outline-success" for="beleg_upload">
+                                    <label class="btn btn-outline-vdst" for="beleg_upload">
                                         Upload
                                     </label>
                                 </div>
@@ -208,7 +208,7 @@
                             <!-- Beleg auswählen -->
                             <div id="beleg_auswahl_bereich" style="display: none;">
                                 <label for="beleg_id" class="form-label">Vorhandenen Beleg auswählen</label>
-                                <select class="form-control" id="beleg_id" name="beleg_id">
+                                <select class="form-select" id="beleg_id" name="beleg_id">
                                     <option value="">Beleg auswählen...</option>
                                     <?php foreach($verfuegbare_belege as $beleg): ?>
                                         <option value="<?= $beleg['id'] ?>"
@@ -256,10 +256,10 @@
                                     </div>
                                     <div class="mb-2">
                                         <label for="beleg_kategorie" class="form-label">Kategorie</label>
-                                        <select class="form-control" id="beleg_kategorie" name="beleg_kategorie">
-                                            <option value="normal">Normal</option>
-                                            <option value="ah_berechtigt">AH² berechtigt</option>
-                                            <option value="hv_berechtigt">HV berechtigt</option>
+                                        <select class="form-select" id="beleg_kategorie" name="beleg_kategorie">
+                                            <?php foreach (kategorie_optionen() as $value => $label): ?>
+                                                <option value="<?= $value ?>"><?= $label ?></option>
+                                            <?php endforeach; ?>
                                         </select>
                                     </div>
                                 </div>
@@ -281,11 +281,11 @@
             <div class="row mt-4">
                 <div class="col-12">
                     <div class="d-flex justify-content-between">
-                        <a href="<?= base_url('/buchungen') ?>" class="btn btn-outline-secondary">
+                        <a href="<?= base_url('/buchungen') ?>" class="btn btn-outline-vdst">
                             Abbrechen
                         </a>
-                        <button type="submit" class="btn btn-vdst btn-lg">
-                            <strong>Buchung erstellen</strong>
+                        <button type="submit" class="btn btn-vdst">
+                            Buchung erstellen
                         </button>
                     </div>
                 </div>

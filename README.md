@@ -173,17 +173,20 @@ automatische HV-Begründungs-Generatoren, Dashboard-Quick-Upload, drittes Export
 ## Wartung
 
 ```bash
-# DB-Backup (aus dem DB-Container)
-docker exec kassensystem-vdst-db mysqldump -u kassenuser -p vdst_kassensystem_small > backup_$(date +%Y%m%d).sql
+# Backup (DB-Dump + Beleg-Dateien, Retention 30 Tage/12 Monate) — läuft auf dem Host
+./scripts/backup.sh
 
-# Upload-Ordner sichern
-tar -czf uploads_backup_$(date +%Y%m%d).tar.gz public/uploads/
+# Wiederherstellung (mit Sicherheitsabfrage und Safety-Dump)
+./scripts/restore.sh backups/daily/db_YYYY-MM-DD.sql.gz [backups/daily/uploads_YYYY-MM-DD.tar.gz]
 
 # Temporäre ZIP-Dateien aufräumen
 find writable/temp/zip/ -name "*.zip" -mtime +1 -delete
 ```
 
-Vor jedem Deploy mit `php spark migrate`: DB-Dump ziehen und `public/uploads/` kopieren.
+Details (Cron-Einrichtung, Recovery-Runbook, Test-Restore): [`docs/BACKUP.md`](docs/BACKUP.md).
+
+Vor jedem Deploy mit `php spark migrate`: DB-Dump ziehen und `public/uploads/` kopieren
+(`./scripts/backup.sh` erledigt beides).
 
 ---
 

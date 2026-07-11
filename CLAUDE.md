@@ -27,6 +27,10 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
 - `docker exec kassensystem-vdst-web php -l <datei>` — Syntax-Check einzelner Dateien
 - Smoke-Test/Login-Flow: `curl` gegen `http://localhost/...` **im Container** (CSRF-Token
   aus der Login-Seite lesen, `vdst.master_password` aus `.env`).
+- Backup/Restore: `./scripts/backup.sh` bzw. `./scripts/restore.sh <dump.sql.gz>` laufen
+  auf dem **Host** (kein Host-PHP nötig — sie treiben `docker exec` gegen den DB-Container;
+  der Web-Container hat keinen MySQL-Client). `--no-tablespaces` im mysqldump ist Absicht
+  (kassenuser hat kein PROCESS-Privileg). Details: `docs/BACKUP.md`.
 
 ## Workflow
 - Main-Branch ist **`small`** (nicht `main`). Für Änderungen Feature-Branch anlegen.
@@ -161,6 +165,7 @@ Tabelle `system_einstellungen` (Konfiguration kommt aus `.env`).
 
 ## Deployment-Hinweise
 - Produktiv: `CI_ENVIRONMENT = production` und starkes `vdst.master_password` in `.env`.
-- Nach Code-Deploy: `php spark migrate` (mit DB-Dump + Kopie von `public/uploads/` vorher).
+- Nach Code-Deploy: `php spark migrate` (vorher `./scripts/backup.sh` — sichert DB-Dump
+  und `public/uploads/`; Cron-Setup und Recovery-Runbook in `docs/BACKUP.md`).
 - Docker-Passwörter überschreibbar via Umgebungsvariablen (`DB_PASS`,
   `MYSQL_ROOT_PASSWORD`), Defaults nur für lokale Entwicklung.

@@ -8,23 +8,23 @@
         <h1 class="page-title">Schuldenliste</h1>
 
         <!-- Summen-Übersicht -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card kontostand-card">
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-lg-3">
+                <div class="card kontostand-card h-100">
                     <div class="card-header">Offene Forderungen</div>
                     <div class="card-body text-center">
-                        <h3 class="<?= $summe_forderungen > 0 ? 'text-danger' : 'saldo-positiv' ?>">
+                        <h3 class="<?= $summe_forderungen > 0 ? 'saldo-negativ' : 'saldo-positiv' ?>">
                             <?= number_format($summe_forderungen, 2, ',', '.') ?> €
                         </h3>
                         <small class="text-muted">schulden dem Verein</small>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card kontostand-card">
+            <div class="col-6 col-lg-3">
+                <div class="card kontostand-card h-100">
                     <div class="card-header">Offene Verbindlichkeiten</div>
                     <div class="card-body text-center">
-                        <h3 class="<?= $summe_verbindlichkeiten > 0 ? 'text-danger' : 'saldo-positiv' ?>">
+                        <h3 class="<?= $summe_verbindlichkeiten > 0 ? 'saldo-negativ' : 'saldo-positiv' ?>">
                             <?= number_format($summe_verbindlichkeiten, 2, ',', '.') ?> €
                         </h3>
                         <small class="text-muted">schuldet der Verein</small>
@@ -34,15 +34,13 @@
         </div>
 
         <!-- Aktionen -->
-        <div class="row mb-4">
-            <div class="col-md-12">
-                <a href="<?= base_url('/schulden/create') ?>" class="btn btn-vdst btn-lg">
-                    <strong>+ Neuer Eintrag</strong>
-                </a>
-                <a href="<?= base_url('/inventur') ?>" class="btn btn-outline-vdst">
-                    <i class="bi bi-calculator" aria-hidden="true"></i> Zur Inventur
-                </a>
-            </div>
+        <div class="d-flex flex-wrap gap-2 mb-4">
+            <a href="<?= base_url('/schulden/create') ?>" class="btn btn-vdst">
+                <i class="bi bi-plus-lg" aria-hidden="true"></i> Neuer Eintrag
+            </a>
+            <a href="<?= base_url('/inventur') ?>" class="btn btn-outline-vdst">
+                <i class="bi bi-calculator" aria-hidden="true"></i> Zur Inventur
+            </a>
         </div>
 
         <!-- Personen-Tabelle -->
@@ -52,23 +50,24 @@
             </div>
             <div class="card-body p-0">
                 <?php if (empty($personen)): ?>
-                    <div class="text-center p-4">
-                        <p class="text-muted">Noch keine Schulden erfasst.</p>
+                    <div class="empty-state">
+                        <i class="bi bi-cash-coin" aria-hidden="true"></i>
+                        <p>Noch keine Schulden erfasst.</p>
                         <a href="<?= base_url('/schulden/create') ?>" class="btn btn-vdst">
                             Ersten Eintrag erstellen
                         </a>
                     </div>
                 <?php else: ?>
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover mb-0">
+                        <table class="table table-hover table-stack mb-0">
                             <thead class="table-vdst">
                             <tr>
                                 <th>Person</th>
                                 <th class="text-end">Getränke</th>
                                 <th class="text-end">Forderungen gesamt</th>
                                 <th class="text-end">Verbindlichkeiten</th>
-                                <th class="text-center">Einträge</th>
-                                <th>Letzter Eintrag</th>
+                                <th class="text-center d-none d-xl-table-cell">Einträge</th>
+                                <th class="d-none d-xl-table-cell">Letzter Eintrag</th>
                                 <th class="text-center">Status</th>
                                 <th class="text-center">Aktion</th>
                             </tr>
@@ -76,32 +75,33 @@
                             <tbody>
                             <?php foreach ($personen as $p): ?>
                                 <tr>
-                                    <td>
-                                        <a href="<?= base_url('/schulden/person?name=' . urlencode($p['person'])) ?>">
+                                    <td data-label="Person">
+                                        <a href="<?= base_url('/schulden/person?name=' . urlencode($p['person'])) ?>"
+                                           class="text-decoration-none">
                                             <strong><?= esc($p['person']) ?></strong>
                                         </a>
                                     </td>
-                                    <td class="text-end <?= $p['forderungen_getraenke'] < 0 ? 'text-success' : '' ?>">
+                                    <td data-label="Getränke" class="text-end <?= $p['forderungen_getraenke'] < 0 ? 'text-success' : '' ?>">
                                         <?= number_format($p['forderungen_getraenke'], 2, ',', '.') ?> €
                                     </td>
-                                    <td class="text-end">
+                                    <td data-label="Forderungen" class="text-end">
                                         <strong class="<?= $p['forderungen_gesamt'] > 0 ? 'text-danger' : 'text-success' ?>">
                                             <?= number_format($p['forderungen_gesamt'], 2, ',', '.') ?> €
                                         </strong>
                                     </td>
-                                    <td class="text-end">
+                                    <td data-label="Verbindlichkeiten" class="text-end <?= $p['verbindlichkeiten_gesamt'] == 0 ? 'stack-leer' : '' ?>">
                                         <?= number_format($p['verbindlichkeiten_gesamt'], 2, ',', '.') ?> €
                                     </td>
-                                    <td class="text-center"><?= $p['anzahl'] ?></td>
-                                    <td><?= date('d.m.Y', strtotime($p['letzter_eintrag'])) ?></td>
-                                    <td class="text-center">
+                                    <td data-label="Einträge" class="text-center d-none d-xl-table-cell"><?= $p['anzahl'] ?></td>
+                                    <td data-label="Letzter Eintrag" class="d-none d-xl-table-cell"><?= date('d.m.Y', strtotime($p['letzter_eintrag'])) ?></td>
+                                    <td data-label="Status" class="text-center <?= $p['forderungen_getraenke'] >= GETRAENKESTOPP_LIMIT ? '' : 'stack-leer' ?>">
                                         <?php if ($p['forderungen_getraenke'] >= GETRAENKESTOPP_LIMIT): ?>
-                                            <span class="badge bg-danger"><i class="bi bi-sign-stop-fill" aria-hidden="true"></i> Getränkestopp</span>
+                                            <span class="badge-status badge-status-rot"><i class="bi bi-sign-stop-fill" aria-hidden="true"></i> Getränkestopp</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="text-center">
+                                    <td class="text-center stack-actions <?= ($p['forderungen_getraenke'] >= 0.01 || $p['getraenke_undo']) ? '' : 'stack-leer' ?>">
                                         <?php if ($p['forderungen_getraenke'] >= 0.01): ?>
-                                            <form method="post" class="d-inline"
+                                            <form method="post" class="d-inline stack-form"
                                                   action="<?= base_url('/schulden/getraenke-beglichen') ?>">
                                                 <?= csrf_field() ?>
                                                 <input type="hidden" name="person" value="<?= esc($p['person']) ?>">
@@ -110,7 +110,7 @@
                                                 </button>
                                             </form>
                                         <?php elseif ($p['getraenke_undo']): ?>
-                                            <form method="post" class="d-inline"
+                                            <form method="post" class="d-inline stack-form"
                                                   action="<?= base_url('/schulden/getraenke-beglichen-undo') ?>">
                                                 <?= csrf_field() ?>
                                                 <input type="hidden" name="person" value="<?= esc($p['person']) ?>">

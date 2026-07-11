@@ -5,61 +5,63 @@
 <?= $this->section('content') ?>
     <div class="container-fluid">
         <!-- Page Title -->
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
-            <h1 class="page-title">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+            <h1 class="page-title mb-0">
                 <?= $typ === 'ah' ? 'AH² Abrechnungen' : 'Heimverein Abrechnungen' ?>
             </h1>
-            <div>
+            <div class="d-flex flex-wrap gap-2">
                 <!-- Typ-Wechsel -->
-                <div class="btn-group me-3">
+                <div class="btn-group">
                     <a href="<?= base_url('/abrechnungen/ah') ?>"
-                       class="btn <?= $typ === 'ah' ? 'btn-vdst' : 'btn-outline-vdst' ?>">
-                        AH² Abrechnungen
+                       class="btn btn-outline-vdst <?= $typ === 'ah' ? 'active' : '' ?>"
+                       <?= $typ === 'ah' ? 'aria-current="page"' : '' ?>>
+                        AH²
                     </a>
                     <a href="<?= base_url('/abrechnungen/hv') ?>"
-                       class="btn <?= $typ === 'hv' ? 'btn-vdst' : 'btn-outline-vdst' ?>">
-                        HV Abrechnungen
+                       class="btn btn-outline-vdst <?= $typ === 'hv' ? 'active' : '' ?>"
+                       <?= $typ === 'hv' ? 'aria-current="page"' : '' ?>>
+                        HV
                     </a>
                 </div>
 
                 <!-- Neue Abrechnung -->
                 <a href="<?= base_url('/abrechnungen/' . $typ . '/create') ?>" class="btn btn-vdst">
-                    <strong>+ Neue <?= $typ === 'ah' ? 'AH²' : 'HV' ?> Abrechnung</strong>
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i> Neue <?= $typ === 'ah' ? 'AH²' : 'HV' ?> Abrechnung
                 </a>
             </div>
         </div>
 
         <!-- Statistiken -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card text-center">
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-lg-3">
+                <div class="card stat-tile h-100">
                     <div class="card-body">
-                        <h3 class="text-secondary"><?= $stats['entwuerfe'] ?></h3>
-                        <small class="text-muted">Entwürfe</small>
+                        <div class="stat-tile-value"><?= $stats['entwuerfe'] ?></div>
+                        <div class="stat-tile-label">Entwürfe</div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card text-center">
+            <div class="col-6 col-lg-3">
+                <div class="card stat-tile h-100">
                     <div class="card-body">
-                        <h3 class="text-warning"><?= $stats['ausstehend'] ?></h3>
-                        <small class="text-muted">Ausstehend</small>
+                        <div class="stat-tile-value"><?= $stats['ausstehend'] ?></div>
+                        <div class="stat-tile-label">Ausstehend</div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card text-center">
+            <div class="col-6 col-lg-3">
+                <div class="card stat-tile h-100">
                     <div class="card-body">
-                        <h3 class="text-info"><?= $stats['eingereicht'] ?></h3>
-                        <small class="text-muted">Eingereicht</small>
+                        <div class="stat-tile-value"><?= $stats['eingereicht'] ?></div>
+                        <div class="stat-tile-label">Eingereicht</div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card text-center">
+            <div class="col-6 col-lg-3">
+                <div class="card stat-tile h-100">
                     <div class="card-body">
-                        <h3 class="text-success"><?= count($abrechnungen) ?></h3>
-                        <small class="text-muted">Gesamt</small>
+                        <div class="stat-tile-value"><?= count($abrechnungen) ?></div>
+                        <div class="stat-tile-label">Gesamt</div>
                     </div>
                 </div>
             </div>
@@ -72,22 +74,23 @@
             </div>
             <div class="card-body p-0">
                 <?php if (empty($abrechnungen)): ?>
-                    <div class="text-center p-4">
-                        <p class="text-muted">Noch keine <?= $typ === 'ah' ? 'AH²' : 'HV' ?> Abrechnungen erstellt.</p>
+                    <div class="empty-state">
+                        <i class="bi bi-clipboard-data" aria-hidden="true"></i>
+                        <p>Noch keine <?= $typ === 'ah' ? 'AH²' : 'HV' ?> Abrechnungen erstellt.</p>
                         <a href="<?= base_url('/abrechnungen/' . $typ . '/create') ?>" class="btn btn-vdst">
                             Erste Abrechnung erstellen
                         </a>
                     </div>
                 <?php else: ?>
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover mb-0">
+                        <table class="table table-hover mb-0">
                             <thead class="table-vdst">
                             <tr>
                                 <th>Monat</th>
                                 <th>Titel</th>
-                                <th>Erstellt</th>
+                                <th class="d-none d-lg-table-cell">Erstellt</th>
                                 <th>Status</th>
-                                <th class="text-center">Belege</th>
+                                <th class="text-center d-none d-lg-table-cell">Belege</th>
                                 <th class="text-end">Gesamtsumme</th>
                                 <th class="text-center">Aktionen</th>
                             </tr>
@@ -101,45 +104,37 @@
                                     <td>
                                         <strong><?= esc($abrechnung['titel']) ?></strong>
                                     </td>
-                                    <td>
+                                    <td class="d-none d-lg-table-cell">
                                         <?= date('d.m.Y', strtotime($abrechnung['erstellt_am'])) ?>
                                     </td>
                                     <td>
-                                        <?php
-                                        $statusColors = [
-                                            'entwurf' => 'secondary',
-                                            'ausstehend' => 'warning',
-                                            'eingereicht' => 'info',
-                                            'bezahlt' => 'success'
-                                        ];
-                                        ?>
-                                        <span class="badge bg-<?= $statusColors[$abrechnung['status']] ?> badge-sm">
-                                        <?= abrechnung_status_label($abrechnung['status']) ?>
-                                    </span>
+                                        <span class="<?= abrechnung_status_badge_class($abrechnung['status']) ?>">
+                                            <?= abrechnung_status_label($abrechnung['status']) ?>
+                                        </span>
                                     </td>
-                                    <td class="text-center">
-                                    <span class="badge bg-dark">
-                                        <?= $abrechnung['anzahl_belege'] ?> Belege
-                                    </span>
+                                    <td class="text-center d-none d-lg-table-cell">
+                                        <span class="badge-status badge-status-neutral">
+                                            <?= $abrechnung['anzahl_belege'] ?> Belege
+                                        </span>
                                     </td>
                                     <td class="text-end">
                                         <strong><?= number_format($abrechnung['gesamtsumme'], 2, ',', '.') ?> €</strong>
                                     </td>
                                     <td class="text-center">
-                                        <div class="btn-group btn-group-sm">
+                                        <div class="d-inline-flex flex-wrap justify-content-center gap-1">
                                             <a href="<?= base_url('/abrechnungen/' . $typ . '/belege/' . $abrechnung['id']) ?>"
-                                               class="btn btn-outline-dark" title="Belege verwalten">
+                                               class="btn btn-outline-vdst btn-sm" title="Belege verwalten">
                                                 <i class="bi bi-receipt" aria-hidden="true"></i> Belege
                                             </a>
                                             <a href="<?= base_url('/abrechnungen/' . $typ . '/preview/' . $abrechnung['id']) ?>"
-                                               class="btn btn-outline-info" title="Vorschau">
+                                               class="btn btn-outline-vdst btn-sm" title="Vorschau">
                                                 <i class="bi bi-eye" aria-hidden="true"></i> Vorschau
                                             </a>
 
                                             <?php if ($abrechnung['anzahl_belege'] > 0): ?>
                                                 <!-- Export-Dropdown -->
-                                                <div class="btn-group btn-group-sm">
-                                                    <button type="button" class="btn btn-success dropdown-toggle"
+                                                <div class="btn-group">
+                                                    <button type="button" class="btn btn-outline-vdst btn-sm dropdown-toggle"
                                                             data-bs-toggle="dropdown" aria-expanded="false" title="Export-Optionen">
                                                         <i class="bi bi-download" aria-hidden="true"></i> Export
                                                     </button>
@@ -165,8 +160,8 @@
                                                       action="<?= base_url('/abrechnungen/' . $typ . '/delete/' . $abrechnung['id']) ?>"
                                                       onsubmit="return confirmDelete('Abrechnung <?= esc($abrechnung['titel'], 'js') ?> wirklich löschen? Die Beleg-Zuordnungen werden entfernt, die Belege bleiben erhalten.')">
                                                     <?= csrf_field() ?>
-                                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Abrechnung löschen">
-                                                        <i class="bi bi-trash" aria-hidden="true"></i> Löschen
+                                                    <button type="submit" class="btn-icon btn-icon-danger" title="Abrechnung löschen" aria-label="Abrechnung löschen">
+                                                        <i class="bi bi-trash" aria-hidden="true"></i>
                                                     </button>
                                                 </form>
                                             <?php endif; ?>
@@ -177,7 +172,9 @@
                             </tbody>
                             <tfoot class="table-light">
                             <tr>
-                                <th colspan="5" class="text-end">Gesamtsumme aller Abrechnungen:</th>
+                                <!-- Colspans je Breakpoint: unter lg sind Erstellt/Belege ausgeblendet -->
+                                <th colspan="5" class="text-end d-none d-lg-table-cell">Gesamtsumme aller Abrechnungen:</th>
+                                <th colspan="3" class="text-end d-lg-none">Gesamtsumme:</th>
                                 <th class="text-end">
                                     <?php
                                     $gesamtsumme = array_sum(array_column($abrechnungen, 'gesamtsumme'));

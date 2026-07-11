@@ -5,299 +5,132 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $this->renderSection('title') ?> | VDSt Kassensystem</title>
 
+    <link rel="icon" href="<?= base_url('favicon.ico') ?>">
+
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
-    <!-- VDSt Custom CSS -->
-    <style>
-        :root {
-            --vdst-schwarz: #000000;
-            --vdst-weiss: #ffffff;
-            --vdst-rot: #dc143c;
-            --vdst-grau: #f8f9fa;
-            --vdst-dunkelgrau: #343a40;
-        }
-
-        body {
-            background-color: var(--vdst-grau);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        /* Icon-Ausrichtung neben Text */
-        .bi {
-            vertical-align: -.125em;
-        }
-
-        /* VDSt Navigation */
-        .navbar-vdst {
-            background-color: var(--vdst-schwarz) !important;
-            border-bottom: 3px solid var(--vdst-rot);
-        }
-
-        .navbar-vdst .navbar-brand {
-            color: var(--vdst-weiss) !important;
-            font-weight: bold;
-            font-size: 1.5rem;
-        }
-
-        .navbar-vdst .nav-link {
-            color: var(--vdst-weiss) !important;
-            transition: color 0.3s ease;
-        }
-
-        .navbar-vdst .nav-link:hover,
-        .navbar-vdst .nav-link.active {
-            color: var(--vdst-rot) !important;
-        }
-
-        /* Session Info */
-        .session-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .session-time {
-            font-size: 0.85rem;
-            color: #ccc;
-        }
-
-        .btn-logout {
-            background: var(--vdst-rot);
-            border: none;
-            color: var(--vdst-weiss);
-            padding: 0.25rem 0.75rem;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            transition: all 0.3s ease;
-            text-decoration: none;
-        }
-
-        .btn-logout:hover {
-            background: #b71c1c;
-            color: var(--vdst-weiss);
-        }
-
-        /* Content Area */
-        .main-content {
-            padding-top: 2rem;
-            padding-bottom: 2rem;
-        }
-
-        /* VDSt Buttons */
-        .btn-vdst {
-            background-color: var(--vdst-schwarz);
-            border-color: var(--vdst-schwarz);
-            color: var(--vdst-weiss);
-        }
-
-        .btn-vdst:hover {
-            background-color: var(--vdst-rot);
-            border-color: var(--vdst-rot);
-            color: var(--vdst-weiss);
-        }
-
-        .btn-outline-vdst {
-            border-color: var(--vdst-schwarz);
-            color: var(--vdst-schwarz);
-        }
-
-        .btn-outline-vdst:hover {
-            background-color: var(--vdst-schwarz);
-            border-color: var(--vdst-schwarz);
-            color: var(--vdst-weiss);
-        }
-
-        /* Table Headers */
-        .table-vdst {
-            --bs-table-bg: var(--vdst-schwarz);
-            --bs-table-color: var(--vdst-weiss);
-        }
-
-        /* Cards */
-        .card-vdst {
-            border: 2px solid var(--vdst-schwarz);
-        }
-
-        .card-vdst .card-header {
-            background-color: var(--vdst-schwarz);
-            color: var(--vdst-weiss);
-            border-bottom: 1px solid var(--vdst-rot);
-        }
-
-        /* Alert Styles */
-        .alert-vdst {
-            background-color: var(--vdst-rot);
-            border-color: var(--vdst-rot);
-            color: var(--vdst-weiss);
-        }
-
-        /* Kontostand Cards */
-        .kontostand-card {
-            border: 2px solid var(--vdst-schwarz);
-            background-color: var(--vdst-weiss);
-        }
-
-        .kontostand-card .card-header {
-            background-color: var(--vdst-schwarz);
-            color: var(--vdst-weiss);
-            font-weight: bold;
-            text-align: center;
-        }
-
-        .saldo-positiv {
-            color: #28a745 !important;
-            font-weight: bold;
-        }
-
-        .saldo-negativ {
-            color: var(--vdst-rot) !important;
-            font-weight: bold;
-        }
-
-        /* Page Title */
-        .page-title {
-            color: var(--vdst-schwarz);
-            border-bottom: 2px solid var(--vdst-rot);
-            padding-bottom: 0.5rem;
-            margin-bottom: 1.5rem;
-        }
-
-        /* Mobile Responsive */
-        @media (max-width: 768px) {
-            .session-info {
-                flex-direction: column;
-                gap: 0.5rem;
-                align-items: flex-end;
-            }
-
-            .session-time {
-                font-size: 0.75rem;
-            }
-
-            .navbar-nav {
-                text-align: center;
-            }
-        }
-    </style>
+    <!-- VDSt Design-System (einzige Theme-Quelle) -->
+    <link href="<?= base_url('css/app.css') ?>?v=1" rel="stylesheet">
 
     <?= $this->renderSection('styles') ?>
 </head>
-<body>
-<!-- VDSt Navigation -->
-<nav class="navbar navbar-expand-lg navbar-vdst">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="<?= base_url('/dashboard') ?>">
+<body class="app-body">
+
+<!-- Sidebar: ab lg feste Spalte, darunter Offcanvas-Drawer -->
+<aside class="offcanvas-lg offcanvas-start app-sidebar" tabindex="-1" id="appSidebar" aria-label="Hauptnavigation">
+    <div class="app-sidebar-brand">
+        <a href="<?= base_url('/dashboard') ?>">
             VDSt Kassensystem
+            <span>Verein deutscher Studenten zu Erlangen</span>
+        </a>
+        <button type="button" class="btn-close btn-close-white d-lg-none" data-bs-dismiss="offcanvas"
+                data-bs-target="#appSidebar" aria-label="Navigation schließen"></button>
+    </div>
+
+    <nav class="app-sidebar-nav">
+        <a class="app-nav-link <?= uri_string() === 'dashboard' ? 'active' : '' ?>"
+           href="<?= base_url('/dashboard') ?>">
+            <i class="bi bi-speedometer2" aria-hidden="true"></i> Dashboard
+        </a>
+        <a class="app-nav-link <?= strpos(uri_string(), 'buchungen') === 0 ? 'active' : '' ?>"
+           href="<?= base_url('/buchungen') ?>">
+            <i class="bi bi-journal-text" aria-hidden="true"></i> Kassenbuch
+        </a>
+        <a class="app-nav-link <?= strpos(uri_string(), 'belege') === 0 ? 'active' : '' ?>"
+           href="<?= base_url('/belege') ?>">
+            <i class="bi bi-receipt" aria-hidden="true"></i> Belege
+        </a>
+        <a class="app-nav-link <?= strpos(uri_string(), 'schulden') === 0 ? 'active' : '' ?>"
+           href="<?= base_url('/schulden') ?>">
+            <i class="bi bi-cash-coin" aria-hidden="true"></i> Schulden
+        </a>
+        <a class="app-nav-link <?= uri_string() === 'inventur' ? 'active' : '' ?>"
+           href="<?= base_url('/inventur') ?>">
+            <i class="bi bi-calculator" aria-hidden="true"></i> Inventur
         </a>
 
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
-                aria-controls="navbarNav" aria-expanded="false" aria-label="Navigation ein-/ausblenden"
-                style="border-color: var(--vdst-rot);">
-            <i class="bi bi-list" style="color: var(--vdst-weiss);" aria-hidden="true"></i>
+        <div class="app-nav-group">Abrechnungen</div>
+        <a class="app-nav-link app-nav-sub <?= strpos(uri_string(), 'abrechnungen/ah') === 0 ? 'active' : '' ?>"
+           href="<?= base_url('/abrechnungen/ah') ?>">
+            <i class="bi bi-bank" aria-hidden="true"></i> AH² Abrechnungen
+        </a>
+        <a class="app-nav-link app-nav-sub <?= strpos(uri_string(), 'abrechnungen/hv') === 0 ? 'active' : '' ?>"
+           href="<?= base_url('/abrechnungen/hv') ?>">
+            <i class="bi bi-house" aria-hidden="true"></i> HV Abrechnungen
+        </a>
+    </nav>
+
+    <div class="app-sidebar-foot">
+        <span class="app-sidebar-user">
+            <i class="bi bi-person-circle" aria-hidden="true"></i>
+            <?= esc(session('kassenwart_name') ?? 'VDSt Kassenwart') ?>
+        </span>
+        <form action="<?= base_url('/auth/logout') ?>" method="post" class="d-inline"
+              onsubmit="return confirm('Wirklich abmelden?')">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-logout">
+                <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Abmelden
+            </button>
+        </form>
+    </div>
+</aside>
+
+<div class="app-content">
+    <!-- Mobile Topbar -->
+    <header class="app-topbar d-lg-none">
+        <button type="button" class="app-topbar-btn" data-bs-toggle="offcanvas" data-bs-target="#appSidebar"
+                aria-controls="appSidebar" title="Navigation öffnen" aria-label="Navigation öffnen">
+            <i class="bi bi-list" aria-hidden="true"></i>
         </button>
+        <a class="app-topbar-brand" href="<?= base_url('/dashboard') ?>">VDSt Kassensystem</a>
+        <a class="app-topbar-btn app-topbar-action" href="<?= base_url('/belege/create') ?>"
+           title="Beleg erfassen" aria-label="Beleg erfassen">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i>
+        </a>
+    </header>
 
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item">
-                    <a class="nav-link <?= uri_string() === 'dashboard' ? 'active' : '' ?>"
-                       href="<?= base_url('/dashboard') ?>">
-                        <i class="bi bi-speedometer2" aria-hidden="true"></i> Dashboard
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link <?= strpos(uri_string(), 'buchungen') === 0 ? 'active' : '' ?>"
-                       href="<?= base_url('/buchungen') ?>">
-                        <i class="bi bi-journal-text" aria-hidden="true"></i> Kassenbuch
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link <?= strpos(uri_string(), 'belege') === 0 ? 'active' : '' ?>"
-                       href="<?= base_url('/belege') ?>">
-                        <i class="bi bi-receipt" aria-hidden="true"></i> Belege
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link <?= strpos(uri_string(), 'schulden') === 0 ? 'active' : '' ?>"
-                       href="<?= base_url('/schulden') ?>">
-                        <i class="bi bi-cash-coin" aria-hidden="true"></i> Schulden
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link <?= uri_string() === 'inventur' ? 'active' : '' ?>"
-                       href="<?= base_url('/inventur') ?>">
-                        <i class="bi bi-calculator" aria-hidden="true"></i> Inventur
-                    </a>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle <?= strpos(uri_string(), 'abrechnungen') === 0 ? 'active' : '' ?>"
-                       href="#" role="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-clipboard-data" aria-hidden="true"></i> Abrechnungen
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="<?= base_url('/abrechnungen/ah') ?>"><i class="bi bi-bank" aria-hidden="true"></i> AH² Abrechnungen</a></li>
-                        <li><a class="dropdown-item" href="<?= base_url('/abrechnungen/hv') ?>"><i class="bi bi-house" aria-hidden="true"></i> HV Abrechnungen</a></li>
-                    </ul>
-                </li>
-            </ul>
-
-            <!-- Session Info und Logout -->
-            <div class="session-info">
-                <span class="navbar-text text-white">
-                    <strong><i class="bi bi-person-circle" aria-hidden="true"></i> <?= esc(session('kassenwart_name') ?? 'VDSt Kassenwart') ?></strong>
-                </span>
-                <form action="<?= base_url('/auth/logout') ?>" method="post" class="d-inline"
-                      onsubmit="return confirm('Wirklich abmelden?')">
-                    <?= csrf_field() ?>
-                    <button type="submit" class="btn btn-logout">
-                        <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Abmelden
-                    </button>
-                </form>
+    <!-- Flash Messages -->
+    <?php if (session()->getFlashdata('success')): ?>
+        <div class="container-fluid mt-3">
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <strong><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Erfolg!</strong> <?= esc(session()->getFlashdata('success')) ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         </div>
-    </div>
-</nav>
+    <?php endif; ?>
 
-<!-- Flash Messages -->
-<?php if (session()->getFlashdata('success')): ?>
-    <div class="container-fluid mt-3">
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <strong><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Erfolg!</strong> <?= esc(session()->getFlashdata('success')) ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    <?php if (session()->getFlashdata('error')): ?>
+        <div class="container-fluid mt-3">
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <strong><i class="bi bi-x-circle-fill" aria-hidden="true"></i> Fehler!</strong> <?= esc(session()->getFlashdata('error')) ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
         </div>
-    </div>
-<?php endif; ?>
+    <?php endif; ?>
 
-<?php if (session()->getFlashdata('error')): ?>
-    <div class="container-fluid mt-3">
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <strong><i class="bi bi-x-circle-fill" aria-hidden="true"></i> Fehler!</strong> <?= esc(session()->getFlashdata('error')) ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    <?php if (session()->getFlashdata('errors')): ?>
+        <div class="container-fluid mt-3">
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <strong><i class="bi bi-x-circle-fill" aria-hidden="true"></i> Validierungsfehler:</strong>
+                <ul class="mb-0 mt-2">
+                    <?php foreach (session()->getFlashdata('errors') as $error): ?>
+                        <li><?= esc($error) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
         </div>
-    </div>
-<?php endif; ?>
+    <?php endif; ?>
 
-<?php if (session()->getFlashdata('errors')): ?>
-    <div class="container-fluid mt-3">
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <strong><i class="bi bi-x-circle-fill" aria-hidden="true"></i> Validierungsfehler:</strong>
-            <ul class="mb-0 mt-2">
-                <?php foreach (session()->getFlashdata('errors') as $error): ?>
-                    <li><?= esc($error) ?></li>
-                <?php endforeach; ?>
-            </ul>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    </div>
-<?php endif; ?>
-
-<!-- Main Content -->
-<main class="main-content">
-    <?= $this->renderSection('content') ?>
-</main>
+    <!-- Main Content -->
+    <main class="main-content">
+        <?= $this->renderSection('content') ?>
+    </main>
+</div>
 
 <!-- Bootstrap 5 JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

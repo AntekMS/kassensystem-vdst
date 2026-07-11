@@ -1,0 +1,702 @@
+/* ============================================================
+   VDSt Kassensystem — zentrales Design-System (Issue #47)
+
+   Einzige Quelle für das Theme. Eingebunden von
+   app/Views/layouts/main.php UND app/Views/auth/login.php.
+   Bei Änderungen den ?v=…-Cache-Buster am <link> hochzählen.
+   ============================================================ */
+
+/* ---------- Tokens ---------- */
+:root {
+    /* Vereinsfarben — bewusst nur als Akzente eingesetzt:
+       Schwarz trägt die Sidebar, Rot markiert die Primäraktion */
+    --vdst-schwarz: #111111;
+    --vdst-weiss: #ffffff;
+    --vdst-rot: #dc143c;
+    --vdst-rot-hover: #b01030;
+    --vdst-rot-tint: #fdeef1;
+
+    /* Neutrale Grau-Rampe */
+    --grau-50: #f8f9fa;
+    --grau-100: #f1f3f5;
+    --grau-200: #e9ecef;
+    --grau-300: #dee2e6;
+    --grau-500: #adb5bd;
+    --grau-600: #6c757d;
+    --grau-700: #495057;
+    --grau-900: #212529;
+
+    /* Legacy-Aliase — werden noch inline in Views referenziert */
+    --vdst-grau: var(--grau-50);
+    --vdst-dunkelgrau: var(--grau-700);
+
+    /* Semantische Statusfarben */
+    --status-positiv: #198754;
+    --status-negativ: var(--vdst-rot);
+    --status-wartend: #b47d00;
+
+    /* Form & Tiefe */
+    --radius-sm: .375rem;
+    --radius: .5rem;
+    --radius-lg: .75rem;
+    --schatten-sm: 0 1px 2px rgba(17, 17, 17, .06);
+    --schatten: 0 1px 3px rgba(17, 17, 17, .08), 0 4px 16px rgba(17, 17, 17, .06);
+
+    --sidebar-breite: 240px;
+
+    /* Bootstrap-Overrides */
+    --bs-body-bg: #f4f5f7;
+    --bs-body-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --bs-link-color: var(--vdst-rot);
+    --bs-link-hover-color: var(--vdst-rot-hover);
+    --bs-link-color-rgb: 220, 20, 60;
+    --bs-link-hover-color-rgb: 176, 16, 48;
+}
+
+body {
+    background-color: var(--bs-body-bg);
+    font-family: var(--bs-body-font-family);
+    color: var(--grau-900);
+}
+
+/* Icon-Ausrichtung neben Text */
+.bi {
+    vertical-align: -.125em;
+}
+
+/* ---------- App-Layout: Sidebar + Topbar ---------- */
+.app-body {
+    min-height: 100vh;
+}
+
+/* Sidebar: unter lg ein Offcanvas-Drawer, ab lg feste Spalte.
+   Bootstrap setzt bei .offcanvas-lg ab lg background-color/width
+   per !important zurück — daher hier gezielt gegenhalten. */
+.app-sidebar {
+    --bs-offcanvas-width: var(--sidebar-breite);
+    --bs-offcanvas-bg: #000000;
+    --bs-offcanvas-color: #ffffff;
+    background-color: #000000 !important;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+}
+
+@media (min-width: 992px) {
+    .app-body {
+        display: flex;
+    }
+
+    .app-sidebar {
+        flex: 0 0 var(--sidebar-breite);
+        height: 100vh !important;
+        position: sticky;
+        top: 0;
+        overflow-y: auto;
+    }
+
+    .app-content {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+}
+
+.app-sidebar-brand {
+    padding: 1.1rem 1.15rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, .12);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .5rem;
+}
+
+.app-sidebar-brand a {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 1.05rem;
+    display: block;
+}
+
+.app-sidebar-brand span {
+    display: block;
+    font-size: .72rem;
+    font-weight: 400;
+    color: rgba(255, 255, 255, .55);
+    margin-top: .15rem;
+}
+
+.app-sidebar-nav {
+    flex: 1 1 auto;
+    padding: .6rem 0;
+    overflow-y: auto;
+}
+
+.app-nav-link {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .55rem 1.15rem;
+    color: rgba(255, 255, 255, .72);
+    text-decoration: none;
+    font-size: .925rem;
+    border-left: 3px solid transparent;
+}
+
+.app-nav-link .bi {
+    color: rgba(255, 255, 255, .5);
+}
+
+.app-nav-link:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, .06);
+}
+
+.app-nav-link.active {
+    color: #fff;
+    background: rgba(220, 20, 60, .16);
+    border-left-color: var(--vdst-rot);
+    font-weight: 600;
+}
+
+.app-nav-link.active .bi {
+    color: var(--vdst-rot);
+}
+
+.app-nav-group {
+    padding: .9rem 1.15rem .25rem;
+    font-size: .66rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, .4);
+}
+
+.app-nav-link.app-nav-sub {
+    padding-left: 1.9rem;
+    font-size: .9rem;
+}
+
+.app-sidebar-foot {
+    padding: .9rem 1.15rem;
+    border-top: 1px solid rgba(255, 255, 255, .12);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+}
+
+.app-sidebar-user {
+    font-size: .85rem;
+    color: rgba(255, 255, 255, .8);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Mobile Topbar (nur unter lg sichtbar) */
+.app-topbar {
+    background: #000;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .5rem .75rem;
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+}
+
+.app-topbar-brand {
+    flex: 1 1 auto;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: .95rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.app-topbar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    flex: none;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: #fff;
+    font-size: 1.15rem;
+}
+
+.app-topbar-btn:hover {
+    background: rgba(255, 255, 255, .12);
+    color: #fff;
+}
+
+.app-topbar-action {
+    background: var(--vdst-rot);
+}
+
+.app-topbar-action:hover {
+    background: var(--vdst-rot-hover);
+}
+
+/* Content-Bereich */
+.main-content {
+    padding-top: 1.5rem;
+    padding-bottom: 2.5rem;
+}
+
+@media (min-width: 992px) {
+    .main-content {
+        padding: 1.9rem .9rem 3rem;
+    }
+}
+
+/* ---------- Abmelden-Button (Sidebar) ---------- */
+.btn-logout {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, .3);
+    color: rgba(255, 255, 255, .75);
+    padding: .25rem .7rem;
+    border-radius: var(--radius-sm);
+    font-size: .82rem;
+    white-space: nowrap;
+}
+
+.btn-logout:hover {
+    background: var(--vdst-rot);
+    border-color: var(--vdst-rot);
+    color: #fff;
+}
+
+/* ---------- Buttons ---------- */
+/* Primäraktion — karmesinrot, bewusst maximal eine pro Seite */
+.btn-vdst {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: var(--vdst-rot);
+    --bs-btn-border-color: var(--vdst-rot);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: var(--vdst-rot-hover);
+    --bs-btn-hover-border-color: var(--vdst-rot-hover);
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: var(--vdst-rot-hover);
+    --bs-btn-active-border-color: var(--vdst-rot-hover);
+    --bs-btn-disabled-color: #fff;
+    --bs-btn-disabled-bg: var(--vdst-rot);
+    --bs-btn-disabled-border-color: var(--vdst-rot);
+    --bs-btn-focus-shadow-rgb: 220, 20, 60;
+    font-weight: 600;
+}
+
+/* Neutrale Sekundäraktion */
+.btn-outline-vdst {
+    --bs-btn-color: var(--grau-900);
+    --bs-btn-bg: #fff;
+    --bs-btn-border-color: var(--grau-300);
+    --bs-btn-hover-color: var(--grau-900);
+    --bs-btn-hover-bg: var(--grau-100);
+    --bs-btn-hover-border-color: var(--grau-300);
+    --bs-btn-active-color: var(--grau-900);
+    --bs-btn-active-bg: var(--grau-100);
+    --bs-btn-active-border-color: var(--grau-300);
+    --bs-btn-disabled-color: var(--grau-500);
+    --bs-btn-disabled-bg: #fff;
+    --bs-btn-disabled-border-color: var(--grau-200);
+    --bs-btn-focus-shadow-rgb: 108, 117, 125;
+}
+
+/* Leiser Icon-Button für Zeilen-Aktionen in Listen */
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 1.9rem;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--grau-700);
+}
+
+.btn-icon:hover {
+    background: var(--grau-100);
+    color: var(--grau-900);
+}
+
+.btn-icon-danger:hover {
+    background: var(--vdst-rot-tint);
+    color: var(--vdst-rot);
+}
+
+/* ---------- Karten ---------- */
+.card {
+    --bs-card-border-color: var(--grau-200);
+    --bs-card-border-radius: var(--radius-lg);
+    --bs-card-inner-border-radius: calc(var(--radius-lg) - 1px);
+    --bs-card-cap-bg: #ffffff;
+    box-shadow: var(--schatten-sm);
+}
+
+.card-vdst {
+    border-color: var(--grau-200);
+}
+
+.card-vdst .card-header {
+    background-color: #fff;
+    color: var(--grau-900);
+    font-weight: 600;
+    border-bottom: 1px solid var(--grau-100);
+}
+
+/* Kontostand-/Stat-Karten */
+.kontostand-card {
+    border: 1px solid var(--grau-200);
+    background-color: #fff;
+}
+
+.kontostand-card .card-header {
+    background-color: #fff;
+    color: var(--grau-600);
+    font-size: .72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    text-align: center;
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.kontostand-card .card-body {
+    padding-top: .35rem;
+}
+
+.kontostand-card h2,
+.kontostand-card h3 {
+    font-variant-numeric: tabular-nums;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0;
+}
+
+.saldo-positiv {
+    color: var(--status-positiv) !important;
+    font-weight: 700;
+}
+
+.saldo-negativ {
+    color: var(--status-negativ) !important;
+    font-weight: 700;
+}
+
+/* ---------- Seitentitel ---------- */
+.page-title {
+    color: var(--grau-900);
+    font-size: 1.35rem;
+    font-weight: 650;
+    letter-spacing: -.01em;
+    border-bottom: 0;
+    padding-bottom: 0;
+    margin-bottom: 1.25rem;
+}
+
+.page-title::after {
+    content: "";
+    display: block;
+    width: 2.5rem;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--vdst-rot);
+    margin-top: .45rem;
+}
+
+/* ---------- Tabellen ---------- */
+/* Heller Tabellenkopf statt schwarzem Balken */
+thead.table-vdst {
+    --bs-table-bg: #ffffff;
+    --bs-table-color: var(--grau-600);
+}
+
+thead.table-vdst th {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-weight: 600;
+    border-bottom: 1px solid var(--grau-200);
+}
+
+/* .table-vdst wird in einigen Views auch als Karten-Header verwendet */
+.card-header.table-vdst {
+    background-color: #fff;
+    color: var(--grau-900);
+    font-weight: 600;
+    border-bottom: 1px solid var(--grau-100);
+}
+
+/* Der Export-Button in diesen Headern war auf Schwarz ausgelegt */
+.card-header.table-vdst .btn-outline-light {
+    --bs-btn-color: var(--grau-700);
+    --bs-btn-border-color: var(--grau-300);
+    --bs-btn-hover-color: var(--grau-900);
+    --bs-btn-hover-bg: var(--grau-100);
+    --bs-btn-hover-border-color: var(--grau-300);
+    --bs-btn-active-color: var(--grau-900);
+    --bs-btn-active-bg: var(--grau-100);
+    --bs-btn-active-border-color: var(--grau-300);
+}
+
+.table td.text-end,
+.table th.text-end {
+    font-variant-numeric: tabular-nums;
+}
+
+tfoot.table-light {
+    --bs-table-bg: var(--grau-50);
+    border-top: 2px solid var(--grau-200);
+}
+
+/* ---------- Status-Badges (soft, getönt) ---------- */
+.badge-status {
+    display: inline-block;
+    font-size: .72rem;
+    font-weight: 600;
+    line-height: 1.3;
+    border-radius: 999px;
+    padding: .22em .75em;
+    white-space: nowrap;
+}
+
+.badge-status-neutral {
+    background: var(--grau-100);
+    color: var(--grau-700);
+}
+
+.badge-status-rot {
+    background: var(--vdst-rot-tint);
+    color: #a30f2d;
+}
+
+.badge-status-gruen {
+    background: #e4f4ec;
+    color: #116644;
+}
+
+.badge-status-amber {
+    background: #fdf3dd;
+    color: #8a6100;
+}
+
+.badge-status-outline {
+    background: #fff;
+    color: var(--grau-700);
+    border: 1px solid var(--grau-300);
+}
+
+/* ---------- Filter-Leiste ---------- */
+.filter-bar {
+    background: var(--grau-50);
+    border: 1px solid var(--grau-200);
+    border-radius: var(--radius);
+    padding: .9rem 1rem;
+}
+
+/* ---------- Leere Zustände ---------- */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    color: var(--grau-600);
+}
+
+.empty-state .bi {
+    font-size: 2.2rem;
+    color: var(--grau-500);
+    display: block;
+    margin-bottom: .6rem;
+}
+
+/* ---------- Formulare ---------- */
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--vdst-rot);
+    box-shadow: 0 0 0 .2rem rgba(220, 20, 60, .12);
+}
+
+@media (max-width: 991.98px) {
+    .form-control,
+    .form-select {
+        min-height: 44px;
+    }
+}
+
+/* ---------- Alerts ---------- */
+.alert-vdst {
+    background-color: var(--vdst-rot-tint);
+    border-color: var(--vdst-rot);
+    color: #a30f2d;
+}
+
+/* ---------- Mobile: Tabellen als gestapelte Karten ----------
+   Nutzung: <table class="table table-stack">, jede Zelle mit
+   data-label="Spaltenname"; Aktions-Zelle mit .stack-actions.
+   Summenzeile (tfoot) wird versteckt — stattdessen einmal
+   .summe-mobile (d-lg-none) unter der Tabelle rendern. */
+@media (max-width: 991.98px) {
+    .table-stack thead {
+        display: none;
+    }
+
+    .table-stack,
+    .table-stack tbody,
+    .table-stack tr,
+    .table-stack td {
+        display: block;
+        width: 100%;
+        border: 0;
+    }
+
+    .table-stack tr {
+        background: #fff;
+        border: 1px solid var(--grau-200);
+        border-radius: var(--radius);
+        box-shadow: var(--schatten-sm);
+        margin-bottom: .9rem;
+        overflow: hidden;
+    }
+
+    .table-stack td {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: .6rem .9rem;
+        border-bottom: 1px solid var(--grau-100);
+        text-align: right;
+        background: #fff;
+    }
+
+    .table-stack td::before {
+        content: attr(data-label);
+        font-size: .68rem;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        font-weight: 600;
+        color: var(--grau-600);
+        text-align: left;
+        padding-top: .15rem;
+        flex: none;
+    }
+
+    .table-stack td:last-child {
+        border-bottom: 0;
+    }
+
+    .table-stack td.stack-actions {
+        gap: .5rem;
+        background: var(--grau-50);
+    }
+
+    .table-stack td.stack-actions::before {
+        content: none;
+    }
+
+    .table-stack td.stack-actions .btn,
+    .table-stack td.stack-actions a {
+        flex: 1 1 0;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .4rem;
+    }
+
+    .table-stack tfoot {
+        display: none;
+    }
+}
+
+.summe-mobile {
+    display: flex;
+    justify-content: space-between;
+    padding: .8rem 1rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    background: var(--grau-50);
+    border: 1px solid var(--grau-200);
+    border-radius: var(--radius);
+}
+
+/* ---------- Login-Seite (standalone, nutzt dieselben Tokens) ---------- */
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bs-body-bg);
+    padding: 1rem;
+}
+
+.login-container {
+    background: #fff;
+    border: 1px solid var(--grau-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--schatten), 0 12px 32px rgba(17, 17, 17, .08);
+    max-width: 420px;
+    width: 100%;
+    overflow: hidden;
+}
+
+.login-header {
+    background: #000;
+    color: #fff;
+    padding: 1.5rem 1.75rem 1.25rem;
+    border-bottom: 3px solid var(--vdst-rot);
+}
+
+.login-header h1 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+.login-header p {
+    margin: .25rem 0 0;
+    color: rgba(255, 255, 255, .6);
+    font-size: .85rem;
+}
+
+.login-body {
+    padding: 1.75rem;
+}
+
+.password-toggle {
+    position: relative;
+}
+
+.password-toggle-btn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--grau-600);
+    cursor: pointer;
+    padding: 0;
+}
+
+.password-toggle-btn:hover {
+    color: var(--vdst-rot);
+}
+
+.system-info {
+    text-align: center;
+    margin-top: 1.75rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--grau-100);
+    color: var(--grau-600);
+    font-size: .8rem;
+}

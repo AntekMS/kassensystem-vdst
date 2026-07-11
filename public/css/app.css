@@ -384,6 +384,11 @@ body {
     margin-bottom: 0;
 }
 
+/* Gesamtsaldo-Karte: roter Top-Akzent statt roter Fläche */
+.kontostand-total {
+    border-top: 3px solid var(--vdst-rot);
+}
+
 .saldo-positiv {
     color: var(--status-positiv) !important;
     font-weight: 700;
@@ -392,6 +397,52 @@ body {
 .saldo-negativ {
     color: var(--status-negativ) !important;
     font-weight: 700;
+}
+
+/* Kompakte Zahlen-Kacheln (Dashboard) */
+.stat-tile .card-body {
+    padding: .8rem 1rem;
+    position: relative;
+}
+
+.stat-tile-value {
+    font-size: 1.15rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.stat-tile-label {
+    font-size: .78rem;
+    color: var(--grau-600);
+}
+
+.stat-tile:hover {
+    border-color: var(--grau-300);
+    box-shadow: var(--schatten);
+}
+
+/* Mini-Tabellen in Dashboard-Karten */
+.mini-tabelle td {
+    border-color: var(--grau-100);
+    padding: .5rem .9rem;
+}
+
+.mini-tabelle .spalte-datum {
+    width: 70px;
+}
+
+.mini-tabelle .spalte-beleg {
+    width: 118px;
+}
+
+.mini-tabelle .spalte-betrag {
+    width: 92px;
+    font-variant-numeric: tabular-nums;
+}
+
+.mini-tabelle .spalte-status {
+    width: 1%;
+    white-space: nowrap;
 }
 
 /* ---------- Seitentitel ---------- */

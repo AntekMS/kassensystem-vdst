@@ -127,3 +127,6 @@ _modules/*
 /results/
 /phpunit*.xml
 composer.phar
+
+# Backups (scripts/backup.sh)
+/backups/

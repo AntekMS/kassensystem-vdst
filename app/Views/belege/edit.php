@@ -207,10 +207,15 @@
                                         PDF öffnen
                                     </a>
                                 </div>
-                            <?php else: ?>
+                            <?php elseif (in_array($beleg['dateityp'], ['jpg', 'jpeg', 'png'], true)): ?>
                                 <img src="<?= base_url('/belege/preview/' . $beleg['id']) ?>"
                                      alt="Beleg-Vorschau"
                                      class="img-fluid vorschau-bild-klein">
+                            <?php else: ?>
+                                <div class="text-center p-2 text-muted">
+                                    <i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i>
+                                    Keine Vorschau für <?= esc(strtoupper($beleg['dateityp'])) ?>-Dateien
+                                </div>
                             <?php endif; ?>
                         </div>
                         <div class="card-footer text-center">

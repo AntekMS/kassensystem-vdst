@@ -2,6 +2,10 @@
 
 namespace App\Controllers;
 
+use App\Libraries\BelegUpload;
+use App\Libraries\GetraenkeRechnungImport;
+use App\Models\AbrechnungBelegModel;
+use App\Models\AhAbrechnungModel;
 use App\Models\BuchungModel;
 use App\Models\SchuldModel;
 
@@ -305,7 +309,326 @@ class SchuldenController extends BaseController
         }
     }
 
+    // ==================== GETRÄNKERECHNUNG-IMPORT (Issue #35) ====================
+
+    /**
+     * Upload-Formular für die monatliche Getränkerechnung (xlsx)
+     */
+    public function import()
+    {
+        $data = [
+            'title' => 'Getränkerechnung importieren',
+            'max_upload_size' => BelegUpload::maxUploadSizeMb(),
+            'vormonat' => date('Y-m', strtotime('first day of last month')),
+        ];
+
+        return view('schulden/import', $data);
+    }
+
+    /**
+     * Schritt 1: Datei entgegennehmen, parsen und Vorschau anzeigen.
+     *
+     * Die Datei wird unter Zufallsnamen in writable/uploads/import/ geparkt
+     * und erst beim Bestätigen (importConfirm) verarbeitet.
+     */
+    public function importUpload()
+    {
+        // Kein mime_in: Browser melden für xlsx teils application/octet-stream.
+        // Die echte Formatprüfung übernimmt der PhpSpreadsheet-Load beim Parsen.
+        $rules = [
+            'monat' => 'required|regex_match[/^\d{4}-\d{2}$/]',
+            'import_datei' => 'uploaded[import_datei]|max_size[import_datei,10240]|ext_in[import_datei,xlsx]',
+        ];
+        $messages = [
+            'monat' => [
+                'required' => 'Bitte den Monat der Rechnung angeben.',
+                'regex_match' => 'Der Monat muss im Format JJJJ-MM angegeben werden.',
+            ],
+            'import_datei' => [
+                'uploaded' => 'Bitte eine Excel-Datei auswählen.',
+                'max_size' => 'Die Datei ist zu groß (maximal 10 MB).',
+                'ext_in' => 'Nur .xlsx-Dateien sind erlaubt.',
+            ],
+        ];
+
+        if (!$this->validate($rules, $messages)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $monat = $this->request->getPost('monat');
+        $file = $this->request->getFile('import_datei');
+
+        if (!$file->isValid()) {
+            return redirect()->back()->withInput()->with('error', 'Fehler beim Datei-Upload: ' . $file->getErrorString());
+        }
+
+        $originalName = $file->getClientName();
+        $tmpVerzeichnis = $this->importTmpVerzeichnis();
+        $tmpName = bin2hex(random_bytes(16)) . '.xlsx';
+
+        try {
+            $file->move($tmpVerzeichnis, $tmpName);
+            $ergebnis = (new GetraenkeRechnungImport())->parseDatei($tmpVerzeichnis . $tmpName);
+        } catch (\Throwable $e) {
+            @unlink($tmpVerzeichnis . $tmpName);
+
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+
+        session()->set('getraenke_import', [
+            'datei' => $tmpName,
+            'monat' => $monat,
+            'original' => $originalName,
+        ]);
+
+        return view('schulden/import_vorschau', $this->baueImportVorschau($monat, $ergebnis));
+    }
+
+    /**
+     * Schritt 2: Import bestätigen — Forderungen, Belege und AH-Zuordnung anlegen.
+     *
+     * Liest ausschließlich die Session (kein POST-Payload außer CSRF) und
+     * parst die geparkte Datei erneut.
+     */
+    public function importConfirm()
+    {
+        $import = session()->get('getraenke_import');
+
+        if (!is_array($import) || !preg_match('/^[a-f0-9]{32}\.xlsx$/', $import['datei'] ?? '')) {
+            return redirect()->to('/schulden/import')->with('error', 'Die Import-Sitzung ist abgelaufen. Bitte die Datei erneut hochladen.');
+        }
+
+        $tmpPfad = $this->importTmpVerzeichnis() . $import['datei'];
+        $monat = $import['monat'];
+
+        if (!is_file($tmpPfad)) {
+            session()->remove('getraenke_import');
+
+            return redirect()->to('/schulden/import')->with('error', 'Die hochgeladene Datei wurde nicht mehr gefunden. Bitte erneut hochladen.');
+        }
+
+        try {
+            $ergebnis = (new GetraenkeRechnungImport())->parseDatei($tmpPfad);
+        } catch (\RuntimeException $e) {
+            @unlink($tmpPfad);
+            session()->remove('getraenke_import');
+
+            return redirect()->to('/schulden/import')->with('error', $e->getMessage());
+        }
+
+        $monatsName = GetraenkeRechnungImport::monatsName($monat);
+        $datum = date('Y-m-t', strtotime($monat . '-01'));
+
+        // 1) Forderungen als ein Batch (Transaktion): ganz oder gar nicht
+        $fehler = $this->erstelleImportForderungen($ergebnis['personen'], $datum, $monatsName);
+        if ($fehler !== null) {
+            return $fehler;
+        }
+
+        $summe = array_sum(array_column($ergebnis['personen'], 'betrag'));
+        $meldungen = [
+            'Getränkerechnung ' . $monatsName . ' importiert: '
+                . count($ergebnis['personen']) . ' Forderungen über ' . formatiere_betrag($summe) . ' angelegt.',
+        ];
+
+        // 2) Belege + AH-Zuordnung (nach der Transaktion — Dateioperationen);
+        //    Fehler hier sind ein Teilerfolg, die Forderungen sind bereits angelegt
+        $meldungen = array_merge(
+            $meldungen,
+            $this->erstelleImportBelege($ergebnis, $tmpPfad, $import['original'], $monat, $monatsName, $datum)
+        );
+
+        @unlink($tmpPfad);
+        session()->remove('getraenke_import');
+
+        return redirect()->to('/schulden')->with('success', implode(' ', $meldungen));
+    }
+
     // ==================== PRIVATE HELPER METHODS ====================
+
+    /**
+     * Tmp-Verzeichnis für geparkte Import-Dateien; räumt Altlasten (>24h) weg.
+     */
+    private function importTmpVerzeichnis(): string
+    {
+        $verzeichnis = WRITEPATH . 'uploads/import/';
+
+        if (!is_dir($verzeichnis)) {
+            mkdir($verzeichnis, 0755, true);
+        }
+
+        foreach (glob($verzeichnis . '*.xlsx') ?: [] as $datei) {
+            if (filemtime($datei) < time() - 86400) {
+                @unlink($datei);
+            }
+        }
+
+        return $verzeichnis;
+    }
+
+    /**
+     * Baut die View-Daten für die Import-Vorschau (inkl. Warnungen).
+     */
+    private function baueImportVorschau(string $monat, array $ergebnis): array
+    {
+        $monatsName = GetraenkeRechnungImport::monatsName($monat);
+        $grund = 'Getränkerechnung ' . $monatsName;
+
+        $bekannteNamen = array_map('mb_strtolower', $this->schuldModel->getPersonenNamen());
+        foreach ($ergebnis['personen'] as &$person) {
+            $person['bekannt'] = in_array(mb_strtolower($person['person']), $bekannteNamen, true);
+        }
+        unset($person);
+
+        $warnungen = [];
+
+        $vorhandene = $this->schuldModel->where('grund', $grund)->countAllResults();
+        if ($vorhandene > 0) {
+            $warnungen[] = 'Es existieren bereits ' . $vorhandene . ' Einträge mit dem Grund „' . $grund
+                . '" — diese Rechnung wurde möglicherweise schon importiert.';
+        }
+
+        foreach (['coleur' => 'Coleur', 'bund' => 'Bund'] as $key => $label) {
+            if ($ergebnis[$key] === null) {
+                $warnungen[] = 'Die ' . $label . '-Summe wurde in der Datei nicht gefunden — es wird kein ' . $label . '-Beleg angelegt.';
+            } elseif ($ergebnis[$key] <= 0) {
+                $warnungen[] = 'Die ' . $label . '-Summe ist 0 — es wird kein ' . $label . '-Beleg angelegt.';
+            }
+        }
+
+        $abrechnungModel = new AhAbrechnungModel();
+        $offene = $abrechnungModel->findeOffeneAbrechnung();
+        $zielAbrechnung = null;
+
+        if ($offene !== null) {
+            $zielAbrechnung = $offene['titel'];
+        } elseif ($abrechnungModel->abrechnungsmonatExistiert($monat)) {
+            $warnungen[] = 'Es gibt keine offene AH-Abrechnung und der Monat ' . $monatsName
+                . ' ist bereits abgerechnet — die Belege werden keiner Abrechnung zugeordnet.';
+        } else {
+            $zielAbrechnung = 'AH² Abrechnung ' . $monatsName . ' (wird neu angelegt)';
+        }
+
+        return [
+            'title' => 'Import-Vorschau: Getränkerechnung ' . $monatsName,
+            'monat' => $monat,
+            'monats_name' => $monatsName,
+            'personen' => $ergebnis['personen'],
+            'summe' => array_sum(array_column($ergebnis['personen'], 'betrag')),
+            'coleur' => $ergebnis['coleur'],
+            'bund' => $ergebnis['bund'],
+            'ziel_abrechnung' => $zielAbrechnung,
+            'warnungen' => $warnungen,
+        ];
+    }
+
+    /**
+     * Legt die Getränke-Forderungen als Batch in einer Transaktion an.
+     * Gibt bei Fehlern eine Redirect-Response zurück, sonst null.
+     */
+    private function erstelleImportForderungen(array $personen, string $datum, string $monatsName)
+    {
+        $db = \Config\Database::connect();
+        $db->transStart();
+
+        foreach ($personen as $person) {
+            $ok = $this->schuldModel->insert([
+                'person' => $person['person'],
+                'typ' => 'forderung',
+                'kategorie' => 'getraenke',
+                'datum' => $datum,
+                'grund' => 'Getränkerechnung ' . $monatsName,
+                'betrag' => number_format($person['betrag'], 2, '.', ''),
+            ]);
+
+            if (!$ok) {
+                $db->transRollback();
+
+                return redirect()->to('/schulden/import')->with(
+                    'error',
+                    'Import abgebrochen — Eintrag für „' . $person['person'] . '" konnte nicht angelegt werden: '
+                        . implode(' ', $this->schuldModel->errors())
+                );
+            }
+        }
+
+        $db->transComplete();
+
+        if (!$db->transStatus()) {
+            return redirect()->to('/schulden/import')->with('error', 'Import fehlgeschlagen — es wurden keine Einträge angelegt.');
+        }
+
+        return null;
+    }
+
+    /**
+     * Legt die Coleur-/Bund-Belege an (Kopien der Import-Datei) und ordnet
+     * sie der offenen AH-Abrechnung zu. Gibt Meldungs-Sätze für die
+     * Success-Message zurück.
+     */
+    private function erstelleImportBelege(array $ergebnis, string $tmpPfad, string $originalName, string $monat, string $monatsName, string $datum): array
+    {
+        $belegIds = [];
+        $meldungen = [];
+        $upload = new BelegUpload();
+
+        foreach (['coleur' => 'Coleur', 'bund' => 'Bund'] as $key => $label) {
+            if ($ergebnis[$key] === null || $ergebnis[$key] <= 0) {
+                continue;
+            }
+
+            try {
+                $belegIds[] = $upload->speichereBelegAusDatei($tmpPfad, $originalName, [
+                    'rechnungsdatum' => $datum,
+                    'beschreibung' => 'Getränkerechnung ' . $monatsName . ' – ' . $label,
+                    'betrag' => number_format($ergebnis[$key], 2, '.', ''),
+                    'kategorie' => 'ah_berechtigt',
+                ]);
+            } catch (\RuntimeException $e) {
+                $meldungen[] = 'Der ' . $label . '-Beleg konnte nicht angelegt werden: ' . $e->getMessage();
+            }
+        }
+
+        if ($belegIds === []) {
+            return $meldungen;
+        }
+
+        $abrechnungModel = new AhAbrechnungModel();
+        $abrechnung = $abrechnungModel->findeOffeneAbrechnung();
+
+        if ($abrechnung === null) {
+            $neueId = $abrechnungModel->erstelleAbrechnung(['abrechnungsmonat' => $monat]);
+            $abrechnung = $neueId ? $abrechnungModel->find($neueId) : null;
+        }
+
+        if ($abrechnung === null) {
+            $meldungen[] = count($belegIds) . ' Belege wurden erstellt, konnten aber keiner AH-Abrechnung zugeordnet werden — bitte manuell zuordnen.';
+
+            return $meldungen;
+        }
+
+        // Jeder Beleg einzeln durch fuegeZuordnungHinzu (Guards bleiben aktiv),
+        // berechneGesamtsumme genau EINMAL nach dem Batch
+        $zugeordnet = 0;
+        $zuordnungModel = new AbrechnungBelegModel();
+
+        foreach ($belegIds as $belegId) {
+            if ($zuordnungModel->fuegeZuordnungHinzu($belegId, 'ah', $abrechnung['id'])) {
+                $zugeordnet++;
+            }
+        }
+
+        if ($zugeordnet > 0) {
+            $abrechnungModel->berechneGesamtsumme($abrechnung['id']);
+        }
+
+        $meldungen[] = count($belegIds) . ' Belege erstellt'
+            . ($zugeordnet > 0
+                ? ' und der Abrechnung „' . $abrechnung['titel'] . '" zugeordnet.'
+                : ', die Zuordnung zur Abrechnung „' . $abrechnung['titel'] . '" schlug fehl — bitte manuell zuordnen.');
+
+        return $meldungen;
+    }
 
     /**
      * Automatische Einträge (aus Beleg/Buchung/Abrechnung) sind manuell

@@ -105,7 +105,10 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   Ledger pro Person, Person ist **Freitext** (keine Personen-Tabelle; Datalist-Vorschläge,
   Namen werden getrimmt, Gruppierung case-insensitiv über die DB-Kollation).
   Personen-Detail läuft über `/schulden/person?name=…` (GET-Param wegen
-  Leerzeichen/Umlauten, kein URI-Segment).
+  Leerzeichen/Umlauten, kein URI-Segment). Die Übersicht hat Suche (Name),
+  Status-Filter und Sortierung als GET-Parameter (`getPersonenUebersicht($filter)`;
+  Status filtert aggregierte Summen per HAVING, Sortierung NUR über die
+  Whitelist `SchuldModel::SORTIERUNGEN`).
 - **Schulden-Verknüpfung** (Issue #38): `schulden` hat Quell-Spalten `beleg_id`/
   `buchung_id` (FK, ON DELETE CASCADE) und `abrechnung_typ`+`abrechnung_id` (kein FK,
   da zwei Abrechnungs-Tabellen). Automatische Einträge entstehen aus drei Quellen:

@@ -75,13 +75,30 @@ class SchuldModel extends Model
     ];
 
     /**
+     * Sortier-Optionen der Personen-Übersicht (Wert => ORDER BY).
+     * Whitelist — GET-Parameter dürfen nie roh ins ORDER BY.
+     */
+    public const SORTIERUNGEN = [
+        'person' => ['person', 'ASC'],
+        'getraenke' => ['forderungen_getraenke', 'DESC'],
+        'forderungen' => ['forderungen_gesamt', 'DESC'],
+        'verbindlichkeiten' => ['verbindlichkeiten_gesamt', 'DESC'],
+        'letzter_eintrag' => ['letzter_eintrag', 'DESC'],
+    ];
+
+    /**
      * Übersicht: eine Zeile pro Person mit offenen Summen
+     *
+     * $filter: suche (Name-Substring), status (offene_getraenke |
+     * offene_forderungen | verbindlichkeiten | getraenkestopp | ausgeglichen),
+     * sortierung (Key aus SORTIERUNGEN). Status filtert auf den aggregierten
+     * Summen → HAVING, nicht WHERE.
      *
      * @return array
      */
-    public function getPersonenUebersicht()
+    public function getPersonenUebersicht(array $filter = [])
     {
-        return $this->select("
+        $builder = $this->select("
                 person,
                 SUM(CASE WHEN typ = 'forderung' THEN betrag ELSE 0 END) AS forderungen_gesamt,
                 SUM(CASE WHEN typ = 'forderung' AND kategorie = 'getraenke' THEN betrag ELSE 0 END) AS forderungen_getraenke,
@@ -89,7 +106,34 @@ class SchuldModel extends Model
                 COUNT(*) AS anzahl,
                 MAX(datum) AS letzter_eintrag
             ")
-            ->groupBy('person')
+            ->groupBy('person');
+
+        if (!empty($filter['suche'])) {
+            $builder->like('person', $filter['suche']);
+        }
+
+        switch ($filter['status'] ?? '') {
+            case 'offene_getraenke':
+                $builder->having('forderungen_getraenke >=', 0.01);
+                break;
+            case 'offene_forderungen':
+                $builder->having('forderungen_gesamt >=', 0.01);
+                break;
+            case 'verbindlichkeiten':
+                $builder->having('verbindlichkeiten_gesamt >=', 0.01);
+                break;
+            case 'getraenkestopp':
+                $builder->having('forderungen_getraenke >=', GETRAENKESTOPP_LIMIT);
+                break;
+            case 'ausgeglichen':
+                $builder->having('forderungen_gesamt <', 0.01)
+                    ->having('verbindlichkeiten_gesamt <', 0.01);
+                break;
+        }
+
+        [$spalte, $richtung] = self::SORTIERUNGEN[$filter['sortierung'] ?? ''] ?? self::SORTIERUNGEN['person'];
+
+        return $builder->orderBy($spalte, $richtung)
             ->orderBy('person')
             ->findAll();
     }

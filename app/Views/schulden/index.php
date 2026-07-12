@@ -46,13 +46,64 @@
             </a>
         </div>
 
+        <!-- Filter -->
+        <form method="get" class="filter-bar mb-4">
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label for="filter_suche" class="form-label">Suche</label>
+                    <input type="text" id="filter_suche" name="suche" value="<?= esc($filter['suche'] ?? '', 'attr') ?>"
+                           placeholder="Name der Person..." class="form-control">
+                </div>
+                <div class="col-6 col-md-3">
+                    <label for="filter_status" class="form-label">Anzeigen</label>
+                    <select id="filter_status" name="status" class="form-select js-autosubmit">
+                        <option value="">Alle Personen</option>
+                        <?php foreach ($status_optionen as $value => $label): ?>
+                            <option value="<?= $value ?>" <?= ($filter['status'] ?? '') === $value ? 'selected' : '' ?>>
+                                <?= $label ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label for="filter_sortierung" class="form-label">Sortierung</label>
+                    <select id="filter_sortierung" name="sortierung" class="form-select js-autosubmit">
+                        <?php foreach ($sortier_optionen as $value => $label): ?>
+                            <option value="<?= $value ?>" <?= ($filter['sortierung'] ?: 'person') === $value ? 'selected' : '' ?>>
+                                <?= $label ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-12 col-md-2">
+                    <button type="submit" class="btn btn-outline-vdst w-100">Filter</button>
+                </div>
+            </div>
+            <?php $filterAktiv = !empty($filter['suche']) || !empty($filter['status']) || !empty($filter['sortierung']); ?>
+            <?php if ($filterAktiv): ?>
+                <div class="text-end mt-2">
+                    <a href="<?= base_url('/schulden') ?>" class="btn btn-outline-vdst btn-sm">
+                        Filter zurücksetzen
+                    </a>
+                </div>
+            <?php endif; ?>
+        </form>
+
         <!-- Personen-Tabelle -->
         <div class="card">
             <div class="card-header table-vdst">
                 <strong>Schulden pro Person (<?= count($personen) ?> Personen)</strong>
             </div>
             <div class="card-body p-0">
-                <?php if (empty($personen)): ?>
+                <?php if (empty($personen) && $filterAktiv): ?>
+                    <div class="empty-state">
+                        <i class="bi bi-search" aria-hidden="true"></i>
+                        <p>Keine Personen gefunden — Suche oder Filter anpassen.</p>
+                        <a href="<?= base_url('/schulden') ?>" class="btn btn-outline-vdst">
+                            Filter zurücksetzen
+                        </a>
+                    </div>
+                <?php elseif (empty($personen)): ?>
                     <div class="empty-state">
                         <i class="bi bi-cash-coin" aria-hidden="true"></i>
                         <p>Noch keine Schulden erfasst.</p>

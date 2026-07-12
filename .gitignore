@@ -130,3 +130,10 @@ composer.phar
 
 # Backups (scripts/backup.sh)
 /backups/
+
+#-------------------------
+# VDSt Kassensystem
+#-------------------------
+
+# Beleg-Uploads (Laufzeitdaten, siehe scripts/backup.sh)
+public/uploads/

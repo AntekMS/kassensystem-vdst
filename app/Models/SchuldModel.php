@@ -20,6 +20,17 @@ class SchuldModel extends Model
      */
     public const GETRAENKE_BEGLICHEN_GRUND = 'Getränkerechnung beglichen';
 
+    /**
+     * Grund der importierten Getränke-Forderungen eines Monats (Issue #35).
+     *
+     * Einziger Codepfad für diesen String — Abfragen matchen ihn IMMER exakt,
+     * nie per LIKE-Prefix: GETRAENKE_BEGLICHEN_GRUND beginnt gleich.
+     */
+    public static function getraenkeImportGrund(string $monatsName): string
+    {
+        return 'Getränkerechnung ' . $monatsName;
+    }
+
     protected $table = 'schulden';
     protected $primaryKey = 'id';
     protected $useAutoIncrement = true;
@@ -406,6 +417,27 @@ class SchuldModel extends Model
             ->first();
 
         return ($eintrag && self::istGetraenkeAusgleich($eintrag)) ? $eintrag : null;
+    }
+
+    /**
+     * Importierte Getränke-Forderungen eines Monats, aggregiert pro Person
+     * (Issue #35) — kanonische Datenquelle für Übersichts-PDF und
+     * Versand-Seite; jederzeit re-derivierbar, keine Session nötig.
+     *
+     * GROUP BY macht die Liste robust gegen (erlaubten) Doppelimport.
+     *
+     * @return array<array{person: string, betrag: string}>
+     */
+    public function getImportForderungen(string $monatsName)
+    {
+        return $this->select('person, SUM(betrag) AS betrag')
+            ->where('grund', self::getraenkeImportGrund($monatsName))
+            ->where('typ', 'forderung')
+            ->where('kategorie', 'getraenke')
+            ->groupBy('person')
+            ->having('SUM(betrag) >=', 0.01)
+            ->orderBy('person')
+            ->findAll();
     }
 
     /**

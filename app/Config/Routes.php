@@ -67,6 +67,14 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
         $routes->get('import', 'SchuldenController::import');
         $routes->post('import/upload', 'SchuldenController::importUpload');
         $routes->post('import/confirm', 'SchuldenController::importConfirm');
+        // Rechnungsversand + Übersichts-PDF (Issue #35, Teil 3)
+        $routes->get('import/versand', 'SchuldenController::importVersand');
+        $routes->post('import/versand/senden', 'SchuldenController::importVersandSenden');
+        $routes->get('import/uebersicht', 'SchuldenController::importUebersichtPdf');
+        // E-Mail-Adressen der Personen
+        $routes->get('emails', 'SchuldenController::emails');
+        $routes->post('emails/store', 'SchuldenController::emailsStore');
+        $routes->post('emails/delete/(:num)', 'SchuldenController::emailsDelete/$1');
     });
 
     // Inventur (eigene Seite, Issue #36; Excel-Export bleibt unter schulden/export/inventur)

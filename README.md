@@ -30,7 +30,11 @@ Heimverein (HV) als Excel/ZIP.
 - **Getränkerechnung-Import** – die monatliche Excel des Getränkewarts hochladen:
   Namen und Beträge werden automatisch erkannt (Vorschau vor dem Anlegen), pro
   Person entsteht eine Getränke-Forderung; die Coleur-/Bund-Summen werden als
-  Belege in die offene AH-Abrechnung übernommen
+  VDSt-gebrandete **PDF-Rechnungen** in die offene AH-Abrechnung übernommen
+- **Rechnungsversand** – nach dem Import lassen sich personalisierte
+  PDF-Einzelrechnungen per E-Mail an die Aktiven verschicken (Adressbuch unter
+  „E-Mail-Adressen", Versand-Log gegen Doppelversand) und eine allgemeine
+  Übersichts-Rechnung als PDF für den Aushang herunterladen
 - **Inventur** – eigene Seite ("Kassenwart – Aktueller Bestand": Kassenbestand +
   Forderungen − Verbindlichkeiten) mit Dashboard-Kachel und Excel-Download
 - **Suche & Filter** über Beschreibung/Lieferant/Notizen, Datum, Kategorie, Status und Betrag
@@ -41,7 +45,7 @@ Heimverein (HV) als Excel/ZIP.
 ## Stack
 
 - **CodeIgniter 4** (PHP 8.1+), **MySQL 8**
-- **PhpOffice/PhpSpreadsheet** für die Excel-Exporte
+- **PhpOffice/PhpSpreadsheet** für die Excel-Exporte, **dompdf** für die PDF-Rechnungen
 - **Bootstrap 5 + Bootstrap Icons** (CDN) + Vanilla JS – geteilte Logik in `public/js/app.js`,
   zentrales Design-System in `public/css/app.css` (Sidebar-Layout, Vereinsfarben Schwarz/Weiß/Rot
   als Akzente, mobile Karten-Stapelung der Tabellen)
@@ -77,10 +81,37 @@ die Defaults gelten nur für lokale Entwicklung.
 ### Container-Befehle
 
 ```bash
-docker exec kassensystem-vdst-web vendor/bin/phpunit tests/unit/   # Tests (HealthTest, BetragTest, SchuldLabelTest)
+docker exec kassensystem-vdst-web vendor/bin/phpunit tests/unit/   # Tests (Health, Betrag, Labels, Import, PDF, Versand)
 docker exec kassensystem-vdst-web php spark migrate                # Migrationen
 docker exec kassensystem-vdst-web php spark routes                 # Routenliste
 docker exec kassensystem-vdst-web php -l <datei>                   # Syntax-Check
+```
+
+### E-Mail-Versand einrichten (optional)
+
+Für den Rechnungsversand nach dem Getränkerechnung-Import braucht die `.env`
+einen SMTP-Zugang (Beispielblock steht in der Datei `env`):
+
+```
+email.protocol  = smtp
+email.SMTPHost  = mail.example.org
+email.SMTPUser  = kassenwart@example.org
+email.SMTPPass  = geheim
+email.SMTPPort  = 587
+email.SMTPCrypto = tls
+email.fromEmail = kassenwart@example.org
+email.fromName  = 'VDSt Kassenwart'
+```
+
+Ohne diese Keys bleibt der Versand-Button deaktiviert – Import, Übersichts-PDF
+und Adress-Verwaltung funktionieren trotzdem. Zum lokalen Testen ohne echten
+SMTP-Server eignet sich [Mailpit](https://mailpit.axllent.org):
+
+```bash
+docker run -d --name mailpit --network kassensystem-vdst_kassensystem-network -p 8025:8025 axllent/mailpit
+# .env: email.protocol=smtp, email.SMTPHost=mailpit, email.SMTPPort=1025,
+#       email.SMTPCrypto= (leer), email.fromEmail=test@vdst.local
+# Mails ansehen: http://localhost:8025
 ```
 
 ### Ohne Docker (Host mit PHP 8.1+ / Composer)
@@ -105,7 +136,8 @@ php spark serve       # Dev-Server auf :8080
 
 ### Models (`app/Models/`)
 `BelegModel`, `BuchungModel`, `SchuldModel`, `AhAbrechnungModel`, `HvAbrechnungModel`,
-`AbrechnungBelegModel` (Junction `abrechnung_belege` – einziger Codepfad für Beleg-Zuordnungen).
+`AbrechnungBelegModel` (Junction `abrechnung_belege` – einziger Codepfad für Beleg-Zuordnungen),
+`PersonEmailModel` (Name → E-Mail für den Rechnungsversand), `GetraenkeVersandModel` (Versand-Log).
 
 ### Datenbank
 ```
@@ -115,6 +147,8 @@ schulden             # Schulden-Ledger pro Person (Freitext-Name, Rückzahlung =
 ah_abrechnungen      # AH²-Monatsabrechnungen
 hv_abrechnungen      # HV-Abrechnungen (mit Freitext-Begründung)
 abrechnung_belege    # Verknüpfung Abrechnung ↔ Beleg (M:N)
+person_emails        # Name → E-Mail für den Rechnungsversand
+getraenke_versand    # Log der verschickten Getränkerechnungen
 ```
 Gesamtsummen berechnet PHP (`berechneGesamtsumme()`) bei jeder Zuordnung – **keine DB-Trigger**.
 
@@ -150,6 +184,10 @@ Gesamtsummen berechnet PHP (`berechneGesamtsumme()`) bei jeder Zuordnung – **k
 3. **Kassenbuch** unter `/buchungen` führen (3 Konten, optionale Beleg-Verknüpfung, Excel/ZIP-Export).
 4. **Abrechnungen** unter `/abrechnungen/ah` bzw. `/abrechnungen/hv`: Monatsabrechnung anlegen,
    berechtigte Belege per AJAX zuordnen, als Excel oder ZIP für die Einreichung exportieren.
+5. **Getränkerechnung** unter `/schulden/import` hochladen: Vorschau prüfen und bestätigen –
+   Forderungen und die Coleur-/Bund-PDF-Belege entstehen automatisch. Danach auf der
+   Versand-Seite E-Mail-Adressen ergänzen und die Einzelrechnungen verschicken bzw. das
+   Übersichts-PDF für den Aushang herunterladen.
 
 ### AJAX-Endpoints (Abrechnungen)
 ```

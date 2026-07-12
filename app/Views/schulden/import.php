@@ -87,9 +87,11 @@
                                         <small>
                                             • Sheet „Bundesbrüder &amp; Gäste": pro Person eine Getränke-Forderung
                                             (Gesamt abzüglich „Ausstehend" — Altbestände führt bereits die Schuldenliste)<br>
-                                            • Sheet „Coleur &amp; Bund": zwei Belege für die AH-Abrechnung
+                                            • Sheet „Coleur &amp; Bund": zwei PDF-Rechnungen als Belege für die AH-Abrechnung
                                             (offene wird verwendet, sonst neu angelegt)<br>
-                                            • Vor dem Anlegen wird eine Vorschau zur Kontrolle angezeigt
+                                            • Vor dem Anlegen wird eine Vorschau zur Kontrolle angezeigt<br>
+                                            • Danach: Einzelrechnungen per E-Mail verschicken und Übersichts-PDF herunterladen
+                                            (<a href="<?= base_url('/schulden/import/versand?monat=' . esc($vormonat, 'url')) ?>">zum Rechnungsversand eines früheren Imports</a>)
                                         </small>
                                     </div>
                                 </div>

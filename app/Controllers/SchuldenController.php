@@ -4,9 +4,13 @@ namespace App\Controllers;
 
 use App\Libraries\BelegUpload;
 use App\Libraries\GetraenkeRechnungImport;
+use App\Libraries\RechnungPdf;
+use App\Libraries\RechnungVersand;
 use App\Models\AbrechnungBelegModel;
 use App\Models\AhAbrechnungModel;
 use App\Models\BuchungModel;
+use App\Models\GetraenkeVersandModel;
+use App\Models\PersonEmailModel;
 use App\Models\SchuldModel;
 
 /**
@@ -456,13 +460,241 @@ class SchuldenController extends BaseController
         //    Fehler hier sind ein Teilerfolg, die Forderungen sind bereits angelegt
         $meldungen = array_merge(
             $meldungen,
-            $this->erstelleImportBelege($ergebnis, $tmpPfad, $import['original'], $monat, $monatsName, $datum)
+            $this->erstelleImportBelege($ergebnis, $monat, $monatsName, $datum)
         );
 
         @unlink($tmpPfad);
         session()->remove('getraenke_import');
 
-        return redirect()->to('/schulden')->with('success', implode(' ', $meldungen));
+        return redirect()->to('/schulden/import/versand?monat=' . $monat)
+            ->with('success', implode(' ', $meldungen));
+    }
+
+    /**
+     * Schritt 3: Versand-Seite — Personen des Monats mit Betrag, E-Mail-Adresse
+     * und Auswahl. Datenquelle sind die importierten Forderungen (exakter
+     * grund-Match), daher jederzeit erneut aufrufbar.
+     */
+    public function importVersand()
+    {
+        $monat = (string) $this->request->getGet('monat');
+
+        if (!preg_match('/^\d{4}-\d{2}$/', $monat)) {
+            return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Monat angegeben.');
+        }
+
+        $monatsName = GetraenkeRechnungImport::monatsName($monat);
+        $personen = $this->schuldModel->getImportForderungen($monatsName);
+
+        if ($personen === []) {
+            return redirect()->to('/schulden/import')
+                ->with('error', 'Für ' . $monatsName . ' wurden keine importierten Getränke-Forderungen gefunden.');
+        }
+
+        $emails = (new PersonEmailModel())->findEmailsFuer(array_column($personen, 'person'));
+        $versendet = (new GetraenkeVersandModel())->getVersendetFuerMonat($monat);
+
+        foreach ($personen as &$person) {
+            $key = mb_strtolower($person['person']);
+            $person['email'] = $emails[$key] ?? '';
+            $person['versendet_am'] = $versendet[$key] ?? null;
+        }
+        unset($person);
+
+        $data = [
+            'title' => 'Rechnungsversand: Getränkerechnung ' . $monatsName,
+            'monat' => $monat,
+            'monats_name' => $monatsName,
+            'personen' => $personen,
+            'smtp_ok' => RechnungVersand::istKonfiguriert(),
+            'versand_ergebnisse' => session()->getFlashdata('versand_ergebnisse') ?? [],
+        ];
+
+        return view('schulden/import_versand', $data);
+    }
+
+    /**
+     * Versand ausführen: Adressen speichern (immer) und an die ausgewählten
+     * Personen die Einzelrechnung als PDF mailen. POST liefert nur Auswahl
+     * und Adressen — Personen und Beträge kommen aus der DB (Whitelist).
+     */
+    public function importVersandSenden()
+    {
+        $monat = (string) $this->request->getPost('monat');
+
+        if (!preg_match('/^\d{4}-\d{2}$/', $monat)) {
+            return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Monat angegeben.');
+        }
+
+        $monatsName = GetraenkeRechnungImport::monatsName($monat);
+        $forderungen = [];
+        foreach ($this->schuldModel->getImportForderungen($monatsName) as $zeile) {
+            $forderungen[mb_strtolower($zeile['person'])] = $zeile;
+        }
+
+        if ($forderungen === []) {
+            return redirect()->to('/schulden/import')
+                ->with('error', 'Für ' . $monatsName . ' wurden keine importierten Getränke-Forderungen gefunden.');
+        }
+
+        // 1) Adressen speichern — auch ohne Versand (z.B. SMTP fehlt)
+        $emailModel = new PersonEmailModel();
+        $fehler = [];
+        $adressen = [];
+
+        foreach ((array) $this->request->getPost('email') as $person => $email) {
+            $key = mb_strtolower(trim((string) $person));
+            $email = trim((string) $email);
+
+            if (!isset($forderungen[$key]) || $email === '') {
+                continue;
+            }
+
+            if ($emailModel->upsertEmail($forderungen[$key]['person'], $email)) {
+                $adressen[$key] = $email;
+            } else {
+                $fehler[] = $forderungen[$key]['person'] . ': ' . implode(' ', $emailModel->errors());
+            }
+        }
+
+        if ($fehler !== []) {
+            return redirect()->to('/schulden/import/versand?monat=' . $monat)
+                ->with('error', 'Nicht alle Adressen konnten gespeichert werden. ' . implode(' ', $fehler));
+        }
+
+        if ($this->request->getPost('nur_speichern') !== null || !RechnungVersand::istKonfiguriert()) {
+            return redirect()->to('/schulden/import/versand?monat=' . $monat)
+                ->with('success', 'E-Mail-Adressen wurden gespeichert.');
+        }
+
+        // 2) Versand an die ausgewählten Personen
+        $versand = new RechnungVersand();
+        $rechnungPdf = new RechnungPdf();
+        $versandLog = new GetraenkeVersandModel();
+        $ergebnisse = [];
+
+        foreach ((array) $this->request->getPost('senden') as $person) {
+            $key = mb_strtolower(trim((string) $person));
+
+            if (!isset($forderungen[$key])) {
+                continue;
+            }
+
+            $name = $forderungen[$key]['person'];
+            $betrag = (float) $forderungen[$key]['betrag'];
+            $email = $adressen[$key] ?? '';
+
+            if ($email === '') {
+                $ergebnisse[] = ['person' => $name, 'email' => '', 'ok' => false, 'hinweis' => 'keine E-Mail-Adresse'];
+                continue;
+            }
+
+            $pdf = $rechnungPdf->einzel($name, $monatsName, $betrag, date('Y-m-d'));
+            $mail = RechnungVersand::baueMail($name, $monatsName, $betrag);
+            $ok = $versand->sende($email, $mail['betreff'], $mail['text'], $pdf, RechnungPdf::dateiname($monatsName, $name));
+
+            if ($ok) {
+                $versandLog->logVersand($monat, $name, $email);
+            }
+
+            $ergebnisse[] = [
+                'person' => $name,
+                'email' => $email,
+                'ok' => $ok,
+                'hinweis' => $ok ? '' : 'Versand fehlgeschlagen (Details im Log)',
+            ];
+        }
+
+        if ($ergebnisse === []) {
+            return redirect()->to('/schulden/import/versand?monat=' . $monat)
+                ->with('success', 'E-Mail-Adressen wurden gespeichert — es war keine Person zum Versand ausgewählt.');
+        }
+
+        // PRG: Redirect verhindert Doppelversand per Browser-Reload
+        return redirect()->to('/schulden/import/versand?monat=' . $monat)
+            ->with('versand_ergebnisse', $ergebnisse);
+    }
+
+    /**
+     * Übersichts-Rechnung des Monats als PDF (für den Aushang)
+     */
+    public function importUebersichtPdf()
+    {
+        $monat = (string) $this->request->getGet('monat');
+
+        if (!preg_match('/^\d{4}-\d{2}$/', $monat)) {
+            return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Monat angegeben.');
+        }
+
+        $monatsName = GetraenkeRechnungImport::monatsName($monat);
+        $personen = $this->schuldModel->getImportForderungen($monatsName);
+
+        if ($personen === []) {
+            return redirect()->to('/schulden/import')
+                ->with('error', 'Für ' . $monatsName . ' wurden keine importierten Getränke-Forderungen gefunden.');
+        }
+
+        try {
+            $pdf = (new RechnungPdf())->uebersicht($monatsName, $personen, date('Y-m-d'));
+
+            return $this->response
+                ->download(RechnungPdf::dateiname($monatsName, 'Uebersicht'), $pdf)
+                ->setContentType('application/pdf');
+        } catch (\Throwable $e) {
+            log_message('error', 'Übersichts-PDF Fehler: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Fehler beim Erzeugen des PDFs: ' . $e->getMessage());
+        }
+    }
+
+    // ==================== E-MAIL-ADRESSEN (Issue #35) ====================
+
+    /**
+     * Verwaltung der Personen-E-Mail-Adressen
+     */
+    public function emails()
+    {
+        $data = [
+            'title' => 'E-Mail-Adressen',
+            'eintraege' => (new PersonEmailModel())->getAlle(),
+            'personen_namen' => $this->schuldModel->getPersonenNamen(),
+        ];
+
+        return view('schulden/emails', $data);
+    }
+
+    /**
+     * Adresse anlegen bzw. aktualisieren (Upsert über den Namen)
+     */
+    public function emailsStore()
+    {
+        $name = trim((string) $this->request->getPost('name'));
+        $email = trim((string) $this->request->getPost('email'));
+
+        $emailModel = new PersonEmailModel();
+
+        if (!$emailModel->upsertEmail($name, $email)) {
+            return redirect()->back()->withInput()->with('errors', $emailModel->errors());
+        }
+
+        return redirect()->to('/schulden/emails')->with('success', 'E-Mail-Adresse für ' . $name . ' gespeichert.');
+    }
+
+    /**
+     * Adresse löschen
+     */
+    public function emailsDelete($id)
+    {
+        $emailModel = new PersonEmailModel();
+        $eintrag = $emailModel->find($id);
+
+        if (!$eintrag) {
+            return redirect()->to('/schulden/emails')->with('error', 'Eintrag nicht gefunden.');
+        }
+
+        $emailModel->delete($id);
+
+        return redirect()->to('/schulden/emails')->with('success', 'E-Mail-Adresse von ' . $eintrag['name'] . ' gelöscht.');
     }
 
     // ==================== PRIVATE HELPER METHODS ====================
@@ -478,7 +710,8 @@ class SchuldenController extends BaseController
             mkdir($verzeichnis, 0755, true);
         }
 
-        foreach (glob($verzeichnis . '*.xlsx') ?: [] as $datei) {
+        // xlsx = geparkte Uploads, pdf = verwaiste Temp-Rechnungen
+        foreach (array_merge(glob($verzeichnis . '*.xlsx') ?: [], glob($verzeichnis . '*.pdf') ?: []) as $datei) {
             if (filemtime($datei) < time() - 86400) {
                 @unlink($datei);
             }
@@ -493,7 +726,7 @@ class SchuldenController extends BaseController
     private function baueImportVorschau(string $monat, array $ergebnis): array
     {
         $monatsName = GetraenkeRechnungImport::monatsName($monat);
-        $grund = 'Getränkerechnung ' . $monatsName;
+        $grund = SchuldModel::getraenkeImportGrund($monatsName);
 
         $bekannteNamen = array_map('mb_strtolower', $this->schuldModel->getPersonenNamen());
         foreach ($ergebnis['personen'] as &$person) {
@@ -558,7 +791,7 @@ class SchuldenController extends BaseController
                 'typ' => 'forderung',
                 'kategorie' => 'getraenke',
                 'datum' => $datum,
-                'grund' => 'Getränkerechnung ' . $monatsName,
+                'grund' => SchuldModel::getraenkeImportGrund($monatsName),
                 'betrag' => number_format($person['betrag'], 2, '.', ''),
             ]);
 
@@ -583,30 +816,39 @@ class SchuldenController extends BaseController
     }
 
     /**
-     * Legt die Coleur-/Bund-Belege an (Kopien der Import-Datei) und ordnet
-     * sie der offenen AH-Abrechnung zu. Gibt Meldungs-Sätze für die
+     * Legt die Coleur-/Bund-Belege als generierte PDF-Rechnungen an und
+     * ordnet sie der offenen AH-Abrechnung zu. Gibt Meldungs-Sätze für die
      * Success-Message zurück.
      */
-    private function erstelleImportBelege(array $ergebnis, string $tmpPfad, string $originalName, string $monat, string $monatsName, string $datum): array
+    private function erstelleImportBelege(array $ergebnis, string $monat, string $monatsName, string $datum): array
     {
         $belegIds = [];
         $meldungen = [];
         $upload = new BelegUpload();
+        $rechnungPdf = new RechnungPdf();
 
         foreach (['coleur' => 'Coleur', 'bund' => 'Bund'] as $key => $label) {
             if ($ergebnis[$key] === null || $ergebnis[$key] <= 0) {
                 continue;
             }
 
+            // PDF in eine Temp-Datei, weil speichereBelegAusDatei von einer
+            // serverseitig liegenden Quelle kopiert
+            $tmpPdf = $this->importTmpVerzeichnis() . uniqid('rechnung_', true) . '.pdf';
+
             try {
-                $belegIds[] = $upload->speichereBelegAusDatei($tmpPfad, $originalName, [
+                file_put_contents($tmpPdf, $rechnungPdf->coleurBund($label, $monatsName, (float) $ergebnis[$key], $datum));
+
+                $belegIds[] = $upload->speichereBelegAusDatei($tmpPdf, RechnungPdf::dateiname($monatsName, $label), [
                     'rechnungsdatum' => $datum,
                     'beschreibung' => 'Getränkerechnung ' . $monatsName . ' – ' . $label,
                     'betrag' => number_format($ergebnis[$key], 2, '.', ''),
                     'kategorie' => 'ah_berechtigt',
                 ]);
-            } catch (\RuntimeException $e) {
+            } catch (\Throwable $e) {
                 $meldungen[] = 'Der ' . $label . '-Beleg konnte nicht angelegt werden: ' . $e->getMessage();
+            } finally {
+                @unlink($tmpPdf);
             }
         }
 

@@ -10,7 +10,8 @@ nachhalten (Schuldenliste + Inventur-Export).
 
 ## Stack
 - CodeIgniter 4 (PHP 8.1+), MySQL 8
-- PhpOffice/PhpSpreadsheet für Excel-Exporte
+- PhpOffice/PhpSpreadsheet für Excel-Exporte, dompdf für die PDF-Rechnungen
+  des Getränkerechnung-Imports (`app/Libraries/RechnungPdf.php`)
 - Bootstrap 5 + Bootstrap Icons via CDN, geteiltes JS in `public/js/app.js`;
   Theme/CSS zentral in `public/css/app.css` (siehe Design-System unten), KEINE
   `<style>`-Blöcke mehr in Views (Ausnahme: seitenspezifische `renderSection('styles')`)
@@ -22,7 +23,8 @@ Auf diesem Rechner gibt es **kein Host-PHP/Composer** — alles im laufenden Web
 ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
 - `docker exec kassensystem-vdst-web vendor/bin/phpunit tests/unit/` — Tests
   (`HealthTest`, `BetragTest`, `SchuldLabelTest`, `GetraenkeBeglichenTest`,
-  `GetraenkeImportParserTest`); entspricht `composer test`
+  `GetraenkeImportParserTest`, `RechnungPdfTest`, `RechnungVersandTest`);
+  entspricht `composer test`
 - `docker exec kassensystem-vdst-web php spark migrate` — Migrationen (auch die
   Datei-/Trigger-Cleanup-Migrationen)
 - `docker exec kassensystem-vdst-web php spark routes` — Routenliste
@@ -54,13 +56,15 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
 - **Models**: `BelegModel` (belege), `BuchungModel` (buchungen),
   `SchuldModel` (schulden), `AhAbrechnungModel`/`HvAbrechnungModel`
   (ah_/hv_abrechnungen), `AbrechnungBelegModel` (Junction abrechnung_belege —
-  einziger Codepfad für Beleg-Zuordnungen).
+  einziger Codepfad für Beleg-Zuordnungen), `PersonEmailModel` (person_emails,
+  Name→E-Mail für den Rechnungsversand), `GetraenkeVersandModel`
+  (getraenke_versand, Versand-Log).
 - **Gemeinsame Views**: `app/Views/abrechnungen/*` werden von AH und HV geteilt,
   gesteuert über `$typ` ('ah'|'hv'). HV hat zusätzlich ein Freitext-Feld `begruendung`.
 - **Upload-Logik**: zentral in `app/Libraries/BelegUpload.php` (genutzt von
   BelegeController::store und BuchungenController::store); `speichereBelegAusDatei()`
   legt Belege aus bereits serverseitig liegenden Dateien an (KOPIERT die Quelle —
-  so entstehen beim Getränkerechnung-Import zwei Belege aus einer Datei).
+  so übernimmt der Getränkerechnung-Import seine generierten Temp-PDFs als Belege).
 - **Auth**: `App\Libraries\Auth::istAngemeldet()` ist die EINZIGE Login-/Timeout-Prüfung;
   `AuthController::isAuthenticated()`, `AuthFilter` und der 404-Override in `Routes.php`
   delegieren dorthin. Logik nicht erneut duplizieren.
@@ -126,25 +130,52 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   per FK-Cascade auf (Abrechnungen sind nur als entwurf/ausstehend löschbar,
   wo keine verknüpften Einträge existieren).
 - **Getränkerechnung-Import** (Issue #35): `/schulden/import` (Upload → Vorschau →
-  Confirm, SchuldenController::import/importUpload/importConfirm). Parser
-  `app/Libraries/GetraenkeRechnungImport.php` liest die Excel des Getränkewarts:
+  Confirm → Versand, SchuldenController::import/importUpload/importConfirm/
+  importVersand). Parser `app/Libraries/GetraenkeRechnungImport.php` liest die
+  Excel des Getränkewarts:
   Sheet „Bundesbrüder & Gäste" → pro Nachname eine manuelle Getränke-Forderung
   über „Gesamt − Ausstehend" (Personenanzahl variabel: ab Zeile 3 bis Trennzeile/
   `Gesamtanzahl:`, `(Einfügespalte)` und 0-Beträge übersprungen; bewusst OHNE
   Quell-Verknüpfung, damit editierbar); Sheet „Coleur & Bund" → zwei
-  `ah_berechtigt`-Belege (je eigene Kopie der Excel via `speichereBelegAusDatei`)
-  in die offene AH-Abrechnung (`AhAbrechnungModel::findeOffeneAbrechnung()`,
-  sonst neue; Monat schon eingereicht/bezahlt → unzugeordnet + Warnung).
+  `ah_berechtigt`-Belege in die offene AH-Abrechnung
+  (`AhAbrechnungModel::findeOffeneAbrechnung()`, sonst neue; Monat schon
+  eingereicht/bezahlt → unzugeordnet + Warnung). Die Belege sind seit Issue #35
+  Teil 3 **generierte PDF-Rechnungen** (`RechnungPdf::coleurBund`, via Temp-Datei
+  durch `speichereBelegAusDatei`) — die Original-Excel wird NICHT mehr als Beleg
+  aufgehoben (`xlsx` bleibt aber im dateityp-ENUM für Altbelege).
   INVARIANTE: NUR gecachte Formelwerte lesen (`getOldCalculatedValue`), NIE
   `getCalculatedValue()`/`toArray()` — die Sheets „Schwund"/„Bestand" enthalten
   TRANSPOSE-Formeln, an denen PhpSpreadsheet scheitert; sie werden per
   `setLoadSheetsOnly` gar nicht erst geladen. Hochgeladene Datei wird unter
   Zufallsnamen in `writable/uploads/import/` geparkt (Basename in der Session,
-  Confirm parst NEU, Altlasten >24h werden weggeräumt). `belege.dateityp`-ENUM
-  enthält seit Migration 2026-07-12 auch `xlsx` (Beleg-Views zeigen dafür einen
-  Download-Hinweis statt Bildvorschau). Doppelimport ist erlaubt, die Vorschau
-  warnt aber (Erkennung über `grund = 'Getränkerechnung <Monat JJJJ>'`).
+  Confirm parst NEU, Altlasten >24h — auch verwaiste Temp-PDFs — werden
+  weggeräumt). Doppelimport ist erlaubt, die Vorschau warnt aber (Erkennung über
+  `SchuldModel::getraenkeImportGrund($monatsName)`).
   Test: `tests/unit/GetraenkeImportParserTest.php`.
+- **PDF-Rechnungen** (Issue #35): `app/Libraries/RechnungPdf.php` (dompdf) rendert
+  das geteilte Template `app/Views/pdf/rechnung.php` (gesteuert über `$typ`:
+  `einzel`|`uebersicht`|`coleur_bund`; Standalone-HTML, eigener `<style>` hier ok).
+  Branding: Logo `public/img/vdst-logo.svg` als Base64-Data-URI + Schwarz/Rot-
+  Typografie. INVARIANTEN: `defaultFont 'DejaVu Sans'` + `loadHtml(..., 'UTF-8')`
+  (sonst kaputte Umlaute/€), `isRemoteEnabled=false`/`isPhpEnabled=false`,
+  Font-Cache/TempDir auf `WRITEPATH.'cache/'` (vendor/ evtl. nicht beschreibbar).
+  Dateinamen über `RechnungPdf::dateiname()` (ASCII-Slug). Test:
+  `tests/unit/RechnungPdfTest.php`.
+- **Rechnungsversand** (Issue #35): `/schulden/import/versand?monat=JJJJ-MM`
+  (Redirect-Ziel nach importConfirm, jederzeit erneut aufrufbar) listet die
+  importierten Forderungen des Monats mit E-Mail-Feld und Auswahl; „Rechnungen
+  verschicken" mailt die personalisierte PDF-Einzelrechnung (`RechnungVersand`,
+  CI4-Email-Service, Anhang aus dem Buffer). Datenquelle ist IMMER
+  `SchuldModel::getImportForderungen($monatsName)` (exakter `grund`-Match — NIE
+  `LIKE 'Getränkerechnung %'`, das fängt GETRAENKE_BEGLICHEN_GRUND mit; Beträge
+  nie aus dem POST). Adressen liegen in `person_emails` (Upsert beim Versand,
+  Verwaltungsseite `/schulden/emails`); erfolgreiche Sends landen im Log
+  `getraenke_versand` („verschickt am"-Badge, Checkbox dann default aus — bewusst
+  keine harte Doppelversand-Sperre; PRG-Redirect verhindert Reload-Doppelversand).
+  SMTP kommt aus `email.*`-Keys in `.env` (Beispielblock in `env`); ohne Konfig
+  ist der Versand per `RechnungVersand::istKonfiguriert()` deaktiviert, Adressen
+  speichern geht trotzdem. Übersichts-PDF (Aushang): `/schulden/import/uebersicht`.
+  Test: `tests/unit/RechnungVersandTest.php`.
 
 ## Konventionen & Invarianten
 - **Upload-Pfade** sind relativ zu FCPATH (= `public/`): `uploads/belege/YYYY/MM/`.

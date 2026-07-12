@@ -21,8 +21,8 @@ nachhalten (Schuldenliste + Inventur-Export).
 Auf diesem Rechner gibt es **kein Host-PHP/Composer** — alles im laufenden Web-Container
 ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
 - `docker exec kassensystem-vdst-web vendor/bin/phpunit tests/unit/` — Tests
-  (`HealthTest`, `BetragTest`, `SchuldLabelTest`, `GetraenkeBeglichenTest`);
-  entspricht `composer test`
+  (`HealthTest`, `BetragTest`, `SchuldLabelTest`, `GetraenkeBeglichenTest`,
+  `GetraenkeImportParserTest`); entspricht `composer test`
 - `docker exec kassensystem-vdst-web php spark migrate` — Migrationen (auch die
   Datei-/Trigger-Cleanup-Migrationen)
 - `docker exec kassensystem-vdst-web php spark routes` — Routenliste
@@ -58,7 +58,9 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
 - **Gemeinsame Views**: `app/Views/abrechnungen/*` werden von AH und HV geteilt,
   gesteuert über `$typ` ('ah'|'hv'). HV hat zusätzlich ein Freitext-Feld `begruendung`.
 - **Upload-Logik**: zentral in `app/Libraries/BelegUpload.php` (genutzt von
-  BelegeController::store und BuchungenController::store).
+  BelegeController::store und BuchungenController::store); `speichereBelegAusDatei()`
+  legt Belege aus bereits serverseitig liegenden Dateien an (KOPIERT die Quelle —
+  so entstehen beim Getränkerechnung-Import zwei Belege aus einer Datei).
 - **Auth**: `App\Libraries\Auth::istAngemeldet()` ist die EINZIGE Login-/Timeout-Prüfung;
   `AuthController::isAuthenticated()`, `AuthFilter` und der 404-Override in `Routes.php`
   delegieren dorthin. Logik nicht erneut duplizieren.
@@ -120,6 +122,26 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   gesperrt und werden NUR über ihre Quelle gepflegt; Löschen der Quelle räumt
   per FK-Cascade auf (Abrechnungen sind nur als entwurf/ausstehend löschbar,
   wo keine verknüpften Einträge existieren).
+- **Getränkerechnung-Import** (Issue #35): `/schulden/import` (Upload → Vorschau →
+  Confirm, SchuldenController::import/importUpload/importConfirm). Parser
+  `app/Libraries/GetraenkeRechnungImport.php` liest die Excel des Getränkewarts:
+  Sheet „Bundesbrüder & Gäste" → pro Nachname eine manuelle Getränke-Forderung
+  über „Gesamt − Ausstehend" (Personenanzahl variabel: ab Zeile 3 bis Trennzeile/
+  `Gesamtanzahl:`, `(Einfügespalte)` und 0-Beträge übersprungen; bewusst OHNE
+  Quell-Verknüpfung, damit editierbar); Sheet „Coleur & Bund" → zwei
+  `ah_berechtigt`-Belege (je eigene Kopie der Excel via `speichereBelegAusDatei`)
+  in die offene AH-Abrechnung (`AhAbrechnungModel::findeOffeneAbrechnung()`,
+  sonst neue; Monat schon eingereicht/bezahlt → unzugeordnet + Warnung).
+  INVARIANTE: NUR gecachte Formelwerte lesen (`getOldCalculatedValue`), NIE
+  `getCalculatedValue()`/`toArray()` — die Sheets „Schwund"/„Bestand" enthalten
+  TRANSPOSE-Formeln, an denen PhpSpreadsheet scheitert; sie werden per
+  `setLoadSheetsOnly` gar nicht erst geladen. Hochgeladene Datei wird unter
+  Zufallsnamen in `writable/uploads/import/` geparkt (Basename in der Session,
+  Confirm parst NEU, Altlasten >24h werden weggeräumt). `belege.dateityp`-ENUM
+  enthält seit Migration 2026-07-12 auch `xlsx` (Beleg-Views zeigen dafür einen
+  Download-Hinweis statt Bildvorschau). Doppelimport ist erlaubt, die Vorschau
+  warnt aber (Erkennung über `grund = 'Getränkerechnung <Monat JJJJ>'`).
+  Test: `tests/unit/GetraenkeImportParserTest.php`.
 
 ## Konventionen & Invarianten
 - **Upload-Pfade** sind relativ zu FCPATH (= `public/`): `uploads/belege/YYYY/MM/`.

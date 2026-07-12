@@ -25,6 +25,10 @@ Heimverein (HV) als Excel/ZIP.
   Verbindlichkeit an, eingereichte Abrechnungen erscheinen als Forderung gegen
   AH²-Bund/Heimverein (bezahlt = ausgeglichen), und Buchungen können Schulden
   direkt ausgleichen; solche Einträge werden über ihre Quelle gepflegt
+- **Getränkerechnung-Import** – die monatliche Excel des Getränkewarts hochladen:
+  Namen und Beträge werden automatisch erkannt (Vorschau vor dem Anlegen), pro
+  Person entsteht eine Getränke-Forderung; die Coleur-/Bund-Summen werden als
+  Belege in die offene AH-Abrechnung übernommen
 - **Inventur** – eigene Seite ("Kassenwart – Aktueller Bestand": Kassenbestand +
   Forderungen − Verbindlichkeiten) mit Dashboard-Kachel und Excel-Download
 - **Suche & Filter** über Beschreibung/Lieferant/Notizen, Datum, Kategorie, Status und Betrag

@@ -63,6 +63,10 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
         $routes->post('getraenke-beglichen', 'SchuldenController::getraenkeBeglichen');
         $routes->post('getraenke-beglichen-undo', 'SchuldenController::getraenkeBeglichenUndo');
         $routes->get('export/inventur', 'SchuldenController::exportInventur');
+        // Getränkerechnung-Import (Issue #35): Upload → Vorschau → Bestätigen
+        $routes->get('import', 'SchuldenController::import');
+        $routes->post('import/upload', 'SchuldenController::importUpload');
+        $routes->post('import/confirm', 'SchuldenController::importConfirm');
     });
 
     // Inventur (eigene Seite, Issue #36; Excel-Export bleibt unter schulden/export/inventur)

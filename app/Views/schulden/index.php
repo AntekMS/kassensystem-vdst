@@ -38,6 +38,9 @@
             <a href="<?= base_url('/schulden/create') ?>" class="btn btn-vdst">
                 <i class="bi bi-plus-lg" aria-hidden="true"></i> Neuer Eintrag
             </a>
+            <a href="<?= base_url('/schulden/import') ?>" class="btn btn-outline-vdst">
+                <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i> Getränkerechnung importieren
+            </a>
             <a href="<?= base_url('/inventur') ?>" class="btn btn-outline-vdst">
                 <i class="bi bi-calculator" aria-hidden="true"></i> Zur Inventur
             </a>

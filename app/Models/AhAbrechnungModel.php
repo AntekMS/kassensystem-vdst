@@ -76,6 +76,18 @@ class AhAbrechnungModel extends Model
     }
 
     /**
+     * Neueste offene (entwurf/ausstehend) Abrechnung oder null.
+     *
+     * @return array|null
+     */
+    public function findeOffeneAbrechnung()
+    {
+        return $this->whereIn('status', ['entwurf', 'ausstehend'])
+            ->orderBy('abrechnungsmonat', 'DESC')
+            ->first();
+    }
+
+    /**
      * Prüft ob eine Abrechnung für den Monat bereits existiert
      *
      * @param string $abrechnungsmonat

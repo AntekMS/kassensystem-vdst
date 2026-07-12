@@ -205,13 +205,22 @@
                                         title="PDF-Vorschau">
                                 </iframe>
                             </div>
-                        <?php else: ?>
+                        <?php elseif (in_array($beleg['dateityp'], ['jpg', 'jpeg', 'png'], true)): ?>
                             <!-- Bild-Vorschau -->
                             <div class="text-center vorschau-flaeche">
                                 <img src="<?= base_url('/belege/preview/' . $beleg['id']) ?>"
                                      alt="<?= esc($beleg['beschreibung']) ?>"
                                      class="img-fluid vorschau-bild"
                                      onclick="openImageModal(this.src)">
+                            </div>
+                        <?php else: ?>
+                            <!-- Excel & Co: keine Browser-Vorschau möglich -->
+                            <div class="text-center p-5">
+                                <i class="bi bi-file-earmark-spreadsheet display-4 text-muted" aria-hidden="true"></i>
+                                <p class="text-muted mt-3 mb-0">
+                                    Für <?= esc(strtoupper($beleg['dateityp'])) ?>-Dateien gibt es keine Vorschau —
+                                    bitte das Original herunterladen.
+                                </p>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -221,7 +230,7 @@
                                class="btn btn-outline-vdst">
                                 <i class="bi bi-download" aria-hidden="true"></i> Original herunterladen
                             </a>
-                            <?php if ($beleg['dateityp'] !== 'pdf'): ?>
+                            <?php if (in_array($beleg['dateityp'], ['jpg', 'jpeg', 'png'], true)): ?>
                                 <button class="btn btn-outline-vdst" onclick="openImageModal('<?= base_url('/belege/preview/' . $beleg['id']) ?>')">
                                     <i class="bi bi-arrows-fullscreen" aria-hidden="true"></i> Vollbild anzeigen
                                 </button>

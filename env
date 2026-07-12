@@ -67,3 +67,17 @@
 #--------------------------------------------------------------------
 
 # logger.threshold = 4
+
+#--------------------------------------------------------------------
+# EMAIL (Rechnungsversand, Issue #35)
+#--------------------------------------------------------------------
+# Ohne diese Keys bleibt der E-Mail-Versand in der UI deaktiviert.
+
+# email.protocol = smtp
+# email.SMTPHost = mail.example.org
+# email.SMTPUser = kassenwart@example.org
+# email.SMTPPass = geheim
+# email.SMTPPort = 587
+# email.SMTPCrypto = tls
+# email.fromEmail = kassenwart@example.org
+# email.fromName = 'VDSt Kassenwart'

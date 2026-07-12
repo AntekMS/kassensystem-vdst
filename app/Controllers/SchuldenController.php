@@ -32,7 +32,13 @@ class SchuldenController extends BaseController
     {
         $inventur = $this->schuldModel->berechneInventur();
 
-        $personen = $this->schuldModel->getPersonenUebersicht();
+        $filter = [
+            'suche' => trim((string) $this->request->getGet('suche')),
+            'status' => (string) $this->request->getGet('status'),
+            'sortierung' => (string) $this->request->getGet('sortierung'),
+        ];
+
+        $personen = $this->schuldModel->getPersonenUebersicht($filter);
         foreach ($personen as &$p) {
             $p['getraenke_undo'] = $this->schuldModel->letzterGetraenkeAusgleich($p['person']) !== null;
         }
@@ -41,6 +47,21 @@ class SchuldenController extends BaseController
         $data = [
             'title' => 'Schuldenliste',
             'personen' => $personen,
+            'filter' => $filter,
+            'status_optionen' => [
+                'offene_getraenke' => 'Offene Getränkeschulden',
+                'offene_forderungen' => 'Offene Forderungen',
+                'verbindlichkeiten' => 'Offene Verbindlichkeiten',
+                'getraenkestopp' => 'Getränkestopp',
+                'ausgeglichen' => 'Ausgeglichen',
+            ],
+            'sortier_optionen' => [
+                'person' => 'Name (A–Z)',
+                'getraenke' => 'Getränkeschulden (höchste zuerst)',
+                'forderungen' => 'Forderungen (höchste zuerst)',
+                'verbindlichkeiten' => 'Verbindlichkeiten (höchste zuerst)',
+                'letzter_eintrag' => 'Letzter Eintrag (neueste zuerst)',
+            ],
             'summe_forderungen' => $inventur['forderung']['summe'],
             'summe_verbindlichkeiten' => $inventur['verbindlichkeit']['summe'],
         ];

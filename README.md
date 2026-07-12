@@ -20,7 +20,9 @@ Heimverein (HV) als Excel/ZIP.
 - **Exporte** – pro Bereich genau zwei Formate: **Excel** und **Komplett-ZIP** (Excel + Beleg-Dateien)
 - **Schuldenliste** – Forderungen/Verbindlichkeiten pro Person (Freitext-Name)
   mit nachvollziehbarer Historie (z.B. monatliche Getränkerechnungen, Rückzahlungen als
-  negativer Betrag) und Getränkestopp-Badge ab 50 € Getränkeschulden
+  negativer Betrag) und Getränkestopp-Badge ab 50 € Getränkeschulden; mit Namenssuche,
+  Status-Filter (offene Getränke/Forderungen/Verbindlichkeiten, Getränkestopp,
+  ausgeglichen) und Sortierung
 - **Automatische Schulden-Einträge** – Beleg mit „Erstattung an" legt die
   Verbindlichkeit an, eingereichte Abrechnungen erscheinen als Forderung gegen
   AH²-Bund/Heimverein (bezahlt = ausgeglichen), und Buchungen können Schulden

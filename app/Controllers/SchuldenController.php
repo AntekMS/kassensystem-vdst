@@ -487,15 +487,25 @@ class SchuldenController extends BaseController
         $personen = $this->schuldModel->getImportForderungen($monatsName);
 
         if ($personen === []) {
+            // Kommt der Aufruf direkt nach einem Import (Erfolgs-Flash gesetzt),
+            // war der Import erfolgreich — nur gibt es nichts zu versenden. Die
+            // Erfolgsmeldung nicht verschlucken, sonst wirkt der Import gescheitert.
+            $erfolg = session()->getFlashdata('success');
+
             return redirect()->to('/schulden/import')
-                ->with('error', 'Für ' . $monatsName . ' wurden keine importierten Getränke-Forderungen gefunden.');
+                ->with(
+                    $erfolg ? 'success' : 'error',
+                    $erfolg
+                        ? $erfolg . ' Keine offenen Getränke-Forderungen zum Versand für ' . $monatsName . '.'
+                        : 'Für ' . $monatsName . ' wurden keine importierten Getränke-Forderungen gefunden.'
+                );
         }
 
         $emails = (new PersonEmailModel())->findEmailsFuer(array_column($personen, 'person'));
         $versendet = (new GetraenkeVersandModel())->getVersendetFuerMonat($monat);
 
         foreach ($personen as &$person) {
-            $key = mb_strtolower($person['person']);
+            $key = person_schluessel($person['person']);
             $person['email'] = $emails[$key] ?? '';
             $person['versendet_am'] = $versendet[$key] ?? null;
         }
@@ -529,7 +539,7 @@ class SchuldenController extends BaseController
         $monatsName = GetraenkeRechnungImport::monatsName($monat);
         $forderungen = [];
         foreach ($this->schuldModel->getImportForderungen($monatsName) as $zeile) {
-            $forderungen[mb_strtolower($zeile['person'])] = $zeile;
+            $forderungen[person_schluessel($zeile['person'])] = $zeile;
         }
 
         if ($forderungen === []) {
@@ -537,22 +547,23 @@ class SchuldenController extends BaseController
                 ->with('error', 'Für ' . $monatsName . ' wurden keine importierten Getränke-Forderungen gefunden.');
         }
 
+        // POST ist index-basiert: person[i] trägt den (Freitext-)Namen, damit
+        // Namen mit '[' / ']' die PHP-Array-Key-Zerlegung nicht zerbrechen.
+        $namenNachIndex = (array) $this->request->getPost('person');
+
         // 1) Adressen speichern — auch ohne Versand (z.B. SMTP fehlt)
         $emailModel = new PersonEmailModel();
         $fehler = [];
-        $adressen = [];
 
-        foreach ((array) $this->request->getPost('email') as $person => $email) {
-            $key = mb_strtolower(trim((string) $person));
+        foreach ((array) $this->request->getPost('email') as $index => $email) {
+            $key = person_schluessel((string) ($namenNachIndex[$index] ?? ''));
             $email = trim((string) $email);
 
             if (!isset($forderungen[$key]) || $email === '') {
                 continue;
             }
 
-            if ($emailModel->upsertEmail($forderungen[$key]['person'], $email)) {
-                $adressen[$key] = $email;
-            } else {
+            if (!$emailModel->upsertEmail($forderungen[$key]['person'], $email)) {
                 $fehler[] = $forderungen[$key]['person'] . ': ' . implode(' ', $emailModel->errors());
             }
         }
@@ -567,14 +578,19 @@ class SchuldenController extends BaseController
                 ->with('success', 'E-Mail-Adressen wurden gespeichert.');
         }
 
+        // Adressen aus der DB (Whitelist der Forderungs-Namen), nicht aus dem
+        // POST — deckt auch bereits gespeicherte Adressen ab, deren Feld leer
+        // gepostet wurde.
+        $adressen = $emailModel->findEmailsFuer(array_column($forderungen, 'person'));
+
         // 2) Versand an die ausgewählten Personen
         $versand = new RechnungVersand();
         $rechnungPdf = new RechnungPdf();
         $versandLog = new GetraenkeVersandModel();
         $ergebnisse = [];
 
-        foreach ((array) $this->request->getPost('senden') as $person) {
-            $key = mb_strtolower(trim((string) $person));
+        foreach ((array) $this->request->getPost('senden') as $index) {
+            $key = person_schluessel((string) ($namenNachIndex[$index] ?? ''));
 
             if (!isset($forderungen[$key])) {
                 continue;
@@ -589,9 +605,18 @@ class SchuldenController extends BaseController
                 continue;
             }
 
-            $pdf = $rechnungPdf->einzel($name, $monatsName, $betrag, date('Y-m-d'));
-            $mail = RechnungVersand::baueMail($name, $monatsName, $betrag);
-            $ok = $versand->sende($email, $mail['betreff'], $mail['text'], $pdf, RechnungPdf::dateiname($monatsName, $name));
+            // PDF-Erzeugung (dompdf) kann werfen — ein Fehler bei Person N darf
+            // nicht den ganzen POST abbrechen (sonst Teil-Versand ohne PRG,
+            // Reload würde erneut senden).
+            try {
+                $pdf = $rechnungPdf->einzel($name, $monatsName, $betrag, date('Y-m-d'));
+                $mail = RechnungVersand::baueMail($name, $monatsName, $betrag);
+                $ok = $versand->sende($email, $mail['betreff'], $mail['text'], $pdf, RechnungPdf::dateiname($monatsName, $name));
+            } catch (\Throwable $e) {
+                log_message('error', 'Rechnungsversand fehlgeschlagen (' . $name . '): ' . $e->getMessage());
+                $ergebnisse[] = ['person' => $name, 'email' => $email, 'ok' => false, 'hinweis' => 'Fehler beim Erzeugen der Rechnung'];
+                continue;
+            }
 
             if ($ok) {
                 $versandLog->logVersand($monat, $name, $email);
@@ -837,7 +862,9 @@ class SchuldenController extends BaseController
             $tmpPdf = $this->importTmpVerzeichnis() . uniqid('rechnung_', true) . '.pdf';
 
             try {
-                file_put_contents($tmpPdf, $rechnungPdf->coleurBund($label, $monatsName, (float) $ergebnis[$key], $datum));
+                if (file_put_contents($tmpPdf, $rechnungPdf->coleurBund($label, $monatsName, (float) $ergebnis[$key], $datum)) === false) {
+                    throw new \RuntimeException('PDF-Rechnung konnte nicht geschrieben werden (' . $tmpPdf . ')');
+                }
 
                 $belegIds[] = $upload->speichereBelegAusDatei($tmpPdf, RechnungPdf::dateiname($monatsName, $label), [
                     'rechnungsdatum' => $datum,

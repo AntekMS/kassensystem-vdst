@@ -81,3 +81,13 @@
 # email.SMTPCrypto = tls
 # email.fromEmail = kassenwart@example.org
 # email.fromName = 'VDSt Kassenwart'
+# Eine SMTP-Verbindung für den ganzen Batch offen halten (Reihenversand):
+# email.SMTPKeepAlive = true
+
+#--------------------------------------------------------------------
+# VDSt (App-Konfiguration)
+#--------------------------------------------------------------------
+# Name des Kassenwarts für PDF-Fußzeile und Mail-Signatur des Versands.
+# Ohne diesen Key signieren Rechnungen generisch mit "der Kassenwart".
+
+# vdst.kassenwart_name = 'Max Mustermann'

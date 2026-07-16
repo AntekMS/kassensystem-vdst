@@ -61,9 +61,14 @@ class PersonEmailModel extends Model
             return [];
         }
 
+        // Schreib- und Lesepfad müssen identisch normalisieren, sonst finden
+        // sich Namen mit Doppel-Leerzeichen nicht wieder (upsertEmail kollabiert
+        // Whitespace vor dem Speichern).
+        $normal = array_values(array_unique(array_map('person_normalisiere', $namen)));
+
         $map = [];
-        foreach ($this->whereIn('name', $namen)->findAll() as $zeile) {
-            $map[mb_strtolower($zeile['name'])] = $zeile['email'];
+        foreach ($this->whereIn('name', $normal)->findAll() as $zeile) {
+            $map[person_schluessel($zeile['name'])] = $zeile['email'];
         }
 
         return $map;
@@ -75,7 +80,7 @@ class PersonEmailModel extends Model
      */
     public function upsertEmail(string $name, string $email): bool
     {
-        $name = trim(preg_replace('/\s+/', ' ', $name));
+        $name = person_normalisiere($name);
         $email = trim($email);
 
         $vorhanden = $this->where('name', $name)->first();

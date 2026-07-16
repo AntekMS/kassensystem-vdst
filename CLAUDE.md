@@ -14,7 +14,9 @@ nachhalten (Schuldenliste + Inventur-Export).
   des Getränkerechnung-Imports (`app/Libraries/RechnungPdf.php`)
 - Bootstrap 5 + Bootstrap Icons via CDN, geteiltes JS in `public/js/app.js`;
   Theme/CSS zentral in `public/css/app.css` (siehe Design-System unten), KEINE
-  `<style>`-Blöcke mehr in Views (Ausnahme: seitenspezifische `renderSection('styles')`)
+  `<style>`-Blöcke mehr in Views (Ausnahmen: seitenspezifische
+  `renderSection('styles')` und das Standalone-PDF-Template
+  `app/Views/pdf/rechnung.php`, das dompdf ohne app.css rendert)
 - Docker-Setup (`docker-compose up -d` → App auf :8080, phpMyAdmin auf :8081)
 - Lokal alternativ: `php spark serve` + MySQL (XAMPP-Default in `app/Config/Database.php`)
 
@@ -23,7 +25,8 @@ Auf diesem Rechner gibt es **kein Host-PHP/Composer** — alles im laufenden Web
 ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
 - `docker exec kassensystem-vdst-web vendor/bin/phpunit tests/unit/` — Tests
   (`HealthTest`, `BetragTest`, `SchuldLabelTest`, `GetraenkeBeglichenTest`,
-  `GetraenkeImportParserTest`, `RechnungPdfTest`, `RechnungVersandTest`);
+  `GetraenkeImportParserTest`, `RechnungPdfTest`, `RechnungVersandTest`,
+  `PersonSchluesselTest`);
   entspricht `composer test`
 - `docker exec kassensystem-vdst-web php spark migrate` — Migrationen (auch die
   Datei-/Trigger-Cleanup-Migrationen)
@@ -71,7 +74,11 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
 - **Labels**: `app/Helpers/label_helper.php` (autogeladen) — `kategorie_label()`,
   `beleg_status_label()`, `abrechnung_status_label()`, `konto_label()`,
   `schuld_typ_label()`, `schuld_kategorie_label()` (je mit `_optionen()`-Pendant),
-  `formatiere_betrag()`, `normalisiere_betrag()`, `schaetze_archiv_groesse()`.
+  `formatiere_betrag()`, `normalisiere_betrag()`, `schaetze_archiv_groesse()`,
+  `person_normalisiere()`/`person_schluessel()` (kanonischer, whitespace- und
+  case-normalisierter Vergleichsschlüssel für Freitext-Personennamen — EINZIGE
+  Quelle für das Matching zwischen `schulden.person`, `person_emails` und
+  `getraenke_versand`, kein Ad-hoc-`mb_strtolower()` daneben).
 - **Design-System** (Issue #47): `public/css/app.css` ist die EINZIGE Theme-Quelle,
   eingebunden von `layouts/main.php` und `auth/login.php` (Cache-Buster `?v=N` bei
   CSS-Änderungen hochzählen). Tokens: Vereinsfarben (`--vdst-rot` #dc143c nur als
@@ -168,14 +175,27 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   CI4-Email-Service, Anhang aus dem Buffer). Datenquelle ist IMMER
   `SchuldModel::getImportForderungen($monatsName)` (exakter `grund`-Match — NIE
   `LIKE 'Getränkerechnung %'`, das fängt GETRAENKE_BEGLICHEN_GRUND mit; Beträge
-  nie aus dem POST). Adressen liegen in `person_emails` (Upsert beim Versand,
-  Verwaltungsseite `/schulden/emails`); erfolgreiche Sends landen im Log
-  `getraenke_versand` („verschickt am"-Badge, Checkbox dann default aus — bewusst
-  keine harte Doppelversand-Sperre; PRG-Redirect verhindert Reload-Doppelversand).
-  SMTP kommt aus `email.*`-Keys in `.env` (Beispielblock in `env`); ohne Konfig
-  ist der Versand per `RechnungVersand::istKonfiguriert()` deaktiviert, Adressen
-  speichern geht trotzdem. Übersichts-PDF (Aushang): `/schulden/import/uebersicht`.
-  Test: `tests/unit/RechnungVersandTest.php`.
+  nie aus dem POST). Das Versand-Formular ist **index-basiert**
+  (`person[i]`/`email[i]`, `senden[]`=Index) — NIE den Freitext-Namen als
+  POST-Array-Key benutzen (`]` im Namen zerlegt den Key). Name↔Forderung wird
+  über `person_schluessel()` gematcht. Beim Senden werden die Adressen NACH dem
+  Upsert frisch aus der DB geladen (`findEmailsFuer`), nicht aus dem POST — so
+  greift auch eine schon gespeicherte Adresse, deren Feld leer gepostet wurde.
+  Adressen liegen in `person_emails` (Upsert beim Versand, Verwaltungsseite
+  `/schulden/emails`); erfolgreiche Sends landen im Log `getraenke_versand`
+  („verschickt am"-Badge, Checkbox dann default aus — bewusst keine harte
+  Doppelversand-Sperre; PRG-Redirect verhindert Reload-Doppelversand, und die
+  PDF-Erzeugung in der Sende-Schleife ist einzeln `try/catch`-gekapselt, damit
+  ein dompdf-Fehler bei Person N nicht den ganzen POST abbricht). SMTP kommt aus
+  `email.*`-Keys in `.env` (Beispielblock in `env`, inkl. `email.SMTPKeepAlive`
+  für den Reihenversand über eine Verbindung); ohne Konfig ist der Versand per
+  `RechnungVersand::istKonfiguriert()` deaktiviert, Adressen speichern geht
+  trotzdem. Mail-Signatur/PDF-Fußzeile lesen `vdst.kassenwart_name` aus `.env`
+  (Fallback „der Kassenwart"). Übersichts-PDF (Aushang):
+  `/schulden/import/uebersicht`. Landet der Versand nach einem Import auf einem
+  Monat ganz ohne offene Forderungen (alles Guthaben), bleibt die Import-
+  Erfolgsmeldung erhalten (nicht als Fehler verschlucken → sonst Re-Import).
+  Test: `tests/unit/RechnungVersandTest.php`, `tests/unit/PersonSchluesselTest.php`.
 
 ## Konventionen & Invarianten
 - **Upload-Pfade** sind relativ zu FCPATH (= `public/`): `uploads/belege/YYYY/MM/`.

@@ -83,12 +83,13 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($personen as $person): ?>
+                                <?php foreach ($personen as $i => $person): ?>
                                     <?php $vorausgewaehlt = $person['email'] !== '' && $person['versendet_am'] === null; ?>
                                     <tr>
                                         <td data-label="Senden" class="text-center">
+                                            <input type="hidden" name="person[<?= (int) $i ?>]" value="<?= esc($person['person']) ?>">
                                             <input type="checkbox" class="form-check-input" name="senden[]"
-                                                   value="<?= esc($person['person']) ?>"
+                                                   value="<?= (int) $i ?>"
                                                    aria-label="Rechnung an <?= esc($person['person']) ?> senden"
                                                    <?= $vorausgewaehlt ? 'checked' : '' ?>>
                                         </td>
@@ -96,7 +97,7 @@
                                         <td data-label="Betrag" class="text-end"><?= formatiere_betrag($person['betrag']) ?></td>
                                         <td data-label="E-Mail-Adresse">
                                             <input type="email" class="form-control form-control-sm"
-                                                   name="email[<?= esc($person['person']) ?>]"
+                                                   name="email[<?= (int) $i ?>]"
                                                    value="<?= esc($person['email']) ?>"
                                                    placeholder="name@example.org">
                                         </td>

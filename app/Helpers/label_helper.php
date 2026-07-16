@@ -7,6 +7,35 @@
  * in Controllern, Models und Views verfügbar.
  */
 
+if (!function_exists('person_normalisiere')) {
+    /**
+     * Trimmt einen Freitext-Personennamen und kollabiert Mehrfach-Whitespace
+     * auf ein Leerzeichen. Muss auf Schreib- UND Lesepfad identisch angewandt
+     * werden, sonst finden sich Namen mit Doppel-Leerzeichen nicht wieder.
+     */
+    function person_normalisiere(string $name): string
+    {
+        return trim(preg_replace('/\s+/', ' ', $name));
+    }
+}
+
+if (!function_exists('person_schluessel')) {
+    /**
+     * Kanonischer Vergleichs-Schlüssel für einen Freitext-Personennamen
+     * (whitespace-normalisiert + lowercase). EINZIGE Quelle für das
+     * case-insensitive Matching zwischen schulden.person, person_emails und
+     * getraenke_versand — nicht ad-hoc mb_strtolower() daneben bauen.
+     *
+     * Hinweis: die person_emails-UNIQUE-Kollation (utf8mb4) ist zusätzlich
+     * akzent-insensitiv ('Müller' == 'Muller'); dieser Schlüssel ist es nicht.
+     * Für den üblichen Fall (keine Akzent-Dubletten) stimmen beide überein.
+     */
+    function person_schluessel(string $name): string
+    {
+        return mb_strtolower(person_normalisiere($name));
+    }
+}
+
 if (!function_exists('kategorie_optionen')) {
     /**
      * @return array<string, string>

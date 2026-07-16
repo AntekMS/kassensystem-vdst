@@ -45,7 +45,7 @@ class GetraenkeVersandModel extends Model
 
         $map = [];
         foreach ($zeilen as $zeile) {
-            $map[mb_strtolower($zeile['person'])] = $zeile['gesendet_am'];
+            $map[person_schluessel($zeile['person'])] = $zeile['gesendet_am'];
         }
 
         return $map;

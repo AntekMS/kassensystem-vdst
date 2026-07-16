@@ -546,7 +546,9 @@ class SchuldenController extends BaseController
 
     /**
      * Strenge Y-m-d-Prüfung (Regex + Kalender-Validität) für die per POST
-     * gelieferte Rückmeldefrist.
+     * gelieferte Rückmeldefrist. Ein bereits vergangenes Datum gilt als
+     * ungültig — es soll nie eine schon abgelaufene Frist verschickt werden
+     * (Aufrufer fällt dann auf berechneFristDefault() zurück).
      */
     private function istGueltigesDatum(string $wert): bool
     {
@@ -556,7 +558,11 @@ class SchuldenController extends BaseController
 
         [$jahr, $monat, $tag] = array_map('intval', explode('-', $wert));
 
-        return checkdate($monat, $tag, $jahr);
+        if (!checkdate($monat, $tag, $jahr)) {
+            return false;
+        }
+
+        return new \DateTime($wert) >= new \DateTime('today');
     }
 
     /**

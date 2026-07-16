@@ -101,12 +101,19 @@ class RechnungVersand
             $bic = trim((string) env('vdst.bank_bic', ''));
             $bankname = trim((string) env('vdst.bank_name', ''));
 
+            // Jede Zeile nur bei nicht-leerem Wert — sonst entstünden "BIC: "
+            // oder Leerzeilen in der Mail. Verwendungszweck hängt nicht an
+            // BIC/Name und bleibt daher immer stehen.
+            $bankZeilen = array_filter([
+                $kontoinhaber,
+                'IBAN: ' . $iban,
+                $bic !== '' ? 'BIC: ' . $bic : '',
+                $bankname,
+                'Verwendungszweck: Getränke ' . $monatsName . ' + dein Name',
+            ], static fn (string $zeile): bool => $zeile !== '');
+
             $absaetze[] = 'Falls du kein Lastschriftmandat erteilt hast, überweise den Betrag bitte manuell auf folgendes Konto:';
-            $absaetze[] = $kontoinhaber . "\n"
-                . 'IBAN: ' . $iban . "\n"
-                . 'BIC: ' . $bic . "\n"
-                . $bankname . "\n"
-                . 'Verwendungszweck: Getränke ' . $monatsName . ' + dein Name';
+            $absaetze[] = implode("\n", $bankZeilen);
         }
 
         $absaetze[] = 'Bei Fragen stehe ich dir gerne zur Verfügung.';

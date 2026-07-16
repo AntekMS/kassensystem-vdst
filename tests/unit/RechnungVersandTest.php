@@ -27,6 +27,7 @@ final class RechnungVersandTest extends CIUnitTestCase
 
     private array $original = [];
     private array $originalEnv = [];
+    private array $originalServer = [];
 
     protected function setUp(): void
     {
@@ -39,9 +40,12 @@ final class RechnungVersandTest extends CIUnitTestCase
             'fromEmail' => $config->fromEmail,
         ];
 
+        // CI4 env() liest aus $_ENV UND $_SERVER — beide sichern/leeren, sonst
+        // leaken reale .env-Werte oder Test-Reihenfolge in baueMail().
         foreach (self::ENV_KEYS as $key) {
             $this->originalEnv[$key] = $_ENV[$key] ?? null;
-            unset($_ENV[$key]);
+            $this->originalServer[$key] = $_SERVER[$key] ?? null;
+            unset($_ENV[$key], $_SERVER[$key]);
         }
     }
 
@@ -52,11 +56,17 @@ final class RechnungVersandTest extends CIUnitTestCase
             $config->{$key} = $wert;
         }
 
-        foreach ($this->originalEnv as $key => $wert) {
-            if ($wert === null) {
+        foreach (self::ENV_KEYS as $key) {
+            if ($this->originalEnv[$key] === null) {
                 unset($_ENV[$key]);
             } else {
-                $_ENV[$key] = $wert;
+                $_ENV[$key] = $this->originalEnv[$key];
+            }
+
+            if ($this->originalServer[$key] === null) {
+                unset($_SERVER[$key]);
+            } else {
+                $_SERVER[$key] = $this->originalServer[$key];
             }
         }
 
@@ -133,6 +143,27 @@ final class RechnungVersandTest extends CIUnitTestCase
         $this->assertStringContainsString('BIC: ABCDEFGHXXX', $mail['text']);
         $this->assertStringContainsString('Musterbank Erlangen', $mail['text']);
         $this->assertStringContainsString('Verwendungszweck: Getränke November 2025 + dein Name', $mail['text']);
+    }
+
+    public function testBaueMailMitIbanAberOhneBicLaesstBicZeileWeg(): void
+    {
+        $_ENV['vdst.bank_kontoinhaber'] = 'VDSt zu Erlangen';
+        $_ENV['vdst.bank_iban'] = 'DE00 0000 0000 0000 0000 00';
+        // BIC und Bankname leer — dürfen keine kaputten Zeilen erzeugen.
+        $_ENV['vdst.bank_bic'] = '';
+        $_ENV['vdst.bank_name'] = '';
+
+        $mail = RechnungVersand::baueMail('Müller', 'November 2025', '2024-01-05');
+
+        // IBAN und Verwendungszweck bleiben, BIC-Zeile fehlt komplett.
+        $this->assertStringContainsString('IBAN: DE00 0000 0000 0000 0000 00', $mail['text']);
+        $this->assertStringContainsString('Verwendungszweck: Getränke November 2025 + dein Name', $mail['text']);
+        $this->assertStringNotContainsString('BIC', $mail['text']);
+        // Keine Leerzeile innerhalb des Bank-Blocks (doppelter Umbruch).
+        $this->assertStringNotContainsString(
+            "IBAN: DE00 0000 0000 0000 0000 00\n\n",
+            $mail['text']
+        );
     }
 
     public function testBaueMailOhneIbanZeigtKeinenBankAbsatz(): void

@@ -213,9 +213,14 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   (`schulden/import_versand.php`) als Datumsfeld `frist` abgefragt, vorbelegt
   mit `SchuldenController::berechneFristDefault()` (Freitag dieser Woche, bei
   bereits vergangenem Freitag der nächste) — `importVersandSenden()` validiert
-  den POST-Wert (`istGueltigesDatum()`, Regex + `checkdate()`) und fällt bei
-  fehlendem/ungültigem Wert auf denselben Default zurück. Alle `vdst.bank_*`-
-  und `vdst.kassenwart_zeichen`-Keys sind auskommentierte Beispiele in `env`.
+  den POST-Wert (`istGueltigesDatum()`, Regex + `checkdate()` + Guard gegen
+  Vergangenheitsdaten) und fällt bei fehlendem/ungültigem/vergangenem Wert auf
+  denselben Default zurück, damit nie eine schon abgelaufene Frist verschickt
+  wird. Im Bank-Absatz wird jede Zeile (Kontoinhaber/BIC/Bankname) nur bei
+  nicht-leerem Wert gerendert (`array_filter`) — leere `vdst.bank_*`-Werte
+  erzeugen so keine kaputten „BIC: "- oder Leerzeilen; IBAN und
+  Verwendungszweck stehen immer. Alle `vdst.bank_*`- und
+  `vdst.kassenwart_zeichen`-Keys sind auskommentierte Beispiele in `env`.
 
 ## Konventionen & Invarianten
 - **Upload-Pfade** sind relativ zu FCPATH (= `public/`): `uploads/belege/YYYY/MM/`.

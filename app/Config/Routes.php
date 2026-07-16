@@ -61,6 +61,7 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
         $routes->post('update/(:num)', 'SchuldenController::update/$1');
         $routes->post('delete/(:num)', 'SchuldenController::delete/$1');
         $routes->post('getraenke-beglichen', 'SchuldenController::getraenkeBeglichen');
+        $routes->post('getraenke-alle-beglichen', 'SchuldenController::getraenkeAlleBeglichen');
         $routes->post('getraenke-beglichen-undo', 'SchuldenController::getraenkeBeglichenUndo');
         $routes->get('export/inventur', 'SchuldenController::exportInventur');
         // Getränkerechnung-Import (Issue #35): Upload → Vorschau → Bestätigen

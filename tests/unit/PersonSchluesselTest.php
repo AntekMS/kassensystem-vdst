@@ -50,4 +50,19 @@ final class PersonSchluesselTest extends CIUnitTestCase
         // Namen mit Klammern (z.B. Gäste) dürfen den Schlüssel nicht zerlegen.
         $this->assertSame('meier [gast]', person_schluessel('Meier [Gast]'));
     }
+
+    public function testAnkerIstIdSicherUndConsistent(): void
+    {
+        // Issue #55: Anker fürs Scroll-Ziel muss id-/fragment-tauglich sein
+        // (keine Leerzeichen/Klammern/Umlaute) und mit person_anker-Prefix.
+        $this->assertSame('person-hans-meier', person_anker('Hans Meier'));
+        $this->assertSame('person-meier-gast', person_anker('Meier [Gast]'));
+        // Whitespace- und Case-Varianten desselben Namens → gleicher Anker.
+        $this->assertSame(person_anker('Hans  Meier'), person_anker('hans meier'));
+    }
+
+    public function testAnkerTrenntVerschiedeneNamen(): void
+    {
+        $this->assertNotSame(person_anker('Hans Meier'), person_anker('Hans Müller'));
+    }
 }

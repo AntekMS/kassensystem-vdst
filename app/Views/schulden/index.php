@@ -34,10 +34,31 @@
         </div>
 
         <!-- Aktionen -->
+        <?php
+            // Gibt es überhaupt eine offene Getränke-Forderung? (steuert den
+            // "Alle begleichen"-Button). Über die geladenen Personen ermittelt,
+            // kein zusätzlicher Query.
+            $hatOffeneGetraenke = false;
+            foreach ($personen as $__p) {
+                if ($__p['forderungen_getraenke'] >= 0.01) {
+                    $hatOffeneGetraenke = true;
+                    break;
+                }
+            }
+        ?>
         <div class="d-flex flex-wrap gap-2 mb-4">
             <a href="<?= base_url('/schulden/create') ?>" class="btn btn-vdst">
                 <i class="bi bi-plus-lg" aria-hidden="true"></i> Neuer Eintrag
             </a>
+            <?php if ($hatOffeneGetraenke): ?>
+                <form method="post" class="d-inline"
+                      action="<?= base_url('/schulden/getraenke-alle-beglichen') ?>">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-outline-vdst">
+                        <i class="bi bi-check2-all" aria-hidden="true"></i> Alle Getränke begleichen
+                    </button>
+                </form>
+            <?php endif; ?>
             <a href="<?= base_url('/schulden/import') ?>" class="btn btn-outline-vdst">
                 <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i> Getränkerechnung importieren
             </a>
@@ -128,7 +149,7 @@
                             </thead>
                             <tbody>
                             <?php foreach ($personen as $p): ?>
-                                <tr>
+                                <tr id="<?= esc(person_anker($p['person']), 'attr') ?>">
                                     <td data-label="Person">
                                         <a href="<?= base_url('/schulden/person?name=' . urlencode($p['person'])) ?>"
                                            class="text-decoration-none">

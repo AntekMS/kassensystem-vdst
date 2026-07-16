@@ -78,7 +78,9 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   `person_normalisiere()`/`person_schluessel()` (kanonischer, whitespace- und
   case-normalisierter Vergleichsschlüssel für Freitext-Personennamen — EINZIGE
   Quelle für das Matching zwischen `schulden.person`, `person_emails` und
-  `getraenke_versand`, kein Ad-hoc-`mb_strtolower()` daneben).
+  `getraenke_versand`, kein Ad-hoc-`mb_strtolower()` daneben),
+  `person_anker()` (id-/fragment-sicherer Scroll-Anker `person-<slug>` auf Basis
+  von `person_schluessel()`, Issue #55).
 - **Design-System** (Issue #47): `public/css/app.css` ist die EINZIGE Theme-Quelle,
   eingebunden von `layouts/main.php` und `auth/login.php` (Cache-Buster `?v=N` bei
   CSS-Änderungen hochzählen). Tokens: Vereinsfarben (`--vdst-rot` #dc143c nur als
@@ -233,6 +235,24 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   angeboten, solange der Ausgleich der neueste Getränke-Eintrag der Person ist —
   danach normal in der Personen-Ansicht löschen. Beide Buttons bewusst ohne
   JS-Confirm (gegenseitig 1-Klick-umkehrbar); Test: `tests/unit/GetraenkeBeglichenTest.php`.
+- **Massen-Getränkeausgleich** (Issue #55): „Alle Getränke begleichen" in der
+  Übersichts-Aktionsleiste (nur sichtbar, wenn es offene Getränke-Forderungen
+  gibt; `.btn-outline-vdst`, da „Neuer Eintrag" die eine rote Primäraktion ist)
+  ruft `SchuldenController::getraenkeAlleBeglichen` → `SchuldModel::begleicheAlleGetraenke()`,
+  das über `getOffeneGetraenkeForderungen()` (aggregierte offene Getränke-Summen
+  je Person) iteriert und pro Person denselben `erstelleGetraenkeAusgleich`
+  aufruft wie der Einzel-Button. Auch ohne JS-Confirm; Redirect an den
+  Listenanfang (`/schulden`, kein Personen-Anker). Route
+  `POST schulden/getraenke-alle-beglichen`.
+- **Kein Scroll-Sprung** (Issue #55): die Einzel-Pfade `getraenkeBeglichen`/
+  `getraenkeBeglichenUndo` redirecten über `beglichenRedirect()` zurück zur
+  Herkunftsseite (`previous_url()`) MIT Fragment `#` . `person_anker($name)`; die
+  Übersicht setzt dieselbe id auf die `<tr>`, sodass der Browser an der Zeile
+  stehen bleibt. `person_anker()` (label_helper) baut auf `person_schluessel()`
+  auf und macht den Schlüssel id-/fragment-sicher (Nicht-`[a-z0-9]` → `-`) —
+  Fragment und `<tr id>` bleiben so garantiert identisch. Tests:
+  `person_anker` in `PersonSchluesselTest.php`, Massen-Ausgleich (DB-los über den
+  `getOffeneGetraenkeForderungen()`-Seam) in `GetraenkeBeglichenTest.php`.
 - **Auth**: ein Master-Passwort aus `.env` (`vdst.master_password`), Session 8h
   (`Config/Session.php::$expiration` muss zu `vdst.session_timeout` passen).
   Auth-Filter kommt ausschließlich aus der Routen-Gruppe in `Routes.php`; `AuthFilter`

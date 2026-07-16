@@ -36,6 +36,25 @@ if (!function_exists('person_schluessel')) {
     }
 }
 
+if (!function_exists('person_anker')) {
+    /**
+     * HTML-/URL-sicherer Anker für eine Personenzeile (Issue #55).
+     *
+     * Scroll-Ziel nach den 1-Klick-Getränkeaktionen: der Controller hängt
+     * `#` . person_anker($name) an das Redirect-Ziel, die Übersicht setzt
+     * dieselbe id auf die `<tr>`. Baut bewusst auf person_schluessel() auf
+     * (kein eigenes Slug-Schema), damit Fragment und id garantiert identisch
+     * sind; Nicht-[a-z0-9] (Leerzeichen, Umlaute, Klammern) werden auf `-`
+     * reduziert, damit die id/Fragment gültig bleibt.
+     */
+    function person_anker(string $name): string
+    {
+        $slug = preg_replace('/[^a-z0-9]+/', '-', person_schluessel($name));
+
+        return 'person-' . trim((string) $slug, '-');
+    }
+}
+
 if (!function_exists('kategorie_optionen')) {
     /**
      * @return array<string, string>

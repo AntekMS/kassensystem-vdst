@@ -405,6 +405,48 @@ class SchuldModel extends Model
     }
 
     /**
+     * Alle Personen mit offener Getränke-Forderung, aggregiert (Issue #55).
+     *
+     * Gleiche Vorzeichen-Semantik wie offeneGetraenkeForderung() (Rückzahlungen
+     * negativ → SUM); nur Personen mit echtem Restbetrag (>= 0,01 €). Als
+     * eigene Methode ausgelagert, damit begleicheAlleGetraenke() ohne DB
+     * getestet werden kann.
+     *
+     * @return array<array{person: string, summe: string}>
+     */
+    public function getOffeneGetraenkeForderungen(): array
+    {
+        return $this->select('person, SUM(betrag) AS summe')
+            ->where('typ', 'forderung')
+            ->where('kategorie', 'getraenke')
+            ->groupBy('person')
+            ->having('SUM(betrag) >=', 0.01)
+            ->orderBy('person')
+            ->findAll();
+    }
+
+    /**
+     * Gleicht die offenen Getränke-Forderungen ALLER Personen aus (Issue #55).
+     *
+     * Iteriert über jede Person mit offenem Getränke-Restbetrag und legt je
+     * Person denselben 1-Klick-Ausgleich an wie der Einzel-Button
+     * (erstelleGetraenkeAusgleich — voller offener Betrag, negativ).
+     *
+     * @return int Anzahl der beglichenen Personen
+     */
+    public function begleicheAlleGetraenke(): int
+    {
+        $anzahl = 0;
+
+        foreach ($this->getOffeneGetraenkeForderungen() as $person) {
+            $this->erstelleGetraenkeAusgleich($person['person'], (float) $person['summe']);
+            $anzahl++;
+        }
+
+        return $anzahl;
+    }
+
+    /**
      * Neuester Getränke-Eintrag einer Person, sofern er ein 1-Klick-Ausgleich
      * ist — sonst null. Nur dann wird das 1-Klick-Undo angeboten.
      */

@@ -260,8 +260,29 @@ class SchuldenController extends BaseController
 
         $this->schuldModel->erstelleGetraenkeAusgleich($person, $summe);
 
-        return redirect()->back()
+        return $this->beglichenRedirect($person)
             ->with('success', 'Getränkerechnung von ' . $person . ' über ' . formatiere_betrag($summe) . ' beglichen.');
+    }
+
+    /**
+     * 1-Klick: offene Getränkerechnungen ALLER Personen begleichen (Issue #55).
+     *
+     * Legt je Person mit offenem Getränke-Restbetrag denselben Ausgleich an
+     * wie der Einzel-Button (SchuldModel::begleicheAlleGetraenke ruft pro Person
+     * erstelleGetraenkeAusgleich). Bewusst ohne JS-Confirm, konsistent mit den
+     * übrigen 1-Klick-Buttons; einzeln über „Rückgängig" bzw. Löschen umkehrbar.
+     */
+    public function getraenkeAlleBeglichen()
+    {
+        $anzahl = $this->schuldModel->begleicheAlleGetraenke();
+
+        if ($anzahl === 0) {
+            return redirect()->to('/schulden')->with('error', 'Es gibt keine offenen Getränkerechnungen zum Begleichen.');
+        }
+
+        // Massen-Aktion: kein Personen-Anker, Sprung an den Listenanfang genügt.
+        return redirect()->to('/schulden')
+            ->with('success', $anzahl . ($anzahl === 1 ? ' offene Getränkerechnung' : ' offene Getränkerechnungen') . ' beglichen.');
     }
 
     /**
@@ -286,8 +307,30 @@ class SchuldenController extends BaseController
 
         $this->schuldModel->delete($ausgleich['id']);
 
-        return redirect()->back()
+        return $this->beglichenRedirect($person)
             ->with('success', 'Getränkeausgleich von ' . $person . ' über ' . formatiere_betrag(abs((float) $ausgleich['betrag'])) . ' rückgängig gemacht.');
+    }
+
+    /**
+     * Redirect nach einer 1-Klick-Getränkeaktion (Issue #55): zurück zur
+     * Herkunftsseite (Übersicht ODER Personen-Detail), aber mit Personen-Anker,
+     * damit der Browser an der jeweiligen Zeile stehen bleibt statt nach oben
+     * zu springen. Der Anker existiert nur auf der Übersicht als `<tr id>` — auf
+     * der (kurzen) Personen-Seite ist er wirkungslos und stört nicht.
+     */
+    private function beglichenRedirect(string $person)
+    {
+        helper('url');
+        $ziel = previous_url();
+
+        if (!is_string($ziel) || $ziel === '') {
+            $ziel = base_url('/schulden');
+        }
+
+        // Ein evtl. schon vorhandenes Fragment abschneiden, eigenen Anker setzen.
+        $ziel = explode('#', $ziel, 2)[0];
+
+        return redirect()->to($ziel . '#' . person_anker($person));
     }
 
     /**

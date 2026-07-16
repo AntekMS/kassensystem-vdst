@@ -432,9 +432,30 @@ class SchuldModel extends Model
      * Person denselben 1-Klick-Ausgleich an wie der Einzel-Button
      * (erstelleGetraenkeAusgleich — voller offener Betrag, negativ).
      *
+     * Ganz-oder-gar-nicht: der Ausgleichs-Batch läuft in einer Transaktion,
+     * damit ein Teilausfall keine inkonsistenten Ausgleiche hinterlässt.
+     *
      * @return int Anzahl der beglichenen Personen
      */
     public function begleicheAlleGetraenke(): int
+    {
+        $this->db->transStart();
+
+        $anzahl = $this->erstelleAlleGetraenkeAusgleiche();
+
+        $this->db->transComplete();
+
+        return $anzahl;
+    }
+
+    /**
+     * Reiner Ausgleichs-Loop ohne Transaktions-Boilerplate — als eigener,
+     * DB-los testbarer Seam ausgelagert (die DB-Zugriffe stecken in
+     * getOffeneGetraenkeForderungen() und erstelleGetraenkeAusgleich()).
+     *
+     * @return int Anzahl der beglichenen Personen
+     */
+    protected function erstelleAlleGetraenkeAusgleiche(): int
     {
         $anzahl = 0;
 

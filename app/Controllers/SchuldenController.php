@@ -317,20 +317,58 @@ class SchuldenController extends BaseController
      * damit der Browser an der jeweiligen Zeile stehen bleibt statt nach oben
      * zu springen. Der Anker existiert nur auf der Übersicht als `<tr id>` — auf
      * der (kurzen) Personen-Seite ist er wirkungslos und stört nicht.
+     *
+     * SICHERHEIT: previous_url() fällt bei fehlender Session-URL auf den
+     * angreiferbeeinflussbaren HTTP_REFERER zurück und redirect()->to() folgt
+     * absoluten scheme://-Zielen → Open-Redirect-Gefahr. Deshalb wird nur ein
+     * same-site-Ziel akzeptiert (Host == base_url-Host); von jedem Ziel wird
+     * ohnehin nur Path+Query übernommen, fremder/leerer Host fällt auf
+     * /schulden zurück.
      */
     private function beglichenRedirect(string $person)
     {
         helper('url');
-        $ziel = previous_url();
 
-        if (!is_string($ziel) || $ziel === '') {
-            $ziel = base_url('/schulden');
-        }
-
-        // Ein evtl. schon vorhandenes Fragment abschneiden, eigenen Anker setzen.
-        $ziel = explode('#', $ziel, 2)[0];
+        $eigenerHost = (string) parse_url(base_url(), PHP_URL_HOST);
+        $ziel = self::sameSiteRuecksprungPfad(previous_url(), $eigenerHost);
 
         return redirect()->to($ziel . '#' . person_anker($person));
+    }
+
+    /**
+     * Same-site-Guard gegen Open-Redirect (Issue #55): übernimmt vom Kandidaten
+     * NUR Path+Query und auch das nur, wenn dessen Host dem eigenen base_url()-
+     * Host entspricht — sonst der sichere Default /schulden. Scheme, Host und
+     * ein evtl. Fragment des Kandidaten werden verworfen; ein fehlender/fremder
+     * Host (inkl. protokoll-relativer //evil.com-Tricks) fällt auf den Default
+     * zurück. Pur (parse_url, keine Services) → direkt unit-testbar.
+     */
+    public static function sameSiteRuecksprungPfad(?string $kandidat, string $eigenerHost): string
+    {
+        $default = '/schulden';
+
+        if (!is_string($kandidat) || trim($kandidat) === '') {
+            return $default;
+        }
+
+        $teile = parse_url($kandidat);
+        if ($teile === false) {
+            return $default;
+        }
+
+        $zielHost = strtolower((string) ($teile['host'] ?? ''));
+        $eigenerHost = strtolower(trim($eigenerHost));
+
+        // Fremder oder leerer Host → nicht folgen (Path-only-Referer inklusive).
+        if ($zielHost === '' || $eigenerHost === '' || $zielHost !== $eigenerHost) {
+            return $default;
+        }
+
+        $pfad = '/' . ltrim((string) ($teile['path'] ?? ''), '/');
+
+        return isset($teile['query']) && $teile['query'] !== ''
+            ? $pfad . '?' . $teile['query']
+            : $pfad;
     }
 
     /**

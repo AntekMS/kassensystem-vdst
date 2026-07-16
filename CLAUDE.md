@@ -241,18 +241,25 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   ruft `SchuldenController::getraenkeAlleBeglichen` → `SchuldModel::begleicheAlleGetraenke()`,
   das über `getOffeneGetraenkeForderungen()` (aggregierte offene Getränke-Summen
   je Person) iteriert und pro Person denselben `erstelleGetraenkeAusgleich`
-  aufruft wie der Einzel-Button. Auch ohne JS-Confirm; Redirect an den
-  Listenanfang (`/schulden`, kein Personen-Anker). Route
-  `POST schulden/getraenke-alle-beglichen`.
+  aufruft wie der Einzel-Button. Der Batch läuft in einer Transaktion
+  (`transStart`/`transComplete`, ganz-oder-gar-nicht); der reine Loop steckt im
+  DB-los testbaren Seam `erstelleAlleGetraenkeAusgleiche()`. Auch ohne
+  JS-Confirm; Redirect an den Listenanfang (`/schulden`, kein Personen-Anker).
+  Route `POST schulden/getraenke-alle-beglichen`.
 - **Kein Scroll-Sprung** (Issue #55): die Einzel-Pfade `getraenkeBeglichen`/
   `getraenkeBeglichenUndo` redirecten über `beglichenRedirect()` zurück zur
-  Herkunftsseite (`previous_url()`) MIT Fragment `#` . `person_anker($name)`; die
-  Übersicht setzt dieselbe id auf die `<tr>`, sodass der Browser an der Zeile
-  stehen bleibt. `person_anker()` (label_helper) baut auf `person_schluessel()`
-  auf und macht den Schlüssel id-/fragment-sicher (Nicht-`[a-z0-9]` → `-`) —
-  Fragment und `<tr id>` bleiben so garantiert identisch. Tests:
+  Herkunftsseite MIT Fragment `#` . `person_anker($name)`; die Übersicht setzt
+  dieselbe id auf die `<tr>`, sodass der Browser an der Zeile stehen bleibt.
+  `person_anker()` (label_helper) baut auf `person_schluessel()` auf und macht
+  den Schlüssel id-/fragment-sicher (Nicht-`[a-z0-9]` → `-`) — Fragment und
+  `<tr id>` bleiben so garantiert identisch. SICHERHEIT: das Redirect-Ziel kommt
+  aus `previous_url()` (fällt auf den angreiferbeeinflussbaren HTTP_REFERER
+  zurück) → `SchuldenController::sameSiteRuecksprungPfad()` übernimmt NUR
+  Path+Query und auch das nur bei Host == base_url-Host, sonst Default
+  `/schulden` (Open-Redirect-Schutz; pure static, parse_url-basiert). Tests:
   `person_anker` in `PersonSchluesselTest.php`, Massen-Ausgleich (DB-los über den
-  `getOffeneGetraenkeForderungen()`-Seam) in `GetraenkeBeglichenTest.php`.
+  `getOffeneGetraenkeForderungen()`-Seam) in `GetraenkeBeglichenTest.php`,
+  Redirect-Guard in `RedirectSameSiteTest.php`.
 - **Auth**: ein Master-Passwort aus `.env` (`vdst.master_password`), Session 8h
   (`Config/Session.php::$expiration` muss zu `vdst.session_timeout` passen).
   Auth-Filter kommt ausschließlich aus der Routen-Gruppe in `Routes.php`; `AuthFilter`

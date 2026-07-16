@@ -56,16 +56,15 @@ final class GetraenkeBeglichenTest extends CIUnitTestCase
     }
 
     /**
-     * Massen-Begleichen (Issue #55): legt je Person mit offener Getränke-
-     * Forderung genau einen negativen Ausgleich über den vollen Betrag an, der
-     * die offene Summe auf 0 bringt und als 1-Klick-Ausgleich erkannt wird.
-     *
-     * DB-los getestet über die ausgelagerte Lese-Methode (Seam), damit der
-     * Teststil (reine Unit-Tests ohne DB) erhalten bleibt.
+     * DB-loser Test-Doppelgänger: überschreibt die beiden DB-Zugriffe (Lesen der
+     * offenen Forderungen, Anlegen des Ausgleichs) und macht den ausgelagerten
+     * Ausgleichs-Loop (ohne Transaktions-Boilerplate) öffentlich aufrufbar.
+     * begleicheAlleGetraenke() selbst umschließt genau diesen Loop mit einer
+     * Transaktion (db-abhängig, daher hier nicht direkt aufgerufen).
      */
-    public function testMassenBeglichenGleichtAllePersonenAus(): void
+    private function fakeModel(): SchuldModel
     {
-        $model = new class extends SchuldModel {
+        return new class extends SchuldModel {
             /** @var array<array{person: string, summe: string}> */
             public array $offene = [];
             /** @var array<array{person: string, betrag: float}> */
@@ -81,15 +80,29 @@ final class GetraenkeBeglichenTest extends CIUnitTestCase
                 // Vorzeichen-Semantik wie im Original: Rückzahlung ist negativ.
                 $this->angelegt[] = ['person' => $person, 'betrag' => -abs($betrag)];
             }
-        };
 
+            public function loopOhneTransaktion(): int
+            {
+                return $this->erstelleAlleGetraenkeAusgleiche();
+            }
+        };
+    }
+
+    /**
+     * Massen-Begleichen (Issue #55): legt je Person mit offener Getränke-
+     * Forderung genau einen negativen Ausgleich über den vollen Betrag an, der
+     * die offene Summe auf 0 bringt und als 1-Klick-Ausgleich erkannt wird.
+     */
+    public function testMassenBeglichenGleichtAllePersonenAus(): void
+    {
+        $model = $this->fakeModel();
         $model->offene = [
             ['person' => 'Achtzehn', 'summe' => '12.50'],
             ['person' => 'Kuhn', 'summe' => '3.00'],
             ['person' => 'Sobkowiak', 'summe' => '35.40'],
         ];
 
-        $anzahl = $model->begleicheAlleGetraenke();
+        $anzahl = $model->loopOhneTransaktion();
 
         $this->assertSame(3, $anzahl);
         $this->assertCount(3, $model->angelegt);
@@ -116,21 +129,10 @@ final class GetraenkeBeglichenTest extends CIUnitTestCase
 
     public function testMassenBeglichenOhneOffeneForderungenLegtNichtsAn(): void
     {
-        $model = new class extends SchuldModel {
-            public array $angelegt = [];
+        $model = $this->fakeModel();
+        $model->offene = [];
 
-            public function getOffeneGetraenkeForderungen(): array
-            {
-                return [];
-            }
-
-            public function erstelleGetraenkeAusgleich(string $person, float $betrag): void
-            {
-                $this->angelegt[] = [$person, $betrag];
-            }
-        };
-
-        $this->assertSame(0, $model->begleicheAlleGetraenke());
+        $this->assertSame(0, $model->loopOhneTransaktion());
         $this->assertSame([], $model->angelegt);
     }
 }

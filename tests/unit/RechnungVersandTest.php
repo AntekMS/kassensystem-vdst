@@ -12,7 +12,21 @@ use Config\Email;
  */
 final class RechnungVersandTest extends CIUnitTestCase
 {
+    /**
+     * vdst.*-Keys, die baueMail() liest — vor/nach jedem Test isoliert, damit
+     * weder ein reales .env noch Test-Reihenfolge das Ergebnis beeinflusst.
+     */
+    private const ENV_KEYS = [
+        'vdst.kassenwart_name',
+        'vdst.kassenwart_zeichen',
+        'vdst.bank_kontoinhaber',
+        'vdst.bank_iban',
+        'vdst.bank_bic',
+        'vdst.bank_name',
+    ];
+
     private array $original = [];
+    private array $originalEnv = [];
 
     protected function setUp(): void
     {
@@ -24,6 +38,11 @@ final class RechnungVersandTest extends CIUnitTestCase
             'SMTPHost' => $config->SMTPHost,
             'fromEmail' => $config->fromEmail,
         ];
+
+        foreach (self::ENV_KEYS as $key) {
+            $this->originalEnv[$key] = $_ENV[$key] ?? null;
+            unset($_ENV[$key]);
+        }
     }
 
     protected function tearDown(): void
@@ -31,6 +50,14 @@ final class RechnungVersandTest extends CIUnitTestCase
         $config = config(Email::class);
         foreach ($this->original as $key => $wert) {
             $config->{$key} = $wert;
+        }
+
+        foreach ($this->originalEnv as $key => $wert) {
+            if ($wert === null) {
+                unset($_ENV[$key]);
+            } else {
+                $_ENV[$key] = $wert;
+            }
         }
 
         parent::tearDown();
@@ -72,13 +99,57 @@ final class RechnungVersandTest extends CIUnitTestCase
         $this->assertFalse(RechnungVersand::istKonfiguriert());
     }
 
-    public function testBaueMailEnthaeltPersonMonatUndBetrag(): void
+    public function testBaueMailEnthaeltPersonMonatUndFrist(): void
     {
-        $mail = RechnungVersand::baueMail('Müller', 'November 2025', 12.5);
+        // 2024-01-05 ist nachweislich ein Freitag (2024-01-01 war ein Montag).
+        $mail = RechnungVersand::baueMail('Müller', 'November 2025', '2024-01-05');
 
         $this->assertSame('Getränkerechnung November 2025 – VDSt zu Erlangen', $mail['betreff']);
         $this->assertStringContainsString('Hallo Müller,', $mail['text']);
         $this->assertStringContainsString('November 2025', $mail['text']);
-        $this->assertStringContainsString('12,50 €', $mail['text']);
+        $this->assertStringContainsString('Freitag, den 05.01.2024', $mail['text']);
+    }
+
+    public function testBaueMailZeigtBetragNichtMehrImText(): void
+    {
+        // Issue #60: der Betrag steht nur noch im PDF-Anhang, nicht im Mailtext.
+        $mail = RechnungVersand::baueMail('Müller', 'November 2025', '2024-01-05');
+
+        $this->assertStringNotContainsString('€', $mail['text']);
+    }
+
+    public function testBaueMailZeigtBankAbsatzMitIban(): void
+    {
+        $_ENV['vdst.bank_kontoinhaber'] = 'VDSt zu Erlangen';
+        $_ENV['vdst.bank_iban'] = 'DE00 0000 0000 0000 0000 00';
+        $_ENV['vdst.bank_bic'] = 'ABCDEFGHXXX';
+        $_ENV['vdst.bank_name'] = 'Musterbank Erlangen';
+
+        $mail = RechnungVersand::baueMail('Müller', 'November 2025', '2024-01-05');
+
+        $this->assertStringContainsString('Falls du kein Lastschriftmandat erteilt hast', $mail['text']);
+        $this->assertStringContainsString('VDSt zu Erlangen', $mail['text']);
+        $this->assertStringContainsString('IBAN: DE00 0000 0000 0000 0000 00', $mail['text']);
+        $this->assertStringContainsString('BIC: ABCDEFGHXXX', $mail['text']);
+        $this->assertStringContainsString('Musterbank Erlangen', $mail['text']);
+        $this->assertStringContainsString('Verwendungszweck: Getränke November 2025 + dein Name', $mail['text']);
+    }
+
+    public function testBaueMailOhneIbanZeigtKeinenBankAbsatz(): void
+    {
+        $mail = RechnungVersand::baueMail('Müller', 'November 2025', '2024-01-05');
+
+        $this->assertStringNotContainsString('Falls du kein Lastschriftmandat erteilt hast', $mail['text']);
+        $this->assertStringNotContainsString('IBAN', $mail['text']);
+    }
+
+    public function testBaueMailSignaturMitVerbindungszeichen(): void
+    {
+        $_ENV['vdst.kassenwart_name'] = 'Max Mustermann';
+        $_ENV['vdst.kassenwart_zeichen'] = 'V!!!';
+
+        $mail = RechnungVersand::baueMail('Müller', 'November 2025', '2024-01-05');
+
+        $this->assertStringContainsString("Max Mustermann\nKassenwart V!!!", $mail['text']);
     }
 }

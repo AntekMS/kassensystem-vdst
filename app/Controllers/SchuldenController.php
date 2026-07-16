@@ -518,9 +518,45 @@ class SchuldenController extends BaseController
             'personen' => $personen,
             'smtp_ok' => RechnungVersand::istKonfiguriert(),
             'versand_ergebnisse' => session()->getFlashdata('versand_ergebnisse') ?? [],
+            'frist_default' => $this->berechneFristDefault(),
         ];
 
         return view('schulden/import_versand', $data);
+    }
+
+    /**
+     * Default-Rückmeldefrist (Issue #60): der Freitag dieser Woche; liegt der
+     * bereits in der Vergangenheit (Aufruf z.B. am Wochenende), der nächste
+     * Freitag. Bewusst über date('N') (ISO-Wochentag) statt über
+     * strtotime('friday this week')-Relativformate berechnet, deren Verhalten
+     * an Wochentag-Grenzen nicht eindeutig ist.
+     */
+    private function berechneFristDefault(): string
+    {
+        $heute = new \DateTime('today');
+        $isoTag = (int) $heute->format('N'); // 1 = Montag … 7 = Sonntag
+        $freitag = (clone $heute)->modify((5 - $isoTag) . ' days');
+
+        if ($freitag < $heute) {
+            $freitag->modify('+7 days');
+        }
+
+        return $freitag->format('Y-m-d');
+    }
+
+    /**
+     * Strenge Y-m-d-Prüfung (Regex + Kalender-Validität) für die per POST
+     * gelieferte Rückmeldefrist.
+     */
+    private function istGueltigesDatum(string $wert): bool
+    {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $wert)) {
+            return false;
+        }
+
+        [$jahr, $monat, $tag] = array_map('intval', explode('-', $wert));
+
+        return checkdate($monat, $tag, $jahr);
     }
 
     /**
@@ -583,6 +619,12 @@ class SchuldenController extends BaseController
         // gepostet wurde.
         $adressen = $emailModel->findEmailsFuer(array_column($forderungen, 'person'));
 
+        // Rückmelde-Frist aus dem POST — ungültig/leer fällt auf den
+        // berechneten Default zurück (kein harter Fehler, das Formular ist
+        // schon mit dem Default vorbelegt).
+        $fristPost = (string) $this->request->getPost('frist');
+        $frist = $this->istGueltigesDatum($fristPost) ? $fristPost : $this->berechneFristDefault();
+
         // 2) Versand an die ausgewählten Personen
         $versand = new RechnungVersand();
         $rechnungPdf = new RechnungPdf();
@@ -610,7 +652,7 @@ class SchuldenController extends BaseController
             // Reload würde erneut senden).
             try {
                 $pdf = $rechnungPdf->einzel($name, $monatsName, $betrag, date('Y-m-d'));
-                $mail = RechnungVersand::baueMail($name, $monatsName, $betrag);
+                $mail = RechnungVersand::baueMail($name, $monatsName, $frist);
                 $ok = $versand->sende($email, $mail['betreff'], $mail['text'], $pdf, RechnungPdf::dateiname($monatsName, $name));
             } catch (\Throwable $e) {
                 log_message('error', 'Rechnungsversand fehlgeschlagen (' . $name . '): ' . $e->getMessage());

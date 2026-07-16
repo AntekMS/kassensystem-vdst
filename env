@@ -91,3 +91,18 @@
 # Ohne diesen Key signieren Rechnungen generisch mit "der Kassenwart".
 
 # vdst.kassenwart_name = 'Max Mustermann'
+
+# Verbindungszeichen für die Mail-Signatur ("Kassenwart {Zeichen}"), z.B. das
+# Bandzeichen. Ohne diesen Key endet die Signatur schlicht mit "Kassenwart".
+
+# vdst.kassenwart_zeichen = 'V!!!'
+
+# Bankverbindung für den Überweisungs-Absatz im Rechnungsversand-Mailtext
+# (Issue #60). Der ganze Absatz ("Falls du kein Lastschriftmandat erteilt
+# hast...") wird NUR gerendert, wenn vdst.bank_iban gesetzt ist — ohne IBAN
+# bleibt es beim reinen Lastschrift-Hinweis.
+
+# vdst.bank_kontoinhaber = 'VDSt zu Erlangen'
+# vdst.bank_iban = 'DE00 0000 0000 0000 0000 00'
+# vdst.bank_bic = 'ABCDEFGHXXX'
+# vdst.bank_name = 'Musterbank Erlangen'

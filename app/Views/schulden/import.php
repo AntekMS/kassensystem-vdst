@@ -29,20 +29,34 @@
                         <form action="<?= base_url('/schulden/import/upload') ?>" method="post" enctype="multipart/form-data" id="importForm">
                             <?= csrf_field() ?>
 
-                            <div class="mb-3">
-                                <label for="monat" class="form-label fw-bold">
-                                    Monat der Rechnung <span class="text-danger">*</span>
-                                </label>
-                                <input type="month"
-                                       class="form-control <?= isset($errors['monat']) ? 'is-invalid' : '' ?>"
-                                       id="monat"
-                                       name="monat"
-                                       value="<?= esc(old('monat', $vormonat), 'attr') ?>"
-                                       required>
-                                <?php if (isset($errors['monat'])): ?>
-                                    <div class="invalid-feedback"><?= esc($errors['monat']) ?></div>
-                                <?php endif; ?>
-                                <small class="text-muted">Wird für Grund, Datum und die Beleg-Beschreibung verwendet</small>
+                            <div class="row g-3 mb-3">
+                                <div class="col-sm-6">
+                                    <label for="monat" class="form-label fw-bold">Monat der Rechnung</label>
+                                    <input type="month"
+                                           class="form-control <?= isset($errors['monat']) ? 'is-invalid' : '' ?>"
+                                           id="monat"
+                                           name="monat"
+                                           value="<?= esc(old('monat'), 'attr') ?>">
+                                    <?php if (isset($errors['monat'])): ?>
+                                        <div class="invalid-feedback"><?= esc($errors['monat']) ?></div>
+                                    <?php endif; ?>
+                                    <small class="text-muted">
+                                        Leer lassen, um den Monat aus dem Dateinamen zu übernehmen
+                                        (sonst Vormonat: <?= esc($vormonat) ?>).
+                                    </small>
+                                </div>
+                                <div class="col-sm-6">
+                                    <label for="monat_bis" class="form-label fw-bold">Bis (optional)</label>
+                                    <input type="month"
+                                           class="form-control <?= isset($errors['monat_bis']) ? 'is-invalid' : '' ?>"
+                                           id="monat_bis"
+                                           name="monat_bis"
+                                           value="<?= esc(old('monat_bis'), 'attr') ?>">
+                                    <?php if (isset($errors['monat_bis'])): ?>
+                                        <div class="invalid-feedback"><?= esc($errors['monat_bis']) ?></div>
+                                    <?php endif; ?>
+                                    <small class="text-muted">Nur ausfüllen, wenn die Rechnung einen Zeitraum über mehrere Monate abdeckt.</small>
+                                </div>
                             </div>
 
                             <div class="upload-area mb-3" onclick="document.getElementById('import_datei').click()">
@@ -89,6 +103,8 @@
                                             (Gesamt abzüglich „Ausstehend" — Altbestände führt bereits die Schuldenliste)<br>
                                             • Sheet „Coleur &amp; Bund": zwei PDF-Rechnungen als Belege für die AH-Abrechnung
                                             (offene wird verwendet, sonst neu angelegt)<br>
+                                            • Ohne Monatsangabe wird der Monat aus dem Dateinamen erkannt
+                                            (z.&nbsp;B. „GetraenkeNovember2025.xlsx"), sonst der Vormonat verwendet<br>
                                             • Vor dem Anlegen wird eine Vorschau zur Kontrolle angezeigt<br>
                                             • Danach: Einzelrechnungen per E-Mail verschicken und Übersichts-PDF herunterladen
                                             (<a href="<?= base_url('/schulden/import/versand?monat=' . esc($vormonat, 'url')) ?>">zum Rechnungsversand eines früheren Imports</a>)

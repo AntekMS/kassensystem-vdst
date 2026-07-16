@@ -201,4 +201,65 @@ final class GetraenkeImportParserTest extends CIUnitTestCase
         $this->assertSame('November 2025', GetraenkeRechnungImport::monatsName('2025-11'));
         $this->assertSame('Januar 2026', GetraenkeRechnungImport::monatsName('2026-01'));
     }
+
+    /**
+     * Zeitraum-Darstellung (Issue #57): gleiches Jahr → Jahreszahl nur einmal
+     * am Ende, Jahreswechsel → beide Jahreszahlen.
+     */
+    public function testMonatsNameMitZeitraum(): void
+    {
+        $this->assertSame('November–Dezember 2025', GetraenkeRechnungImport::monatsName('2025-11', '2025-12'));
+        $this->assertSame('November 2025–Januar 2026', GetraenkeRechnungImport::monatsName('2025-11', '2026-01'));
+        // Gleicher Monat als "Bis" verhält sich wie ein Einzelmonat.
+        $this->assertSame('November 2025', GetraenkeRechnungImport::monatsName('2025-11', '2025-11'));
+        // Kein "Bis" verhält sich wie bisher.
+        $this->assertSame('November 2025', GetraenkeRechnungImport::monatsName('2025-11', null));
+    }
+
+    /**
+     * Dateiname→Monat-Ableitung (Issue #57): erkennt deutsche Monatsnamen im
+     * Original-Dateinamen, mit oder ohne Jahr; ohne Jahr wird ein plausibles
+     * Jahr geschätzt (nie ein weit in der Zukunft liegender Monat).
+     */
+    public function testMonatAusDateinameMitJahr(): void
+    {
+        $this->assertSame('2025-11', GetraenkeRechnungImport::monatAusDateiname('GetraenkeNovember2025.xlsx'));
+        $this->assertSame('2025-11', GetraenkeRechnungImport::monatAusDateiname('Getraenke_November_2025.xlsx'));
+        $this->assertSame('2026-01', GetraenkeRechnungImport::monatAusDateiname('rechnung-januar-2026.xlsx'));
+    }
+
+    public function testMonatAusDateinameOhneJahrSchaetztPlausiblesJahr(): void
+    {
+        // "Heute" = 15. Juli 2026 (Monat 7): November (11) liegt mehr als
+        // einen Monat voraus → Vorjahr. Juni (6) liegt in der Vergangenheit
+        // desselben Jahres → laufendes Jahr.
+        $heute = new \DateTimeImmutable('2026-07-15');
+
+        $this->assertSame(
+            '2025-11',
+            GetraenkeRechnungImport::monatAusDateiname('GetraenkeNovember.xlsx', $heute)
+        );
+        $this->assertSame(
+            '2026-06',
+            GetraenkeRechnungImport::monatAusDateiname('GetraenkeJuni.xlsx', $heute)
+        );
+        // Der unmittelbar nächste Monat (August, +1) gilt noch als plausibel
+        // zeitnah (z.B. Import kurz vor Monatsende) → laufendes Jahr.
+        $this->assertSame(
+            '2026-08',
+            GetraenkeRechnungImport::monatAusDateiname('GetraenkeAugust.xlsx', $heute)
+        );
+    }
+
+    public function testMonatAusDateinameErkenntUmlautVarianten(): void
+    {
+        $this->assertSame('2026-03', GetraenkeRechnungImport::monatAusDateiname('RechnungMärz2026.xlsx'));
+        $this->assertSame('2026-03', GetraenkeRechnungImport::monatAusDateiname('RechnungMaerz2026.xlsx'));
+    }
+
+    public function testMonatAusDateinameOhneMonatsnameGibtNullZurueck(): void
+    {
+        $this->assertNull(GetraenkeRechnungImport::monatAusDateiname('Getraenkerechnung.xlsx'));
+        $this->assertNull(GetraenkeRechnungImport::monatAusDateiname('Rechnung2025.xlsx'));
+    }
 }

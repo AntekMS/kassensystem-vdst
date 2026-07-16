@@ -202,12 +202,37 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   `email.*`-Keys in `.env` (Beispielblock in `env`, inkl. `email.SMTPKeepAlive`
   für den Reihenversand über eine Verbindung); ohne Konfig ist der Versand per
   `RechnungVersand::istKonfiguriert()` deaktiviert, Adressen speichern geht
-  trotzdem. Mail-Signatur/PDF-Fußzeile lesen `vdst.kassenwart_name` aus `.env`
-  (Fallback „der Kassenwart"). Übersichts-PDF (Aushang):
-  `/schulden/import/uebersicht`. Landet der Versand nach einem Import auf einem
-  Monat ganz ohne offene Forderungen (alles Guthaben), bleibt die Import-
-  Erfolgsmeldung erhalten (nicht als Fehler verschlucken → sonst Re-Import).
+  trotzdem. Übersichts-PDF (Aushang): `/schulden/import/uebersicht`. Landet der
+  Versand nach einem Import auf einem Monat ganz ohne offene Forderungen (alles
+  Guthaben), bleibt die Import-Erfolgsmeldung erhalten (nicht als Fehler
+  verschlucken → sonst Re-Import).
   Test: `tests/unit/RechnungVersandTest.php`, `tests/unit/PersonSchluesselTest.php`.
+- **Mailtext der Einzelrechnung** (Issue #60): `RechnungVersand::baueMail(string
+  $person, string $monatsName, string $fristDatum): array` baut Betreff +
+  personalisierten Du-Text (Lastschrift-Ankündigung, Rückmelde-Frist,
+  optionaler Überweisungs-Absatz, Signatur) — der Betrag steht bewusst NUR im
+  PDF-Anhang, nicht mehr im Mailtext. `$fristDatum` kommt als `Y-m-d` rein und
+  wird als „{Wochentag}, den {d.m.Y}" ausgegeben (deutsche Wochentagsnamen über
+  die private Konstante `RechnungVersand::WOCHENTAGE`, indiziert über
+  `date('N')` — kein intl/setlocale-Verlass). Der Überweisungs-Absatz
+  („Falls du kein Lastschriftmandat…" bis inkl. Verwendungszweck) wird NUR
+  gerendert, wenn `vdst.bank_iban` gesetzt ist; Kontoinhaber/BIC/Bankname
+  kommen aus `vdst.bank_kontoinhaber`/`vdst.bank_bic`/`vdst.bank_name`.
+  Mail-Signatur/PDF-Fußzeile lesen weiterhin `vdst.kassenwart_name` aus `.env`
+  (Fallback „der Kassenwart"), zusätzlich hängt `vdst.kassenwart_zeichen`
+  (z.B. Bandzeichen) als „Kassenwart {Zeichen}" an die Signatur an (ohne Key
+  einfach „Kassenwart"). Die Rückmelde-Frist wird auf der Versand-Seite
+  (`schulden/import_versand.php`) als Datumsfeld `frist` abgefragt, vorbelegt
+  mit `SchuldenController::berechneFristDefault()` (Freitag dieser Woche, bei
+  bereits vergangenem Freitag der nächste) — `importVersandSenden()` validiert
+  den POST-Wert (`istGueltigesDatum()`, Regex + `checkdate()` + Guard gegen
+  Vergangenheitsdaten) und fällt bei fehlendem/ungültigem/vergangenem Wert auf
+  denselben Default zurück, damit nie eine schon abgelaufene Frist verschickt
+  wird. Im Bank-Absatz wird jede Zeile (Kontoinhaber/BIC/Bankname) nur bei
+  nicht-leerem Wert gerendert (`array_filter`) — leere `vdst.bank_*`-Werte
+  erzeugen so keine kaputten „BIC: "- oder Leerzeilen; IBAN und
+  Verwendungszweck stehen immer. Alle `vdst.bank_*`- und
+  `vdst.kassenwart_zeichen`-Keys sind auskommentierte Beispiele in `env`.
 
 ## Konventionen & Invarianten
 - **Upload-Pfade** sind relativ zu FCPATH (= `public/`): `uploads/belege/YYYY/MM/`.

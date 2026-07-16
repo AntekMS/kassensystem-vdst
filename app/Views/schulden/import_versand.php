@@ -73,6 +73,16 @@
                 <?php if ($monat_bis !== null): ?>
                     <input type="hidden" name="monat_bis" value="<?= esc($monat_bis) ?>">
                 <?php endif; ?>
+                <div class="card-body border-bottom">
+                    <div class="row">
+                        <div class="col-12 col-md-4">
+                            <label for="fristInput" class="form-label">Rückmelde-Frist</label>
+                            <input type="date" class="form-control" id="fristInput" name="frist"
+                                   value="<?= esc(old('frist', $frist_default)) ?>">
+                            <div class="form-text">Bis zu diesem Datum sollen Betroffene bei ungedecktem Konto Bescheid geben.</div>
+                        </div>
+                    </div>
+                </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover table-vdst table-stack mb-0">

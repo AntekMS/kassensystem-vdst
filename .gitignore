@@ -137,3 +137,6 @@ composer.phar
 
 # Beleg-Uploads (Laufzeitdaten, siehe scripts/backup.sh)
 public/uploads/
+
+# Claude Code Worktrees / lokale Tooling-Dateien
+.claude/

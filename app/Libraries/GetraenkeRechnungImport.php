@@ -152,19 +152,99 @@ class GetraenkeRechnungImport
     }
 
     /**
-     * Monatsname zu "YYYY-MM", z.B. "2025-11" → "November 2025".
+     * Deutsche Monatsnamen (Muster fürs Regex-Matching in monatAusDateiname).
      */
-    public static function monatsName(string $yyyyMm): string
-    {
-        $monate = [
-            '01' => 'Januar', '02' => 'Februar', '03' => 'März', '04' => 'April',
-            '05' => 'Mai', '06' => 'Juni', '07' => 'Juli', '08' => 'August',
-            '09' => 'September', '10' => 'Oktober', '11' => 'November', '12' => 'Dezember',
-        ];
+    private const MONATSNAMEN = [
+        '01' => 'Januar', '02' => 'Februar', '03' => 'März', '04' => 'April',
+        '05' => 'Mai', '06' => 'Juni', '07' => 'Juli', '08' => 'August',
+        '09' => 'September', '10' => 'Oktober', '11' => 'November', '12' => 'Dezember',
+    ];
 
+    /**
+     * Regex-Muster je Monat für die Dateinamen-Erkennung (ASCII-Variante für
+     * Umlaute mit eingerechnet, z.B. "Maerz" statt "März").
+     */
+    private const MONATSNAMEN_MUSTER = [
+        '01' => 'januar', '02' => 'februar', '03' => 'm(ä|ae)rz', '04' => 'april',
+        '05' => 'mai', '06' => 'juni', '07' => 'juli', '08' => 'august',
+        '09' => 'september', '10' => 'oktober', '11' => 'november', '12' => 'dezember',
+    ];
+
+    /**
+     * Monatsname zu "YYYY-MM", z.B. "2025-11" → "November 2025". Mit
+     * optionalem Endmonat wird ein Zeitraum dargestellt (Issue #57):
+     * "November–Dezember 2025" (gleiches Jahr) bzw.
+     * "November 2025–Januar 2026" (Jahreswechsel).
+     */
+    public static function monatsName(string $yyyyMm, ?string $bisYyyyMm = null): string
+    {
+        $name = self::einzelMonatsName($yyyyMm);
+
+        if ($bisYyyyMm === null || $bisYyyyMm === $yyyyMm) {
+            return $name;
+        }
+
+        $bisName = self::einzelMonatsName($bisYyyyMm);
+        [$jahrVon] = array_pad(explode('-', $yyyyMm, 2), 2, '');
+        [$jahrBis] = array_pad(explode('-', $bisYyyyMm, 2), 2, '');
+
+        if ($jahrVon !== '' && $jahrVon === $jahrBis) {
+            // Gleiches Jahr: Jahreszahl nur einmal am Ende, nicht doppelt.
+            $name = preg_replace('/\s+\d{4}$/', '', $name);
+        }
+
+        return $name . '–' . $bisName;
+    }
+
+    /**
+     * Einzelner Monatsname ohne Zeitraum-Logik.
+     */
+    private static function einzelMonatsName(string $yyyyMm): string
+    {
         [$jahr, $monat] = array_pad(explode('-', $yyyyMm, 2), 2, '');
 
-        return ($monate[$monat] ?? $yyyyMm) . ($jahr !== '' ? ' ' . $jahr : '');
+        return (self::MONATSNAMEN[$monat] ?? $yyyyMm) . ($jahr !== '' ? ' ' . $jahr : '');
+    }
+
+    /**
+     * Leitet aus einem Original-Dateinamen (z.B. "GetraenkeNovember2025.xlsx")
+     * einen Monatsvorschlag "YYYY-MM" ab, oder null, wenn kein deutscher
+     * Monatsname im Dateinamen erkannt wird (Issue #57).
+     *
+     * Steht kein Jahr im Namen, wird ein plausibles Jahr geschätzt: das
+     * laufende Jahr, außer der erkannte Monat läge mehr als einen Monat in
+     * der Zukunft — Getränkerechnungen werden erfahrungsgemäß zeitnah nach
+     * Monatsende importiert, ein weit voraus liegender Monat gehört daher
+     * eher zum Vorjahr.
+     */
+    public static function monatAusDateiname(string $dateiname, ?\DateTimeImmutable $heute = null): ?string
+    {
+        $stamm = mb_strtolower(pathinfo($dateiname, PATHINFO_FILENAME));
+
+        $monat = null;
+        foreach (self::MONATSNAMEN_MUSTER as $nr => $muster) {
+            if (preg_match('/' . $muster . '/u', $stamm) === 1) {
+                $monat = $nr;
+                break;
+            }
+        }
+
+        if ($monat === null) {
+            return null;
+        }
+
+        if (preg_match('/(20\d{2})/', $stamm, $treffer) === 1) {
+            $jahr = (int) $treffer[1];
+        } else {
+            $heute ??= new \DateTimeImmutable();
+            $jahr = (int) $heute->format('Y');
+
+            if ((int) $monat > (int) $heute->format('n') + 1) {
+                $jahr--;
+            }
+        }
+
+        return sprintf('%04d-%s', $jahr, $monat);
     }
 
     /**

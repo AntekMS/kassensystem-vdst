@@ -13,7 +13,7 @@
                         <p class="text-muted mb-0">Getränkerechnung <?= esc($monats_name) ?> — Einzelrechnungen per E-Mail verschicken</p>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
-                        <a href="<?= base_url('/schulden/import/uebersicht?monat=' . esc($monat, 'url')) ?>" class="btn btn-outline-vdst">
+                        <a href="<?= base_url('/schulden/import/uebersicht?monat=' . esc($monat, 'url') . ($monat_bis !== null ? '&bis=' . esc($monat_bis, 'url') : '')) ?>" class="btn btn-outline-vdst">
                             <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Übersichts-PDF (Aushang)
                         </a>
                         <a href="<?= base_url('/schulden/emails') ?>" class="btn btn-outline-vdst">
@@ -70,6 +70,9 @@
             <form action="<?= base_url('/schulden/import/versand/senden') ?>" method="post" id="versandForm">
                 <?= csrf_field() ?>
                 <input type="hidden" name="monat" value="<?= esc($monat) ?>">
+                <?php if ($monat_bis !== null): ?>
+                    <input type="hidden" name="monat_bis" value="<?= esc($monat_bis) ?>">
+                <?php endif; ?>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover table-vdst table-stack mb-0">

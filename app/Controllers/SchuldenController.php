@@ -360,14 +360,20 @@ class SchuldenController extends BaseController
     {
         // Kein mime_in: Browser melden für xlsx teils application/octet-stream.
         // Die echte Formatprüfung übernimmt der PhpSpreadsheet-Load beim Parsen.
+        // 'monat' ist bewusst NICHT mehr required (Issue #57): bleibt das Feld
+        // leer, wird der Monat aus dem Dateinamen abgeleitet bzw. der Vormonat
+        // verwendet — eine ausdrückliche Eingabe hat aber immer Vorrang.
         $rules = [
-            'monat' => 'required|regex_match[/^\d{4}-\d{2}$/]',
+            'monat' => 'permit_empty|regex_match[/^\d{4}-\d{2}$/]',
+            'monat_bis' => 'permit_empty|regex_match[/^\d{4}-\d{2}$/]',
             'import_datei' => 'uploaded[import_datei]|max_size[import_datei,10240]|ext_in[import_datei,xlsx]',
         ];
         $messages = [
             'monat' => [
-                'required' => 'Bitte den Monat der Rechnung angeben.',
                 'regex_match' => 'Der Monat muss im Format JJJJ-MM angegeben werden.',
+            ],
+            'monat_bis' => [
+                'regex_match' => 'Der Endmonat muss im Format JJJJ-MM angegeben werden.',
             ],
             'import_datei' => [
                 'uploaded' => 'Bitte eine Excel-Datei auswählen.',
@@ -380,7 +386,6 @@ class SchuldenController extends BaseController
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
-        $monat = $this->request->getPost('monat');
         $file = $this->request->getFile('import_datei');
 
         if (!$file->isValid()) {
@@ -388,6 +393,23 @@ class SchuldenController extends BaseController
         }
 
         $originalName = $file->getClientName();
+
+        $monatEingabe = trim((string) $this->request->getPost('monat'));
+        $monatBisEingabe = trim((string) $this->request->getPost('monat_bis'));
+        $monatBis = $monatBisEingabe !== '' ? $monatBisEingabe : null;
+
+        // Vorschlag NUR, wenn der Nutzer das Feld leer gelassen hat — eine
+        // ausdrückliche Eingabe wird nie überschrieben.
+        $ausDateiname = GetraenkeRechnungImport::monatAusDateiname($originalName);
+        $monatAusDateinameUebernommen = $monatEingabe === '' && $ausDateiname !== null;
+        $monat = $monatEingabe !== ''
+            ? $monatEingabe
+            : ($ausDateiname ?? date('Y-m', strtotime('first day of last month')));
+
+        if ($monatBis !== null && $monatBis < $monat) {
+            return redirect()->back()->withInput()->with('errors', ['monat_bis' => 'Der Endmonat darf nicht vor dem Startmonat liegen.']);
+        }
+
         $tmpVerzeichnis = $this->importTmpVerzeichnis();
         $tmpName = bin2hex(random_bytes(16)) . '.xlsx';
 
@@ -403,10 +425,14 @@ class SchuldenController extends BaseController
         session()->set('getraenke_import', [
             'datei' => $tmpName,
             'monat' => $monat,
+            'monat_bis' => $monatBis,
             'original' => $originalName,
         ]);
 
-        return view('schulden/import_vorschau', $this->baueImportVorschau($monat, $ergebnis));
+        return view(
+            'schulden/import_vorschau',
+            $this->baueImportVorschau($monat, $ergebnis, $monatBis, $monatAusDateinameUebernommen)
+        );
     }
 
     /**
@@ -425,6 +451,7 @@ class SchuldenController extends BaseController
 
         $tmpPfad = $this->importTmpVerzeichnis() . $import['datei'];
         $monat = $import['monat'];
+        $monatBis = $import['monat_bis'] ?? null;
 
         if (!is_file($tmpPfad)) {
             session()->remove('getraenke_import');
@@ -441,8 +468,10 @@ class SchuldenController extends BaseController
             return redirect()->to('/schulden/import')->with('error', $e->getMessage());
         }
 
-        $monatsName = GetraenkeRechnungImport::monatsName($monat);
-        $datum = date('Y-m-t', strtotime($monat . '-01'));
+        $monatsName = GetraenkeRechnungImport::monatsName($monat, $monatBis);
+        // Rechnungsdatum: letzter Tag des (End-)Monats — bei einem Zeitraum
+        // der letzte Tag des Endmonats.
+        $datum = date('Y-m-t', strtotime(($monatBis ?? $monat) . '-01'));
 
         // 1) Forderungen als ein Batch (Transaktion): ganz oder gar nicht
         $fehler = $this->erstelleImportForderungen($ergebnis['personen'], $datum, $monatsName);
@@ -466,7 +495,7 @@ class SchuldenController extends BaseController
         @unlink($tmpPfad);
         session()->remove('getraenke_import');
 
-        return redirect()->to('/schulden/import/versand?monat=' . $monat)
+        return redirect()->to('/schulden/import/versand?' . $this->versandQuery($monat, $monatBis))
             ->with('success', implode(' ', $meldungen));
     }
 
@@ -478,12 +507,16 @@ class SchuldenController extends BaseController
     public function importVersand()
     {
         $monat = (string) $this->request->getGet('monat');
+        $monatBis = $this->leseMonatBis((string) $this->request->getGet('bis'));
 
         if (!preg_match('/^\d{4}-\d{2}$/', $monat)) {
             return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Monat angegeben.');
         }
+        if ($monatBis === false) {
+            return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Endmonat angegeben.');
+        }
 
-        $monatsName = GetraenkeRechnungImport::monatsName($monat);
+        $monatsName = GetraenkeRechnungImport::monatsName($monat, $monatBis);
         $personen = $this->schuldModel->getImportForderungen($monatsName);
 
         if ($personen === []) {
@@ -514,6 +547,7 @@ class SchuldenController extends BaseController
         $data = [
             'title' => 'Rechnungsversand: Getränkerechnung ' . $monatsName,
             'monat' => $monat,
+            'monat_bis' => $monatBis,
             'monats_name' => $monatsName,
             'personen' => $personen,
             'smtp_ok' => RechnungVersand::istKonfiguriert(),
@@ -531,12 +565,16 @@ class SchuldenController extends BaseController
     public function importVersandSenden()
     {
         $monat = (string) $this->request->getPost('monat');
+        $monatBis = $this->leseMonatBis((string) $this->request->getPost('monat_bis'));
 
         if (!preg_match('/^\d{4}-\d{2}$/', $monat)) {
             return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Monat angegeben.');
         }
+        if ($monatBis === false) {
+            return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Endmonat angegeben.');
+        }
 
-        $monatsName = GetraenkeRechnungImport::monatsName($monat);
+        $monatsName = GetraenkeRechnungImport::monatsName($monat, $monatBis);
         $forderungen = [];
         foreach ($this->schuldModel->getImportForderungen($monatsName) as $zeile) {
             $forderungen[person_schluessel($zeile['person'])] = $zeile;
@@ -569,12 +607,12 @@ class SchuldenController extends BaseController
         }
 
         if ($fehler !== []) {
-            return redirect()->to('/schulden/import/versand?monat=' . $monat)
+            return redirect()->to('/schulden/import/versand?' . $this->versandQuery($monat, $monatBis))
                 ->with('error', 'Nicht alle Adressen konnten gespeichert werden. ' . implode(' ', $fehler));
         }
 
         if ($this->request->getPost('nur_speichern') !== null || !RechnungVersand::istKonfiguriert()) {
-            return redirect()->to('/schulden/import/versand?monat=' . $monat)
+            return redirect()->to('/schulden/import/versand?' . $this->versandQuery($monat, $monatBis))
                 ->with('success', 'E-Mail-Adressen wurden gespeichert.');
         }
 
@@ -631,12 +669,12 @@ class SchuldenController extends BaseController
         }
 
         if ($ergebnisse === []) {
-            return redirect()->to('/schulden/import/versand?monat=' . $monat)
+            return redirect()->to('/schulden/import/versand?' . $this->versandQuery($monat, $monatBis))
                 ->with('success', 'E-Mail-Adressen wurden gespeichert — es war keine Person zum Versand ausgewählt.');
         }
 
         // PRG: Redirect verhindert Doppelversand per Browser-Reload
-        return redirect()->to('/schulden/import/versand?monat=' . $monat)
+        return redirect()->to('/schulden/import/versand?' . $this->versandQuery($monat, $monatBis))
             ->with('versand_ergebnisse', $ergebnisse);
     }
 
@@ -646,12 +684,16 @@ class SchuldenController extends BaseController
     public function importUebersichtPdf()
     {
         $monat = (string) $this->request->getGet('monat');
+        $monatBis = $this->leseMonatBis((string) $this->request->getGet('bis'));
 
         if (!preg_match('/^\d{4}-\d{2}$/', $monat)) {
             return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Monat angegeben.');
         }
+        if ($monatBis === false) {
+            return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Endmonat angegeben.');
+        }
 
-        $monatsName = GetraenkeRechnungImport::monatsName($monat);
+        $monatsName = GetraenkeRechnungImport::monatsName($monat, $monatBis);
         $personen = $this->schuldModel->getImportForderungen($monatsName);
 
         if ($personen === []) {
@@ -746,11 +788,19 @@ class SchuldenController extends BaseController
     }
 
     /**
-     * Baut die View-Daten für die Import-Vorschau (inkl. Warnungen).
+     * Baut die View-Daten für die Import-Vorschau (inkl. Warnungen und Hinweisen).
+     *
+     * $monatAusDateinameUebernommen zeigt an, dass der Monat NICHT explizit
+     * eingegeben, sondern aus dem Original-Dateinamen abgeleitet wurde
+     * (Issue #57) — wird nur als Hinweis angezeigt, nicht als Warnung.
      */
-    private function baueImportVorschau(string $monat, array $ergebnis): array
-    {
-        $monatsName = GetraenkeRechnungImport::monatsName($monat);
+    private function baueImportVorschau(
+        string $monat,
+        array $ergebnis,
+        ?string $monatBis = null,
+        bool $monatAusDateinameUebernommen = false
+    ): array {
+        $monatsName = GetraenkeRechnungImport::monatsName($monat, $monatBis);
         $grund = SchuldModel::getraenkeImportGrund($monatsName);
 
         $bekannteNamen = array_map('mb_strtolower', $this->schuldModel->getPersonenNamen());
@@ -758,6 +808,13 @@ class SchuldenController extends BaseController
             $person['bekannt'] = in_array(mb_strtolower($person['person']), $bekannteNamen, true);
         }
         unset($person);
+
+        $hinweise = [];
+        if ($monatAusDateinameUebernommen) {
+            $hinweise[] = 'Der Monat „' . GetraenkeRechnungImport::monatsName($monat)
+                . '" wurde aus dem Dateinamen übernommen (kein Monat eingegeben) — bitte prüfen und beim erneuten '
+                . 'Hochladen ggf. explizit angeben.';
+        }
 
         $warnungen = [];
 
@@ -791,14 +848,41 @@ class SchuldenController extends BaseController
         return [
             'title' => 'Import-Vorschau: Getränkerechnung ' . $monatsName,
             'monat' => $monat,
+            'monat_bis' => $monatBis,
             'monats_name' => $monatsName,
             'personen' => $ergebnis['personen'],
             'summe' => array_sum(array_column($ergebnis['personen'], 'betrag')),
             'coleur' => $ergebnis['coleur'],
             'bund' => $ergebnis['bund'],
             'ziel_abrechnung' => $zielAbrechnung,
+            'hinweise' => $hinweise,
             'warnungen' => $warnungen,
         ];
+    }
+
+    /**
+     * Liefert den Query-String für die Versand-/Übersichts-URLs eines Monats
+     * bzw. Zeitraums (Issue #57) — einzige Stelle, die "monat"/"bis" zu einem
+     * Query-String zusammensetzt, damit beide Parameter überall konsistent
+     * durchgereicht werden.
+     */
+    private function versandQuery(string $monat, ?string $monatBis): string
+    {
+        return 'monat=' . $monat . ($monatBis !== null ? '&bis=' . $monatBis : '');
+    }
+
+    /**
+     * Liest einen optionalen Endmonat-Parameter ("bis"): null, wenn leer,
+     * der Wert bei gültigem JJJJ-MM-Format, sonst false (ungültig).
+     *
+     */
+    private function leseMonatBis(string $wert): string|false|null
+    {
+        if (trim($wert) === '') {
+            return null;
+        }
+
+        return preg_match('/^\d{4}-\d{2}$/', $wert) === 1 ? $wert : false;
     }
 
     /**

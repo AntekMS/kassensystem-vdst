@@ -158,6 +158,18 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   Confirm parst NEU, Altlasten >24h — auch verwaiste Temp-PDFs — werden
   weggeräumt). Doppelimport ist erlaubt, die Vorschau warnt aber (Erkennung über
   `SchuldModel::getraenkeImportGrund($monatsName)`).
+  Monat/Zeitraum (Issue #57): Das Monatsfeld in `importUpload()` ist optional —
+  bleibt es leer, schlägt `GetraenkeRechnungImport::monatAusDateiname()` einen
+  Monat aus dem Original-Dateinamen vor (deutscher Monatsname, Jahr aus dem Namen
+  oder plausibel geschätzt: laufendes Jahr, außer der Monat läge >1 Monat in der
+  Zukunft → Vorjahr), sonst greift der Vormonat. Optionales „Bis"-Feld (`monat_bis`)
+  erlaubt einen Zeitraum; `monatsName($von,$bis)` rendert ihn („November–Dezember
+  2025" bzw. „November 2025–Januar 2026"). Der Zeitraum wird als `von`+`bis` in
+  Session/Query durchgereicht (`SchuldenController::versandQuery()` baut den
+  Query-String, `leseMonatBis()` validiert `bis`); der daraus erzeugte Monatsname
+  ist der einzige Wert, aus dem `grund` entsteht — er bleibt zwischen Import,
+  Vorschau, Versand, Übersicht-PDF und Doppelimport-Erkennung identisch (weiter
+  exakter `grund`-Match, kein LIKE).
   Test: `tests/unit/GetraenkeImportParserTest.php`.
 - **PDF-Rechnungen** (Issue #35): `app/Libraries/RechnungPdf.php` (dompdf) rendert
   das geteilte Template `app/Views/pdf/rechnung.php` (gesteuert über `$typ`:

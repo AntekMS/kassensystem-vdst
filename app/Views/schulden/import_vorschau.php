@@ -19,6 +19,17 @@
             </div>
         </div>
 
+        <?php if (!empty($hinweise)): ?>
+            <div class="alert alert-info">
+                <strong><i class="bi bi-info-circle" aria-hidden="true"></i> Hinweis:</strong>
+                <ul class="mb-0 mt-1">
+                    <?php foreach ($hinweise as $hinweis): ?>
+                        <li><?= esc($hinweis) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
+
         <?php if (!empty($warnungen)): ?>
             <div class="alert alert-warning">
                 <strong><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Bitte beachten:</strong>
@@ -40,7 +51,7 @@
                     <div class="card-body">
                         <table class="table table-sm mb-0">
                             <tr>
-                                <td>Monat:</td>
+                                <td>Monat / Zeitraum:</td>
                                 <td class="text-end fw-bold"><?= esc($monats_name) ?></td>
                             </tr>
                             <tr>

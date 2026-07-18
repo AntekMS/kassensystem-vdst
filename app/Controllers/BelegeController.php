@@ -6,6 +6,7 @@ use App\Libraries\BelegUpload;
 use App\Models\AbrechnungBelegModel;
 use App\Models\BelegModel;
 use App\Models\BuchungModel;
+use App\Models\PersonModel;
 use App\Models\SchuldModel;
 
 /**
@@ -68,7 +69,7 @@ class BelegeController extends BaseController
             'title' => 'Neuen Beleg hinzufügen',
             'kategorien' => kategorie_optionen(),
             'max_upload_size' => BelegUpload::maxUploadSizeMb(),
-            'personen_namen' => (new SchuldModel())->getPersonenNamen(),
+            'personen_namen' => (new PersonModel())->getAnzeigenamen(),
         ];
 
         return view('belege/create', $data);
@@ -168,7 +169,7 @@ class BelegeController extends BaseController
             'title' => 'Beleg bearbeiten: ' . $beleg['belegnummer'],
             'beleg' => $beleg,
             'kategorien' => kategorie_optionen(),
-            'personen_namen' => (new SchuldModel())->getPersonenNamen(),
+            'personen_namen' => (new PersonModel())->getAnzeigenamen(),
         ];
 
         return view('belege/edit', $data);

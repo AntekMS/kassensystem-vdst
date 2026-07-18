@@ -39,7 +39,7 @@ class SchuldModel extends Model
     protected $protectFields = true;
 
     protected $allowedFields = [
-        'person', 'typ', 'kategorie', 'datum', 'grund', 'betrag',
+        'person', 'person_id', 'typ', 'kategorie', 'datum', 'grund', 'betrag',
         'beleg_id', 'buchung_id', 'abrechnung_typ', 'abrechnung_id'
     ];
 
@@ -163,21 +163,6 @@ class SchuldModel extends Model
     }
 
     /**
-     * Bereits verwendete Personennamen für die Datalist im Formular
-     *
-     * @return array<string>
-     */
-    public function getPersonenNamen()
-    {
-        $zeilen = $this->distinct()
-            ->select('person')
-            ->orderBy('person')
-            ->findAll();
-
-        return array_column($zeilen, 'person');
-    }
-
-    /**
      * Summen je Typ und Kategorie für die Inventur
      *
      * Grundgerüst mit Nullwerten (wie berechneKontostaende), damit auch bei
@@ -215,6 +200,17 @@ class SchuldModel extends Model
     }
 
     /**
+     * Soft-Link zum Personen-Register (Issue #61): person_id zu einem Freitext-
+     * Namen, oder null (Gäste/Institutionen/kein Registereintrag). Zentral hier,
+     * damit alle Insert-/Sync-Pfade person_id konsistent mitschreiben; die
+     * Aggregation/Detailseite bleiben bewusst namensbasiert.
+     */
+    private function personId(string $name): ?int
+    {
+        return (new PersonModel())->findIdFuerName($name);
+    }
+
+    /**
      * Eintrag stammt aus einer Quelle (Beleg/Buchung/Abrechnung) und wird
      * automatisch verwaltet — manuelles Bearbeiten/Löschen ist gesperrt.
      */
@@ -246,6 +242,7 @@ class SchuldModel extends Model
 
         $daten = [
             'person' => $person,
+            'person_id' => $this->personId($person),
             'typ' => 'verbindlichkeit',
             'kategorie' => 'sonstige',
             'datum' => $beleg['rechnungsdatum'],
@@ -332,6 +329,7 @@ class SchuldModel extends Model
     {
         $this->insert([
             'person' => $person,
+            'person_id' => $this->personId($person),
             'typ' => $buchung['buchungsart'] === 'einnahme' ? 'forderung' : 'verbindlichkeit',
             'kategorie' => $kategorie,
             'datum' => $buchung['buchungsdatum'],
@@ -396,6 +394,7 @@ class SchuldModel extends Model
     {
         $this->insert([
             'person' => $person,
+            'person_id' => $this->personId($person),
             'typ' => 'forderung',
             'kategorie' => 'getraenke',
             'datum' => date('Y-m-d'),

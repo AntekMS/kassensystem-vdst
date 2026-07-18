@@ -32,9 +32,11 @@ Heimverein (HV) als Excel/ZIP.
   Person entsteht eine Getränke-Forderung; die Coleur-/Bund-Summen werden als
   VDSt-gebrandete **PDF-Rechnungen** in die offene AH-Abrechnung übernommen
 - **Rechnungsversand** – nach dem Import lassen sich personalisierte
-  PDF-Einzelrechnungen per E-Mail an die Aktiven verschicken (Adressbuch unter
-  „E-Mail-Adressen", Versand-Log gegen Doppelversand) und eine allgemeine
+  PDF-Einzelrechnungen per E-Mail an die Aktiven verschicken (Adressen im
+  Personen-Register, Versand-Log gegen Doppelversand) und eine allgemeine
   Übersichts-Rechnung als PDF für den Aushang herunterladen
+- **Personen-Register** – Stammdaten der Aktiven (Vor-/Nachname, E-Mail) unter
+  „Personen"; Grundlage für Schulden-Zuordnung und Rechnungsversand
 - **Inventur** – eigene Seite ("Kassenwart – Aktueller Bestand": Kassenbestand +
   Forderungen − Verbindlichkeiten) mit Dashboard-Kachel und Excel-Download
 - **Suche & Filter** über Beschreibung/Lieferant/Notizen, Datum, Kategorie, Status und Betrag
@@ -137,17 +139,18 @@ php spark serve       # Dev-Server auf :8080
 ### Models (`app/Models/`)
 `BelegModel`, `BuchungModel`, `SchuldModel`, `AhAbrechnungModel`, `HvAbrechnungModel`,
 `AbrechnungBelegModel` (Junction `abrechnung_belege` – einziger Codepfad für Beleg-Zuordnungen),
-`PersonEmailModel` (Name → E-Mail für den Rechnungsversand), `GetraenkeVersandModel` (Versand-Log).
+`PersonModel` (Personen-Register: Vor-/Nachname + E-Mail, autoritative Namensquelle),
+`GetraenkeVersandModel` (Versand-Log).
 
 ### Datenbank
 ```
 belege               # Herzstück – alle Belege inkl. Datei
 buchungen            # Kassenbuch-Einträge (optional mit beleg_id)
-schulden             # Schulden-Ledger pro Person (Freitext-Name, Rückzahlung = negativ)
+schulden             # Schulden-Ledger pro Person (Name-String + Soft-Link person_id, Rückzahlung = negativ)
+persons              # Personen-Register (Vor-/Nachname, E-Mail) – autoritative Namensquelle
 ah_abrechnungen      # AH²-Monatsabrechnungen
 hv_abrechnungen      # HV-Abrechnungen (mit Freitext-Begründung)
 abrechnung_belege    # Verknüpfung Abrechnung ↔ Beleg (M:N)
-person_emails        # Name → E-Mail für den Rechnungsversand
 getraenke_versand    # Log der verschickten Getränkerechnungen
 ```
 Gesamtsummen berechnet PHP (`berechneGesamtsumme()`) bei jeder Zuordnung – **keine DB-Trigger**.

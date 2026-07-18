@@ -117,12 +117,21 @@ class SchuldenController extends BaseController
             }
         }
 
+        // Personen-Register-Zeile für die E-Mail-Karte (Issue #58);
+        // Institutions-Zeilen (AH²-Bund/Heimverein) sind keine Personen.
+        $istInstitution = SchuldModel::istInstitution($person);
+        $registerPerson = $istInstitution
+            ? null
+            : ((new PersonModel())->alleMitSchluessel()[person_schluessel($person)] ?? null);
+
         $data = [
             'title' => 'Schulden: ' . $person,
             'person' => $person,
             'eintraege' => $eintraege,
             'summen' => $summen,
             'getraenke_undo' => $getraenkeUndo,
+            'ist_institution' => $istInstitution,
+            'register_person' => $registerPerson,
         ];
 
         return view('schulden/person', $data);
@@ -310,6 +319,41 @@ class SchuldenController extends BaseController
 
         return $this->beglichenRedirect($person)
             ->with('success', 'Getränkeausgleich von ' . $person . ' über ' . formatiere_betrag(abs((float) $ausgleich['betrag'])) . ' rückgängig gemacht.');
+    }
+
+    /**
+     * E-Mail-Adresse von der Personen-Detailseite speichern (Issue #58).
+     *
+     * Expliziter Edit: leeres Feld LÖSCHT die gespeicherte Adresse (anders als
+     * der Versand-Upsert, der leere Felder ignoriert). Unbekannte Namen werden
+     * als Nachname-Eintrag im Register angelegt.
+     */
+    public function personEmailStore()
+    {
+        $person = trim((string) $this->request->getPost('person'));
+
+        if ($person === '') {
+            return redirect()->to('/schulden')->with('error', 'Person nicht angegeben.');
+        }
+
+        $ziel = '/schulden/person?name=' . urlencode($person);
+
+        // Defense-in-depth: das Formular wird für Institutionen gar nicht gerendert.
+        if (SchuldModel::istInstitution($person)) {
+            return redirect()->to($ziel)
+                ->with('error', 'AH²-Bund/Heimverein sind keine Personen — keine E-Mail-Adresse speicherbar.');
+        }
+
+        $email = trim((string) $this->request->getPost('email'));
+        $personModel = new PersonModel();
+
+        if (!$personModel->speichereEmailFuerName($person, $email)) {
+            return redirect()->to($ziel)->withInput()
+                ->with('errors', $personModel->errors() ?: ['E-Mail-Adresse konnte nicht gespeichert werden.']);
+        }
+
+        return redirect()->to($ziel)
+            ->with('success', $email === '' ? 'E-Mail-Adresse entfernt.' : 'E-Mail-Adresse gespeichert.');
     }
 
     /**

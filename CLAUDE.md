@@ -132,6 +132,20 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   (`person_emails` per Migration entfernt). Verwaltung: `/schulden/personen`
   (`personen()`/`personenStore()`/`personenDelete()`), Datalists (schulden/belege/
   buchungen) speisen sich aus `PersonModel::getAnzeigenamen()`.
+  E-Mail-Edit an der Person (Issue #58): die Schulden-Detailseite
+  (`/schulden/person?name=…`) zeigt eine E-Mail-Karte (Anzeige + Speichern via
+  `POST schulden/person/email` → `personEmailStore()` →
+  `PersonModel::speichereEmailFuerName()`). SEMANTIK-UNTERSCHIED: dieser
+  explizite Edit LÖSCHT bei leerem Feld die gespeicherte Adresse —
+  `upsertFuerName()` (Versand-Seite) ignoriert leere Werte weiterhin und bleibt
+  unangetastet; Entscheidungslogik im puren Seam `PersonModel::emailAktion()`
+  (→ `PersonModelTest`). Unbekannte Namen werden beim Speichern als
+  Nachname-Eintrag angelegt; existiert die Person, verlinkt die Karte auf
+  `/schulden/personen?edit=<id>`. Institutions-Zeilen (AH²-Bund/Heimverein)
+  bekommen KEINE E-Mail-UI — Guard über `SchuldModel::INSTITUTION_PERSONEN` +
+  `istInstitution()` (person_schluessel-basiert; die Konstante ist jetzt auch
+  die einzige Quelle der Institutions-Namen in `syncAbrechnungForderung`,
+  Regression-Pin in `GetraenkeBeglichenTest`).
 - **Schulden** (`SchuldenController`/`SchuldModel`, Views `app/Views/schulden/*`):
   Ledger pro Person, Person ist **Freitext-String** mit optionalem Soft-Link ins
   Personen-Register (s.o.; Datalist-Vorschläge aus `persons`, Namen werden getrimmt,

@@ -10,6 +10,12 @@ use CodeIgniter\Test\CIUnitTestCase;
  */
 final class GetraenkeBeglichenTest extends CIUnitTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        helper('label'); // person_schluessel() für istInstitution()
+    }
+
     /**
      * Ein Eintrag, wie ihn erstelleGetraenkeAusgleich() anlegt.
      */
@@ -134,5 +140,33 @@ final class GetraenkeBeglichenTest extends CIUnitTestCase
 
         $this->assertSame(0, $model->loopOhneTransaktion());
         $this->assertSame([], $model->angelegt);
+    }
+
+    /**
+     * Institutions-Guard (Issue #58): AH²-Bund/Heimverein sind keine Personen —
+     * die E-Mail-UI der Detailseite bleibt für sie versteckt/gesperrt.
+     */
+    public function testIstInstitutionErkenntAbrechnungsInstitutionen(): void
+    {
+        $this->assertTrue(SchuldModel::istInstitution('AH²-Bund'));
+        $this->assertTrue(SchuldModel::istInstitution('Heimverein'));
+        // Matching wie überall über person_schluessel(): case-/whitespace-tolerant.
+        $this->assertTrue(SchuldModel::istInstitution('  ah²-bund  '));
+        $this->assertTrue(SchuldModel::istInstitution('HEIMVEREIN'));
+    }
+
+    public function testIstInstitutionLehntEchtePersonenAb(): void
+    {
+        $this->assertFalse(SchuldModel::istInstitution('Antek Sobkowiak'));
+        $this->assertFalse(SchuldModel::istInstitution('Heimvereinsmeier'));
+        $this->assertFalse(SchuldModel::istInstitution(''));
+    }
+
+    public function testInstitutionsNamenBleibenStabil(): void
+    {
+        // Regression-Pin: diese Strings stehen als schulden.person in der DB
+        // (syncAbrechnungForderung) — Umbenennen würde Alt-Zeilen verwaisen.
+        $this->assertSame('AH²-Bund', SchuldModel::INSTITUTION_PERSONEN['ah']);
+        $this->assertSame('Heimverein', SchuldModel::INSTITUTION_PERSONEN['hv']);
     }
 }

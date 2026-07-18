@@ -21,6 +21,29 @@ class SchuldModel extends Model
     public const GETRAENKE_BEGLICHEN_GRUND = 'Getränkerechnung beglichen';
 
     /**
+     * Institutions-"Personen" der Abrechnungs-Forderungen (Issue #38) —
+     * keine echten Personen, daher nie ins Personen-Register (Issue #58).
+     */
+    public const INSTITUTION_PERSONEN = ['ah' => 'AH²-Bund', 'hv' => 'Heimverein'];
+
+    /**
+     * Ist der Freitext-Name eine Institutions-Zeile (AH²-Bund/Heimverein)?
+     * Vergleich wie überall über person_schluessel().
+     */
+    public static function istInstitution(string $person): bool
+    {
+        $schluessel = person_schluessel($person);
+
+        foreach (self::INSTITUTION_PERSONEN as $institution) {
+            if ($schluessel === person_schluessel($institution)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Grund der importierten Getränke-Forderungen eines Monats (Issue #35).
      *
      * Einziger Codepfad für diesen String — Abfragen matchen ihn IMMER exakt,
@@ -287,7 +310,7 @@ class SchuldModel extends Model
         $sollAusgleich = $summe > 0 && $abrechnung['status'] === 'bezahlt';
 
         $basis = [
-            'person' => $typ === 'ah' ? 'AH²-Bund' : 'Heimverein',
+            'person' => self::INSTITUTION_PERSONEN[$typ],
             'typ' => 'forderung',
             'kategorie' => 'abrechnung',
             'abrechnung_typ' => $typ,

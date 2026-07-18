@@ -126,4 +126,33 @@ final class PersonModelTest extends CIUnitTestCase
 
         $this->assertSame([], $map);
     }
+
+    public function testEmailAktionSetztNeueOderGeaenderteAdresse(): void
+    {
+        $person = ['id' => 1, 'nachname' => 'Sobkowiak', 'email' => 'alt@example.org'];
+
+        $this->assertSame('setzen', PersonModel::emailAktion($person, 'neu@example.org'));
+        // Person ohne Adresse bekommt eine → ebenfalls setzen.
+        $this->assertSame('setzen', PersonModel::emailAktion(['id' => 2, 'email' => null], 'neu@example.org'));
+        // Identische Adresse → nichts zu tun.
+        $this->assertSame('nichts', PersonModel::emailAktion($person, 'alt@example.org'));
+        $this->assertSame('nichts', PersonModel::emailAktion($person, '  alt@example.org  '));
+    }
+
+    public function testEmailAktionLeeresFeldLoeschtGespeicherteAdresse(): void
+    {
+        // Expliziter Edit: leer LÖSCHT (anders als upsertFuerName).
+        $this->assertSame('loeschen', PersonModel::emailAktion(['id' => 1, 'email' => 'alt@example.org'], ''));
+        $this->assertSame('loeschen', PersonModel::emailAktion(['id' => 1, 'email' => 'alt@example.org'], '   '));
+        // Nichts gespeichert + nichts gepostet → nichts.
+        $this->assertSame('nichts', PersonModel::emailAktion(['id' => 1, 'email' => null], ''));
+        $this->assertSame('nichts', PersonModel::emailAktion(['id' => 1, 'email' => ''], ''));
+    }
+
+    public function testEmailAktionUnbekannterNameWirdAngelegt(): void
+    {
+        $this->assertSame('anlegen', PersonModel::emailAktion(null, 'neu@example.org'));
+        // Unbekannt + leer → kein Register-Eintrag anlegen.
+        $this->assertSame('nichts', PersonModel::emailAktion(null, ''));
+    }
 }

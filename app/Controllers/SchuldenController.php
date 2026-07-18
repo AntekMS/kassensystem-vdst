@@ -381,7 +381,8 @@ class SchuldenController extends BaseController
         helper('url');
 
         $eigenerHost = (string) parse_url(base_url(), PHP_URL_HOST);
-        $ziel = self::sameSiteRuecksprungPfad(previous_url(), $eigenerHost);
+        $indexPage = (string) config('App')->indexPage;
+        $ziel = self::sameSiteRuecksprungPfad(previous_url(), $eigenerHost, $indexPage);
 
         return redirect()->to($ziel . '#' . person_anker($person));
     }
@@ -393,8 +394,15 @@ class SchuldenController extends BaseController
      * ein evtl. Fragment des Kandidaten werden verworfen; ein fehlender/fremder
      * Host (inkl. protokoll-relativer //evil.com-Tricks) fällt auf den Default
      * zurück. Pur (parse_url, keine Services) → direkt unit-testbar.
+     *
+     * Issue #72: läuft die App ohne URL-Rewriting, steckt im Referrer-Pfad
+     * bereits ein führendes `/index.php` (z.B. `/index.php/schulden`) — der
+     * anschließende redirect()->to() hängt es über site_url() ein zweites Mal
+     * an ("index.php/index.php/..."). $indexPage wird daher aus dem
+     * übernommenen Pfad herausgeschnitten, BEVOR redirect()->to() ihn erneut
+     * über site_url() zusammensetzt.
      */
-    public static function sameSiteRuecksprungPfad(?string $kandidat, string $eigenerHost): string
+    public static function sameSiteRuecksprungPfad(?string $kandidat, string $eigenerHost, string $indexPage = ''): string
     {
         $default = '/schulden';
 
@@ -416,10 +424,37 @@ class SchuldenController extends BaseController
         }
 
         $pfad = '/' . ltrim((string) ($teile['path'] ?? ''), '/');
+        $pfad = self::entferneIndexPagePraefix($pfad, $indexPage);
 
         return isset($teile['query']) && $teile['query'] !== ''
             ? $pfad . '?' . $teile['query']
             : $pfad;
+    }
+
+    /**
+     * Entfernt ein führendes `/{$indexPage}`-Segment aus einem Pfad (Issue #72),
+     * z.B. `/index.php/schulden` → `/schulden`. redirect()->to() setzt den
+     * Front-Controller über site_url() ohnehin wieder davor — ohne diesen Schnitt
+     * verdoppelt er sich im Non-Rewrite-Betrieb. Leeres $indexPage (Rewrite aktiv)
+     * lässt den Pfad unverändert.
+     */
+    private static function entferneIndexPagePraefix(string $pfad, string $indexPage): string
+    {
+        $indexPage = trim($indexPage, '/');
+        if ($indexPage === '') {
+            return $pfad;
+        }
+
+        $praefix = '/' . $indexPage;
+        if ($pfad === $praefix) {
+            return '/';
+        }
+
+        if (strncmp($pfad, $praefix . '/', strlen($praefix) + 1) === 0) {
+            return substr($pfad, strlen($praefix));
+        }
+
+        return $pfad;
     }
 
     /**

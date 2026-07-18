@@ -374,10 +374,16 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   aus `previous_url()` (fällt auf den angreiferbeeinflussbaren HTTP_REFERER
   zurück) → `SchuldenController::sameSiteRuecksprungPfad()` übernimmt NUR
   Path+Query und auch das nur bei Host == base_url-Host, sonst Default
-  `/schulden` (Open-Redirect-Schutz; pure static, parse_url-basiert). Tests:
+  `/schulden` (Open-Redirect-Schutz; pure static, parse_url-basiert). Im
+  Non-Rewrite-Betrieb (kein `.htaccess`/mod_rewrite, URLs enthalten
+  `/index.php/…`) schneidet `entferneIndexPagePraefix()` ein führendes
+  `/{indexPage}`-Segment aus dem übernommenen Pfad heraus (Issue #72) — sonst
+  hängt `redirect()->to()` es über `site_url()` ein zweites Mal an
+  (`index.php/index.php/schulden` → 404). `$indexPage` kommt in
+  `beglichenRedirect()` aus `config('App')->indexPage`. Tests:
   `person_anker` in `PersonSchluesselTest.php`, Massen-Ausgleich (DB-los über den
   `getOffeneGetraenkeForderungen()`-Seam) in `GetraenkeBeglichenTest.php`,
-  Redirect-Guard in `RedirectSameSiteTest.php`.
+  Redirect-Guard (inkl. Index-Page-Präfix) in `RedirectSameSiteTest.php`.
 - **Auth**: ein Master-Passwort aus `.env` (`vdst.master_password`), Session 8h
   (`Config/Session.php::$expiration` muss zu `vdst.session_timeout` passen).
   Auth-Filter kommt ausschließlich aus der Routen-Gruppe in `Routes.php`; `AuthFilter`

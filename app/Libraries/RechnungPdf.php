@@ -8,11 +8,13 @@ use Dompdf\Options;
 /**
  * RechnungPdf - VDSt-gebrandete Getränkerechnungen als PDF (Issue #35)
  *
- * Drei Varianten aus einem geteilten Template (app/Views/pdf/rechnung.php,
+ * Vier Varianten aus einem geteilten Template (app/Views/pdf/rechnung.php,
  * gesteuert über $typ wie bei den geteilten abrechnungen/*-Views):
  * - coleurBund: Beleg-Rechnung für die AH-Abrechnung (Coleur bzw. Bund)
  * - uebersicht: allgemeine Monats-Übersicht aller Personen (Aushang)
  * - einzel: personalisierte Rechnung für den E-Mail-Versand
+ * - inventur: „Kassenwart – Aktueller Bestand" (Issue #70, PDF-Pendant zum
+ *   Excel-Export)
  *
  * Alle Methoden liefern die PDF-Bytes als String — der Aufrufer entscheidet
  * über Download, Datei oder E-Mail-Anhang.
@@ -60,6 +62,36 @@ class RechnungPdf
             'betrag' => $betrag,
             'datum' => $datum,
         ]);
+    }
+
+    /**
+     * Inventur "Kassenwart – Aktueller Bestand" als PDF (Issue #70) — gleiche
+     * Datengrundlage wie der bestehende Excel-Export
+     * (ExcelHelper::erstelleInventur): Kassenbestand, Forderungen,
+     * Verbindlichkeiten, Gesamtsumme.
+     *
+     * @param array<string, array{saldo: float|string}> $kontostaende
+     * @param array<string, array<string, float|string>> $inventur
+     */
+    public function inventur(array $kontostaende, array $inventur, float $summeKassen, float $summeGesamt, string $datum): string
+    {
+        return $this->render([
+            'typ' => 'inventur',
+            'kontostaende' => $kontostaende,
+            'inventur' => $inventur,
+            'summe_kassen' => $summeKassen,
+            'summe_gesamt' => $summeGesamt,
+            'datum' => $datum,
+        ]);
+    }
+
+    /**
+     * Dateiname der Inventur-PDF, analog zum Excel-Export
+     * ("Inventur_JJJJ-MM-TT.xlsx" → "…pdf").
+     */
+    public static function inventurDateiname(string $datum): string
+    {
+        return 'Inventur_' . $datum . '.pdf';
     }
 
     /**

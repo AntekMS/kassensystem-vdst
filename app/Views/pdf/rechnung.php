@@ -4,10 +4,11 @@
  * App\Libraries\RechnungPdf für dompdf — kein Browser-View, daher bewusst
  * Standalone-HTML mit eigenem <style>-Block.
  *
- * $typ: 'einzel' | 'uebersicht' | 'coleur_bund'
+ * $typ: 'einzel' | 'uebersicht' | 'coleur_bund' | 'inventur'
  */
 $datumAnzeige = date('d.m.Y', strtotime($datum));
 $kassenwart = trim((string) env('vdst.kassenwart_name', ''));
+$kopfzusatz = $typ === 'inventur' ? 'Inventur' : 'Getränkeabrechnung';
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -112,7 +113,7 @@ $kassenwart = trim((string) env('vdst.kassenwart_name', ''));
         <?php endif; ?>
         <td>
             <div class="vereinsname">Verein deutscher Studenten zu Erlangen</div>
-            <div class="vereinszusatz">Kassenwart · Getränkeabrechnung</div>
+            <div class="vereinszusatz">Kassenwart · <?= esc($kopfzusatz) ?></div>
         </td>
     </tr>
 </table>
@@ -168,6 +169,56 @@ $kassenwart = trim((string) env('vdst.kassenwart_name', ''));
     <p class="hinweis">
         Bitte die Beträge zeitnah überweisen oder direkt beim Kassenwart begleichen.
     </p>
+
+<?php elseif ($typ === 'inventur'): ?>
+
+    <h1>Kassenwart – Aktueller Bestand</h1>
+    <div class="untertitel">Inventur zum <?= esc($datumAnzeige) ?></div>
+
+    <table class="posten">
+        <thead>
+            <tr>
+                <th>Position</th>
+                <th class="betrag-spalte">Betrag</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td colspan="2"><strong>I. Kassenbestand</strong></td></tr>
+            <?php foreach ($kontostaende as $konto => $daten): ?>
+                <tr>
+                    <td><?= esc(konto_label($konto)) ?></td>
+                    <td class="betrag-spalte"><?= esc(formatiere_betrag((float) $daten['saldo'])) ?></td>
+                </tr>
+            <?php endforeach; ?>
+            <tr class="summe">
+                <td>Summe I</td>
+                <td class="betrag-spalte"><?= esc(formatiere_betrag((float) $summe_kassen)) ?></td>
+            </tr>
+
+            <?php $bloecke = [
+                'forderung' => ['roemisch' => 'II', 'titel' => 'Forderungen'],
+                'verbindlichkeit' => ['roemisch' => 'III', 'titel' => 'Verbindlichkeiten'],
+            ]; ?>
+            <?php foreach ($bloecke as $key => $block): ?>
+                <tr><td colspan="2"><strong><?= esc($block['roemisch'] . '. ' . $block['titel']) ?></strong></td></tr>
+                <?php foreach (schuld_kategorie_optionen() as $kategorie => $label): ?>
+                    <tr>
+                        <td><?= esc($label) ?></td>
+                        <td class="betrag-spalte"><?= esc(formatiere_betrag((float) ($inventur[$key][$kategorie] ?? 0))) ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                <tr class="summe">
+                    <td>Summe <?= esc($block['roemisch']) ?></td>
+                    <td class="betrag-spalte"><?= esc(formatiere_betrag((float) ($inventur[$key]['summe'] ?? 0))) ?></td>
+                </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+
+    <div class="betrag-kasten">
+        <div class="label">Summe Gesamt (I + II − III)</div>
+        <div class="betrag"><?= esc(formatiere_betrag((float) $summe_gesamt)) ?></div>
+    </div>
 
 <?php else: /* coleur_bund */ ?>
 

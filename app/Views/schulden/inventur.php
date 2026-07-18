@@ -13,6 +13,9 @@
                 <a href="<?= base_url('/schulden/export/inventur') ?>" class="btn btn-vdst">
                     <i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Als Excel herunterladen
                 </a>
+                <a href="<?= base_url('/schulden/export/inventur-pdf') ?>" class="btn btn-outline-vdst">
+                    <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Als PDF herunterladen
+                </a>
                 <a href="<?= base_url('/schulden') ?>" class="btn btn-outline-vdst">
                     Zur Schuldenliste
                 </a>

@@ -67,4 +67,25 @@ final class RechnungPdfTest extends CIUnitTestCase
 
         $this->assertStringStartsWith('%PDF-', $bytes);
     }
+
+    public function testInventurLiefertPdf(): void
+    {
+        $kontostaende = [
+            'barkasse' => ['saldo' => 120.5],
+            'aktivenkasse' => ['saldo' => 340.0],
+        ];
+        $inventur = [
+            'forderung' => ['getraenke' => 80.0, 'abrechnung' => 0.0, 'sonstige' => 0.0, 'summe' => 80.0],
+            'verbindlichkeit' => ['getraenke' => 0.0, 'abrechnung' => 0.0, 'sonstige' => 15.0, 'summe' => 15.0],
+        ];
+
+        $bytes = $this->pdf->inventur($kontostaende, $inventur, 460.5, 525.5, '2026-07-18');
+
+        $this->assertStringStartsWith('%PDF-', $bytes);
+    }
+
+    public function testInventurDateinameFormat(): void
+    {
+        $this->assertSame('Inventur_2026-07-18.pdf', RechnungPdf::inventurDateiname('2026-07-18'));
+    }
 }

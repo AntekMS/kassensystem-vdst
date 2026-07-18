@@ -64,6 +64,42 @@
                     </div>
                 </div>
             </div>
+            <?php if (!$ist_institution): ?>
+                <!-- E-Mail-Adresse aus dem Personen-Register (Issue #58) -->
+                <div class="col-12 col-lg-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <i class="bi bi-envelope" aria-hidden="true"></i> E-Mail-Adresse
+                        </div>
+                        <div class="card-body">
+                            <form method="post" action="<?= base_url('/schulden/person/email') ?>">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="person" value="<?= esc($person) ?>">
+                                <div class="input-group">
+                                    <input type="email" class="form-control" name="email"
+                                           aria-label="E-Mail-Adresse"
+                                           value="<?= esc(old('email', $register_person['email'] ?? ''), 'attr') ?>"
+                                           placeholder="name@example.org">
+                                    <button type="submit" class="btn btn-outline-vdst">
+                                        <i class="bi bi-check-lg" aria-hidden="true"></i> Speichern
+                                    </button>
+                                </div>
+                            </form>
+                            <?php if ($register_person): ?>
+                                <small class="text-muted d-block mt-2">
+                                    <a href="<?= base_url('/schulden/personen?edit=' . (int) $register_person['id']) ?>">
+                                        <i class="bi bi-pencil" aria-hidden="true"></i> Im Personen-Register bearbeiten
+                                    </a>
+                                </small>
+                            <?php else: ?>
+                                <small class="text-muted d-block mt-2">
+                                    Beim Speichern wird die Person im Register angelegt.
+                                </small>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
         </div>
 
         <!-- Einträge -->

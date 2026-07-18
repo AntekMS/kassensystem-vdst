@@ -55,6 +55,8 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
     $routes->group('schulden', function ($routes) {
         $routes->get('/', 'SchuldenController::index');
         $routes->get('person', 'SchuldenController::person');
+        // E-Mail-Edit auf der Personen-Detailseite (Issue #58)
+        $routes->post('person/email', 'SchuldenController::personEmailStore');
         $routes->get('create', 'SchuldenController::create');
         $routes->post('store', 'SchuldenController::store');
         $routes->get('edit/(:num)', 'SchuldenController::edit/$1');

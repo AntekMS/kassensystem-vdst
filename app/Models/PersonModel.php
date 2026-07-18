@@ -248,4 +248,53 @@ class PersonModel extends Model
 
         return $id ? (int) $id : null;
     }
+
+    /**
+     * Pure, DB-los testbarer Seam (Issue #58): entscheidet, was ein EXPLIZITER
+     * E-Mail-Edit (Personen-Detailseite) bewirkt. Anders als upsertFuerName()
+     * LÖSCHT hier ein leeres Feld eine gespeicherte Adresse.
+     *
+     * @param array|null $vorhanden Personen-Zeile aus der Schlüssel-Map oder null
+     * @return string 'setzen'|'loeschen'|'anlegen'|'nichts'
+     */
+    public static function emailAktion(?array $vorhanden, string $email): string
+    {
+        $email = trim($email);
+
+        if ($vorhanden === null) {
+            return $email === '' ? 'nichts' : 'anlegen';
+        }
+
+        $gespeichert = (string) ($vorhanden['email'] ?? '');
+
+        if ($email === '') {
+            return $gespeichert === '' ? 'nichts' : 'loeschen';
+        }
+
+        return $email === $gespeichert ? 'nichts' : 'setzen';
+    }
+
+    /**
+     * Expliziter E-Mail-Edit von der Personen-Detailseite (Issue #58):
+     * leeres Feld löscht die Adresse, unbekannter Name wird als Nachname-Eintrag
+     * angelegt (über upsertFuerName). true = ok, false = Validierungsfehler
+     * (Details in errors()).
+     */
+    public function speichereEmailFuerName(string $name, ?string $email): bool
+    {
+        $name = person_normalisiere($name);
+        if ($name === '') {
+            return false;
+        }
+
+        $email = trim((string) $email);
+        $vorhanden = $this->alleMitSchluessel()[person_schluessel($name)] ?? null;
+
+        return match (self::emailAktion($vorhanden, $email)) {
+            'setzen'   => $this->update($vorhanden['id'], ['email' => $email]),
+            'loeschen' => $this->update($vorhanden['id'], ['email' => null]),
+            'anlegen'  => $this->upsertFuerName($name, $email) !== null,
+            default    => true,
+        };
+    }
 }

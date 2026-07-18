@@ -41,105 +41,123 @@
             </div>
         <?php endif; ?>
 
-        <div class="row">
-            <!-- Linke Spalte: Zusammenfassung -->
-            <div class="col-lg-4 mb-4">
-                <div class="card card-vdst h-100">
-                    <div class="card-header">
-                        <h5 class="mb-0"><i class="bi bi-clipboard-check" aria-hidden="true"></i> Zusammenfassung</h5>
-                    </div>
-                    <div class="card-body">
-                        <table class="table table-sm mb-0">
-                            <tr>
-                                <td>Monat / Zeitraum:</td>
-                                <td class="text-end fw-bold"><?= esc($monats_name) ?></td>
-                            </tr>
-                            <tr>
-                                <td>Getränke-Forderungen:</td>
-                                <td class="text-end fw-bold"><?= count($personen) ?> Personen</td>
-                            </tr>
-                            <tr>
-                                <td>Summe Forderungen:</td>
-                                <td class="text-end fw-bold"><?= formatiere_betrag($summe) ?></td>
-                            </tr>
-                            <tr>
-                                <td>Coleur-Beleg:</td>
-                                <td class="text-end fw-bold">
-                                    <?= $coleur !== null && $coleur > 0 ? formatiere_betrag($coleur) : '—' ?>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>Bund-Beleg:</td>
-                                <td class="text-end fw-bold">
-                                    <?= $bund !== null && $bund > 0 ? formatiere_betrag($bund) : '—' ?>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>AH-Abrechnung:</td>
-                                <td class="text-end fw-bold">
-                                    <?= $ziel_abrechnung !== null ? esc($ziel_abrechnung) : '— keine Zuordnung' ?>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-                    <div class="card-footer">
-                        <form action="<?= base_url('/schulden/import/confirm') ?>" method="post" id="confirmForm">
-                            <?= csrf_field() ?>
+        <form action="<?= base_url('/schulden/import/confirm') ?>" method="post" id="confirmForm">
+            <?= csrf_field() ?>
+            <div class="row">
+                <!-- Linke Spalte: Zusammenfassung -->
+                <div class="col-lg-4 mb-4">
+                    <div class="card card-vdst h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-clipboard-check" aria-hidden="true"></i> Zusammenfassung</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm mb-0">
+                                <tr>
+                                    <td>Monat / Zeitraum:</td>
+                                    <td class="text-end fw-bold"><?= esc($monats_name) ?></td>
+                                </tr>
+                                <tr>
+                                    <td>Getränke-Forderungen:</td>
+                                    <td class="text-end fw-bold"><?= count($personen) ?> Personen</td>
+                                </tr>
+                                <tr>
+                                    <td>Summe Forderungen:</td>
+                                    <td class="text-end fw-bold"><?= formatiere_betrag($summe) ?></td>
+                                </tr>
+                                <tr>
+                                    <td>Coleur-Beleg:</td>
+                                    <td class="text-end fw-bold">
+                                        <?= $coleur !== null && $coleur > 0 ? formatiere_betrag($coleur) : '—' ?>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Bund-Beleg:</td>
+                                    <td class="text-end fw-bold">
+                                        <?= $bund !== null && $bund > 0 ? formatiere_betrag($bund) : '—' ?>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>AH-Abrechnung:</td>
+                                    <td class="text-end fw-bold">
+                                        <?= $ziel_abrechnung !== null ? esc($ziel_abrechnung) : '— keine Zuordnung' ?>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="card-footer">
                             <div class="d-flex justify-content-end gap-2">
                                 <a href="<?= base_url('/schulden') ?>" class="btn btn-outline-vdst">Abbrechen</a>
                                 <button type="submit" class="btn btn-vdst" id="confirmBtn">
                                     <i class="bi bi-check-lg" aria-hidden="true"></i> Import bestätigen
                                 </button>
                             </div>
-                        </form>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Rechte Spalte: erkannte Personen -->
-            <div class="col-lg-8 mb-4">
-                <div class="card card-vdst">
-                    <div class="card-header">
-                        <h5 class="mb-0"><i class="bi bi-people" aria-hidden="true"></i> Erkannte Personen (<?= count($personen) ?>)</h5>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover table-vdst table-stack mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Person</th>
-                                        <th class="text-end">Betrag</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($personen as $person): ?>
+                <!-- Rechte Spalte: erkannte Personen + Zuordnung -->
+                <div class="col-lg-8 mb-4">
+                    <div class="card card-vdst">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-people" aria-hidden="true"></i> Erkannte Personen (<?= count($personen) ?>)</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover table-vdst table-stack mb-0">
+                                    <thead>
                                         <tr>
-                                            <td data-label="Person"><strong><?= esc($person['person']) ?></strong></td>
-                                            <td data-label="Betrag" class="text-end"><?= formatiere_betrag($person['betrag']) ?></td>
-                                            <td data-label="Status">
-                                                <?php if ($person['bekannt']): ?>
-                                                    <span class="badge-status badge-status-neutral">bekannt</span>
-                                                <?php else: ?>
-                                                    <span class="badge-status badge-status-amber">neu in der Schuldenliste</span>
-                                                <?php endif; ?>
-                                            </td>
+                                            <th>Nachname (Excel)</th>
+                                            <th class="text-end">Betrag</th>
+                                            <th>Zuordnung</th>
                                         </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                                <tfoot>
-                                    <tr class="fw-bold">
-                                        <td>Summe</td>
-                                        <td class="text-end"><?= formatiere_betrag($summe) ?></td>
-                                        <td></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($personen as $i => $person): ?>
+                                            <tr>
+                                                <td data-label="Nachname (Excel)">
+                                                    <input type="hidden" name="nachname[<?= (int) $i ?>]" value="<?= esc($person['roh'], 'attr') ?>">
+                                                    <strong><?= esc($person['roh']) ?></strong>
+                                                </td>
+                                                <td data-label="Betrag" class="text-end"><?= formatiere_betrag($person['betrag']) ?></td>
+                                                <td data-label="Zuordnung">
+                                                    <?php if ($person['status'] === 'eindeutig'): ?>
+                                                        <span class="badge-status badge-status-gruen">zugeordnet</span>
+                                                        <span class="ms-1"><?= esc($person['person']) ?></span>
+                                                    <?php elseif ($person['status'] === 'mehrdeutig'): ?>
+                                                        <span class="badge-status badge-status-amber d-block mb-1">mehrdeutig — bitte wählen</span>
+                                                        <select name="wahl[<?= (int) $i ?>]" class="form-select form-select-sm">
+                                                            <option value="">Als Gast übernehmen (Nachname behalten)</option>
+                                                            <?php foreach ($person['kandidaten'] as $kandidat): ?>
+                                                                <option value="<?= (int) $kandidat['id'] ?>"><?= esc(\App\Models\PersonModel::anzeigename($kandidat)) ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    <?php else: ?>
+                                                        <span class="badge-status badge-status-amber d-block mb-1">unbekannt</span>
+                                                        <select name="wahl[<?= (int) $i ?>]" class="form-select form-select-sm">
+                                                            <option value="">Als Gast übernehmen (Nachname behalten)</option>
+                                                            <?php foreach ($personen_register as $kandidat): ?>
+                                                                <option value="<?= (int) $kandidat['id'] ?>"><?= esc(\App\Models\PersonModel::anzeigename($kandidat)) ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    <?php endif; ?>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="fw-bold">
+                                            <td>Summe</td>
+                                            <td class="text-end"><?= formatiere_betrag($summe) ?></td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </form>
     </div>
 <?= $this->endSection() ?>
 

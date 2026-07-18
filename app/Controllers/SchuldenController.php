@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Libraries\BelegUpload;
+use App\Libraries\GetraenkeImportAufloeser;
 use App\Libraries\GetraenkeRechnungImport;
 use App\Libraries\RechnungPdf;
 use App\Libraries\RechnungVersand;
@@ -519,8 +520,11 @@ class SchuldenController extends BaseController
     /**
      * Schritt 2: Import bestätigen — Forderungen, Belege und AH-Zuordnung anlegen.
      *
-     * Liest ausschließlich die Session (kein POST-Payload außer CSRF) und
-     * parst die geparkte Datei erneut.
+     * Liest die Session (geparkte Datei/Monat) und — seit Issue #62 — den
+     * `wahl`-POST der Vorschau (Nachname→Person-Zuordnung für mehrdeutige/
+     * unbekannte Namen). Die Datei wird erneut geparst; die Auflösung gegen das
+     * Personen-Register erfolgt über GetraenkeImportAufloeser. Fehlt der POST,
+     * greifen die Resolver-Defaults (eindeutig automatisch, Rest als Gast).
      */
     public function importConfirm()
     {
@@ -554,16 +558,26 @@ class SchuldenController extends BaseController
         // der letzte Tag des Endmonats.
         $datum = date('Y-m-t', strtotime(($monatBis ?? $monat) . '-01'));
 
+        // Nachname → Vollname auflösen (Issue #62): Wahlen aus dem POST einlesen
+        // (index-basiert, nie Freitext-Namen als Array-Key) und gegen das Register
+        // auflösen; der Resolver validiert die person_id-Wahlen selbst.
+        $wahlen = $this->leseImportWahlen();
+        $aufgeloest = GetraenkeImportAufloeser::loese(
+            $ergebnis['personen'],
+            (new PersonModel())->nachnameMap(),
+            $wahlen
+        );
+
         // 1) Forderungen als ein Batch (Transaktion): ganz oder gar nicht
-        $fehler = $this->erstelleImportForderungen($ergebnis['personen'], $datum, $monatsName);
+        $fehler = $this->erstelleImportForderungen($aufgeloest, $datum, $monatsName);
         if ($fehler !== null) {
             return $fehler;
         }
 
-        $summe = array_sum(array_column($ergebnis['personen'], 'betrag'));
+        $summe = array_sum(array_column($aufgeloest, 'betrag'));
         $meldungen = [
             'Getränkerechnung ' . $monatsName . ' importiert: '
-                . count($ergebnis['personen']) . ' Forderungen über ' . formatiere_betrag($summe) . ' angelegt.',
+                . count($aufgeloest) . ' Forderungen über ' . formatiere_betrag($summe) . ' angelegt.',
         ];
 
         // 2) Belege + AH-Zuordnung (nach der Transaktion — Dateioperationen);
@@ -951,13 +965,12 @@ class SchuldenController extends BaseController
         $monatsName = GetraenkeRechnungImport::monatsName($monat, $monatBis);
         $grund = SchuldModel::getraenkeImportGrund($monatsName);
 
-        // „Bekannt" = im Personen-Register vorhanden (Match über person_schluessel).
-        // #62 nutzt dieses Register für die Nachname→Vollname-Auflösung.
-        $register = (new PersonModel())->alleMitSchluessel();
-        foreach ($ergebnis['personen'] as &$person) {
-            $person['bekannt'] = isset($register[person_schluessel($person['person'])]);
-        }
-        unset($person);
+        // Nachname → Vollname gegen das Personen-Register auflösen (Issue #62):
+        // eindeutige Treffer automatisch, mehrdeutige/unbekannte werden in der
+        // Vorschau interaktiv zugeordnet. Ohne Wahlen (erster Aufruf) zeigt der
+        // Resolver den Auto-Stand.
+        $personModel = new PersonModel();
+        $aufgeloest = GetraenkeImportAufloeser::loese($ergebnis['personen'], $personModel->nachnameMap());
 
         $hinweise = [];
         if ($monatAusDateinameUebernommen) {
@@ -967,6 +980,11 @@ class SchuldenController extends BaseController
         }
 
         $warnungen = [];
+
+        if (GetraenkeImportAufloeser::brauchtAuswahl($aufgeloest)) {
+            $warnungen[] = 'Nicht alle Nachnamen konnten eindeutig einer Person zugeordnet werden — '
+                . 'bitte die markierten Namen unten zuordnen (oder als Gast übernehmen).';
+        }
 
         $vorhandene = $this->schuldModel->where('grund', $grund)->countAllResults();
         if ($vorhandene > 0) {
@@ -1000,8 +1018,9 @@ class SchuldenController extends BaseController
             'monat' => $monat,
             'monat_bis' => $monatBis,
             'monats_name' => $monatsName,
-            'personen' => $ergebnis['personen'],
-            'summe' => array_sum(array_column($ergebnis['personen'], 'betrag')),
+            'personen' => $aufgeloest,
+            'summe' => array_sum(array_column($aufgeloest, 'betrag')),
+            'personen_register' => $personModel->getAlle(),
             'coleur' => $ergebnis['coleur'],
             'bund' => $ergebnis['bund'],
             'ziel_abrechnung' => $zielAbrechnung,
@@ -1036,8 +1055,37 @@ class SchuldenController extends BaseController
     }
 
     /**
+     * Liest die Nachname→Person-Wahlen aus dem Vorschau-POST (Issue #62).
+     * Index-basiert (`nachname[i]` = roher Nachname, `wahl[i]` = gewählte
+     * person_id oder leer), damit Namen mit `[`/`]` den Array-Key nicht zerlegen.
+     * Ergebnis: person_schluessel(Nachname) => ?int. Der Resolver validiert die
+     * ids anschließend gegen echte Personen.
+     *
+     * @return array<string, ?int>
+     */
+    private function leseImportWahlen(): array
+    {
+        $namen = (array) $this->request->getPost('nachname');
+        $wahlen = (array) $this->request->getPost('wahl');
+
+        $ergebnis = [];
+        foreach ($namen as $index => $name) {
+            $schluessel = person_schluessel((string) $name);
+            if ($schluessel === '') {
+                continue;
+            }
+            $id = (int) ($wahlen[$index] ?? 0);
+            $ergebnis[$schluessel] = $id > 0 ? $id : null;
+        }
+
+        return $ergebnis;
+    }
+
+    /**
      * Legt die Getränke-Forderungen als Batch in einer Transaktion an.
-     * Gibt bei Fehlern eine Redirect-Response zurück, sonst null.
+     * Erwartet die bereits aufgelöste Liste (GetraenkeImportAufloeser::loese) —
+     * jeder Eintrag trägt `person` (Anzeigename/Gast), `person_id` (?int) und
+     * `betrag`. Gibt bei Fehlern eine Redirect-Response zurück, sonst null.
      */
     private function erstelleImportForderungen(array $personen, string $datum, string $monatsName)
     {
@@ -1046,8 +1094,11 @@ class SchuldenController extends BaseController
 
         foreach ($personen as $person) {
             $ok = $this->schuldModel->insert([
+                // person/person_id sind bereits gegen das Register aufgelöst
+                // (GetraenkeImportAufloeser); Gäste behalten den rohen Nachnamen
+                // und person_id NULL.
                 'person' => $person['person'],
-                'person_id' => (new PersonModel())->findIdFuerName($person['person']),
+                'person_id' => $person['person_id'],
                 'typ' => 'forderung',
                 'kategorie' => 'getraenke',
                 'datum' => $datum,

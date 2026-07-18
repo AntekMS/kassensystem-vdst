@@ -90,6 +90,43 @@ class PersonModel extends Model
     }
 
     /**
+     * Pure, DB-los testbarer Seam für die Getränke-Import-Auflösung (Issue #62):
+     * gruppiert Personen nach person_schluessel(nachname) => LISTE von Personen.
+     * Mehrere Personen unter einem Schlüssel = Mehrdeutigkeit (gleicher Nachname).
+     * Bewusst nur auf `nachname` (kein Fuzzy-/Last-Token-Matching → keine
+     * Falsch-Treffer; Legacy-Vollnamen im nachname-Feld lösen erst nach
+     * Register-Pflege auf).
+     *
+     * @param array<array> $persons
+     * @return array<string, array<array>>
+     */
+    public static function baueNachnameMap(array $persons): array
+    {
+        $map = [];
+        foreach ($persons as $person) {
+            $schluessel = person_schluessel((string) ($person['nachname'] ?? ''));
+            if ($schluessel === '') {
+                continue;
+            }
+            $map[$schluessel][] = $person;
+        }
+
+        return $map;
+    }
+
+    /**
+     * Alle Personen als Nachname-Map person_schluessel(nachname) => Liste (#62).
+     *
+     * @return array<string, array<array>>
+     */
+    public function nachnameMap(): array
+    {
+        return self::baueNachnameMap(
+            $this->orderBy('nachname')->orderBy('vorname')->findAll()
+        );
+    }
+
+    /**
      * Soft-Link-Auflösung: person_id zu einem Freitext-Namen (NULL = kein Treffer,
      * z.B. Gäste oder Institutionen).
      */

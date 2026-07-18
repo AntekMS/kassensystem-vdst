@@ -74,6 +74,34 @@ final class GetraenkeBeglichenTest extends CIUnitTestCase
     }
 
     /**
+     * Marker-Ableitung für manuell angelegte Forderungen (Issue #64-Nachtrag):
+     * kanonischer Import-grund → Marker des Monats/Zeitraums, alles andere
+     * (fremder grund, falscher typ/kategorie, Beglichen-Marker) → keine Marker.
+     */
+    public function testImportMarkerAusGrund(): void
+    {
+        $keine = ['import_monat' => null, 'import_monat_bis' => null];
+
+        $this->assertSame(
+            ['import_monat' => '2025-11', 'import_monat_bis' => null],
+            SchuldModel::importMarkerAusGrund('forderung', 'getraenke', 'Getränkerechnung November 2025')
+        );
+        $this->assertSame(
+            ['import_monat' => '2025-11', 'import_monat_bis' => '2025-12'],
+            SchuldModel::importMarkerAusGrund('forderung', 'getraenke', 'Getränkerechnung November–Dezember 2025')
+        );
+
+        // Nur Getränke-Forderungen bekommen Marker.
+        $this->assertSame($keine, SchuldModel::importMarkerAusGrund('verbindlichkeit', 'getraenke', 'Getränkerechnung November 2025'));
+        $this->assertSame($keine, SchuldModel::importMarkerAusGrund('forderung', 'sonstige', 'Getränkerechnung November 2025'));
+
+        // Freitext, editierter Zusatz und der Beglichen-Marker parsen nicht.
+        $this->assertSame($keine, SchuldModel::importMarkerAusGrund('forderung', 'getraenke', 'Bierkasten ausgelegt'));
+        $this->assertSame($keine, SchuldModel::importMarkerAusGrund('forderung', 'getraenke', 'Getränkerechnung November 2025 (korrigiert)'));
+        $this->assertSame($keine, SchuldModel::importMarkerAusGrund('forderung', 'getraenke', SchuldModel::GETRAENKE_BEGLICHEN_GRUND));
+    }
+
+    /**
      * DB-loser Test-Doppelgänger: überschreibt die beiden DB-Zugriffe (Lesen der
      * offenen Forderungen, Anlegen des Ausgleichs) und macht den ausgelagerten
      * Ausgleichs-Loop (ohne Transaktions-Boilerplate) öffentlich aufrufbar.

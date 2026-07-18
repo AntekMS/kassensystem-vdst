@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Libraries\GetraenkeRechnungImport;
 use CodeIgniter\Model;
 
 /**
@@ -64,6 +65,43 @@ class SchuldModel extends Model
     public static function importMonatBis(string $monat, ?string $monatBis): ?string
     {
         return $monatBis === $monat ? null : $monatBis;
+    }
+
+    /**
+     * Leitet die Import-Marker aus einem manuell eingegebenen grund ab
+     * (Issue #64-Nachtrag): eine von Hand angelegte Getränke-Forderung mit
+     * kanonischem Import-grund („Getränkerechnung November 2025" — das
+     * create-Formular schlägt genau dieses Format vor) gehört zum
+     * Abrechnungslauf des Monats. Ohne die Marker fehlte eine nachgetragene
+     * Person lautlos auf Versand-Seite/Übersichts-PDF (vor #64 griff hier
+     * der exakte grund-Match). Wird NUR beim Anlegen angewendet —
+     * bestehende Marker werden durch grund-Edits weiterhin nie verändert.
+     * „Getränkerechnung beglichen" (Issue #43) parst nicht → keine Marker.
+     *
+     * @return array{import_monat: ?string, import_monat_bis: ?string}
+     */
+    public static function importMarkerAusGrund(string $typ, string $kategorie, string $grund): array
+    {
+        $keineMarker = ['import_monat' => null, 'import_monat_bis' => null];
+
+        if ($typ !== 'forderung' || $kategorie !== 'getraenke') {
+            return $keineMarker;
+        }
+
+        $praefix = self::getraenkeImportGrund('');
+        if (strncmp($grund, $praefix, strlen($praefix)) !== 0) {
+            return $keineMarker;
+        }
+
+        $zeitraum = GetraenkeRechnungImport::parseMonatsName(substr($grund, strlen($praefix)));
+        if ($zeitraum === null) {
+            return $keineMarker;
+        }
+
+        return [
+            'import_monat' => $zeitraum['von'],
+            'import_monat_bis' => self::importMonatBis($zeitraum['von'], $zeitraum['bis']),
+        ];
     }
 
     protected $table = 'schulden';
@@ -539,6 +577,34 @@ class SchuldModel extends Model
             ->having('SUM(betrag) >=', 0.01)
             ->orderBy('person')
             ->findAll();
+    }
+
+    /**
+     * Zählt Import-Forderungen, deren Zeitraum sich mit dem gegebenen
+     * Monat/Zeitraum überschneidet — Doppelimport-Warnung der Vorschau
+     * (Issue #64). Overlap statt exaktem Paar-Match, damit auch ein
+     * November-Import nach einem November–Dezember-Import (und umgekehrt)
+     * auffällt; dieselben typ/kategorie-Filter wie getImportForderungen,
+     * damit Warnung und Versand-Seite dieselben Zeilen meinen.
+     */
+    public function zaehleUeberlappendeImportForderungen(string $monat, ?string $monatBis): int
+    {
+        $bis = self::importMonatBis($monat, $monatBis) ?? $monat;
+
+        // Overlap: import_monat <= bis UND COALESCE(import_monat_bis,
+        // import_monat) >= monat — ausbuchstabiert, damit alle Werte durch
+        // die Query-Builder-Bindings laufen.
+        return $this->where('typ', 'forderung')
+            ->where('kategorie', 'getraenke')
+            ->where('import_monat <=', $bis)
+            ->groupStart()
+                ->where('import_monat_bis >=', $monat)
+                ->orGroupStart()
+                    ->where('import_monat_bis', null)
+                    ->where('import_monat >=', $monat)
+                ->groupEnd()
+            ->groupEnd()
+            ->countAllResults();
     }
 
     /**

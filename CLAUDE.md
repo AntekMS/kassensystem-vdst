@@ -223,15 +223,29 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   identifizieren die Import-Forderungen — der editierbare `grund`
   (`SchuldModel::getraenkeImportGrund()`) ist NUR noch Anzeige-/Editier-Text,
   kein Schlüssel mehr. Normalisierung `bis === von → NULL` zentral über
-  `SchuldModel::importMonatBis()` (Parität zu `monatsName()`); Insert
-  (`erstelleImportForderungen`), `getImportForderungen($monat,$monatBis)` und
-  Doppelimport-Check (`baueImportVorschau`) nutzen ausschließlich diese Spalten.
-  Die Marker sperren die Einträge NICHT (`istAutomatisch()` prüft sie bewusst
-  nicht — Import-Forderungen bleiben editierbar). Bestandsdaten wurden per
-  Migration `2026-07-18-000001_SchuldenImportMonat` aus dem `grund` backfilled
-  (Reverse-Parser `GetraenkeRechnungImport::parseMonatsName()`, Gegenstück zu
-  `monatsName()`; nicht parsebare Gründe bleiben NULL und tauchen — wie vorher —
-  nicht im Versand auf).
+  `SchuldModel::importMonatBis()` (Parität zu `monatsName()`; auch der
+  Reverse-Parser `parseMonatsName()` normalisiert so — es kann nie ein
+  unmatchbares von==bis-Paar entstehen); Insert (`erstelleImportForderungen`)
+  und `getImportForderungen($monat,$monatBis)` nutzen ausschließlich diese
+  Spalten. Der Doppelimport-Check der Vorschau läuft über
+  `SchuldModel::zaehleUeberlappendeImportForderungen()` — Overlap-Match statt
+  exaktem Zeitraum-Paar (auch ein November-Import nach einem
+  November–Dezember-Import fällt auf), gleiche typ/kategorie-Filter wie
+  `getImportForderungen`. MANUELL angelegte Getränke-Forderungen mit
+  kanonischem Import-grund („Getränkerechnung November 2025") bekommen die
+  Marker beim Anlegen automatisch (`SchuldModel::importMarkerAusGrund()` in
+  `SchuldenController::store` — verpasste Personen lassen sich so wie vor #64
+  zum Abrechnungslauf nachtragen); NUR beim Anlegen — Updates verändern
+  bestehende Marker nie. Die Marker sperren die Einträge NICHT
+  (`istAutomatisch()` prüft sie bewusst nicht — Import-Forderungen bleiben
+  editierbar; Achtung: ein typ/kategorie-Edit nimmt die Zeile trotz Marker
+  aus der Versand-Datenquelle — bewusste Filter-Entscheidung). Bestandsdaten
+  wurden per Migration `2026-07-18-000001_SchuldenImportMonat` aus dem `grund`
+  backfilled; die Migration ist SELBSTSTÄNDIG (eingefrorene Kopie des
+  Reverse-Parsers, byte-exakter `strncmp`-Präfix-Guard gegen die
+  ci-Kollation, Backfill pro Zeile statt DISTINCT — Migrationen NIE an
+  lebenden App-Code koppeln); nicht parsebare Gründe bleiben NULL und tauchen
+  — wie vorher — nicht im Versand auf.
   Test: `tests/unit/GetraenkeImportParserTest.php`.
 - **PDF-Rechnungen** (Issue #35): `app/Libraries/RechnungPdf.php` (dompdf) rendert
   das geteilte Template `app/Views/pdf/rechnung.php` (gesteuert über `$typ`:
@@ -260,9 +274,14 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   über `PersonModel::upsertFuerName` — legt fehlende Personen als Nachname-Eintrag
   an; Verwaltungsseite `/schulden/personen`); erfolgreiche Sends landen im Log `getraenke_versand`
   („verschickt am"-Badge, Checkbox dann default aus — bewusst keine harte
-  Doppelversand-Sperre; PRG-Redirect verhindert Reload-Doppelversand, und die
-  PDF-Erzeugung in der Sende-Schleife ist einzeln `try/catch`-gekapselt, damit
-  ein dompdf-Fehler bei Person N nicht den ganzen POST abbricht). SMTP kommt aus
+  Doppelversand-Sperre). Das Log ist wie die Import-Marker auf
+  `monat`+`monat_bis` gekeyt (Migration `2026-07-19-000001`, Normalisierung
+  über `SchuldModel::importMonatBis`; Alt-Logs haben `monat_bis` NULL =
+  Einzelmonat-Semantik) — ein Einzelmonat-Versand markiert auf einer
+  Zeitraum-Versandseite niemanden als „verschickt" und umgekehrt. PRG-Redirect
+  verhindert Reload-Doppelversand, und die PDF-Erzeugung in der Sende-Schleife
+  ist einzeln `try/catch`-gekapselt, damit ein dompdf-Fehler bei Person N
+  nicht den ganzen POST abbricht. SMTP kommt aus
   `email.*`-Keys in `.env` (Beispielblock in `env`, inkl. `email.SMTPKeepAlive`
   für den Reihenversand über eine Verbindung); ohne Konfig ist der Versand per
   `RechnungVersand::istKonfiguriert()` deaktiviert, Adressen speichern geht

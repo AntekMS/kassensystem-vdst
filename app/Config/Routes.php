@@ -72,10 +72,10 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
         $routes->get('import/versand', 'SchuldenController::importVersand');
         $routes->post('import/versand/senden', 'SchuldenController::importVersandSenden');
         $routes->get('import/uebersicht', 'SchuldenController::importUebersichtPdf');
-        // E-Mail-Adressen der Personen
-        $routes->get('emails', 'SchuldenController::emails');
-        $routes->post('emails/store', 'SchuldenController::emailsStore');
-        $routes->post('emails/delete/(:num)', 'SchuldenController::emailsDelete/$1');
+        // Personen-Register (Issue #61): Vor-/Nachname + E-Mail
+        $routes->get('personen', 'SchuldenController::personen');
+        $routes->post('personen/store', 'SchuldenController::personenStore');
+        $routes->post('personen/delete/(:num)', 'SchuldenController::personenDelete/$1');
     });
 
     // Inventur (eigene Seite, Issue #36; Excel-Export bleibt unter schulden/export/inventur)

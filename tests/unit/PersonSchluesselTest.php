@@ -7,7 +7,9 @@ use CodeIgniter\Test\CIUnitTestCase;
  *
  * Schreib- und Lesepfad des Rechnungsversands müssen Namen identisch
  * normalisieren, sonst finden sich gespeicherte E-Mail-Adressen nicht wieder
- * (Whitespace-/Case-Mismatch zwischen person_emails und schulden.person).
+ * (Whitespace-/Case-Mismatch zwischen persons-Register und schulden.person).
+ * Seit Issue #61 ist person_schluessel() die vereinheitlichte Match-Quelle
+ * für PersonModel (vgl. PersonModelTest).
  *
  * @internal
  */

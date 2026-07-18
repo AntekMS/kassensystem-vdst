@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Libraries\BelegUpload;
 use App\Models\BelegModel;
 use App\Models\BuchungModel;
+use App\Models\PersonModel;
 use App\Models\SchuldModel;
 
 /**
@@ -52,7 +53,7 @@ class BuchungenController extends BaseController
             'title' => 'Neue Buchung',
             'verfuegbare_belege' => $this->buchungModel->getVerfuegbareBelegeFuerBuchung(),
             'konten' => konto_optionen(),
-            'personen_namen' => (new SchuldModel())->getPersonenNamen(),
+            'personen_namen' => (new PersonModel())->getAnzeigenamen(),
             'schuld_kategorien' => schuld_kategorie_optionen(),
         ];
 

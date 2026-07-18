@@ -23,12 +23,15 @@ if (!function_exists('person_schluessel')) {
     /**
      * Kanonischer Vergleichs-Schlüssel für einen Freitext-Personennamen
      * (whitespace-normalisiert + lowercase). EINZIGE Quelle für das
-     * case-insensitive Matching zwischen schulden.person, person_emails und
-     * getraenke_versand — nicht ad-hoc mb_strtolower() daneben bauen.
+     * case-insensitive Matching zwischen schulden.person, dem Personen-Register
+     * (persons via PersonModel) und getraenke_versand — nicht ad-hoc
+     * mb_strtolower() daneben bauen.
      *
-     * Hinweis: die person_emails-UNIQUE-Kollation (utf8mb4) ist zusätzlich
-     * akzent-insensitiv ('Müller' == 'Muller'); dieser Schlüssel ist es nicht.
-     * Für den üblichen Fall (keine Akzent-Dubletten) stimmen beide überein.
+     * Seit Issue #61 vereinheitlicht PersonModel das Matching auf genau diesen
+     * Schlüssel (anzeigename → person_schluessel): Soft-Link (person_id) und
+     * E-Mail-Auflösung laufen darüber, statt über die frühere accent-insensitive
+     * DB-Kollation von person_emails. Dieser Schlüssel ist NICHT accent-insensitiv
+     * ('Müller' != 'Muller') — bewusst, um Namensdubletten nicht zu verschmelzen.
      */
     function person_schluessel(string $name): string
     {

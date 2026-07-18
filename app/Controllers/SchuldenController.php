@@ -10,7 +10,7 @@ use App\Models\AbrechnungBelegModel;
 use App\Models\AhAbrechnungModel;
 use App\Models\BuchungModel;
 use App\Models\GetraenkeVersandModel;
-use App\Models\PersonEmailModel;
+use App\Models\PersonModel;
 use App\Models\SchuldModel;
 
 /**
@@ -134,7 +134,7 @@ class SchuldenController extends BaseController
     {
         $data = [
             'title' => 'Neuer Schulden-Eintrag',
-            'personen_namen' => $this->schuldModel->getPersonenNamen(),
+            'personen_namen' => (new PersonModel())->getAnzeigenamen(),
             'vorauswahl_person' => trim((string) $this->request->getGet('person')),
         ];
 
@@ -179,7 +179,7 @@ class SchuldenController extends BaseController
         $data = [
             'title' => 'Schulden-Eintrag bearbeiten',
             'eintrag' => $eintrag,
-            'personen_namen' => $this->schuldModel->getPersonenNamen(),
+            'personen_namen' => (new PersonModel())->getAnzeigenamen(),
         ];
 
         return view('schulden/edit', $data);
@@ -615,7 +615,7 @@ class SchuldenController extends BaseController
                 );
         }
 
-        $emails = (new PersonEmailModel())->findEmailsFuer(array_column($personen, 'person'));
+        $emails = (new PersonModel())->findEmailsFuer(array_column($personen, 'person'));
         $versendet = (new GetraenkeVersandModel())->getVersendetFuerMonat($monat);
 
         foreach ($personen as &$person) {
@@ -713,7 +713,7 @@ class SchuldenController extends BaseController
         $namenNachIndex = (array) $this->request->getPost('person');
 
         // 1) Adressen speichern — auch ohne Versand (z.B. SMTP fehlt)
-        $emailModel = new PersonEmailModel();
+        $personModel = new PersonModel();
         $fehler = [];
 
         foreach ((array) $this->request->getPost('email') as $index => $email) {
@@ -724,8 +724,8 @@ class SchuldenController extends BaseController
                 continue;
             }
 
-            if (!$emailModel->upsertEmail($forderungen[$key]['person'], $email)) {
-                $fehler[] = $forderungen[$key]['person'] . ': ' . implode(' ', $emailModel->errors());
+            if ($personModel->upsertFuerName($forderungen[$key]['person'], $email) === null) {
+                $fehler[] = $forderungen[$key]['person'] . ': ' . implode(' ', $personModel->errors());
             }
         }
 
@@ -742,7 +742,7 @@ class SchuldenController extends BaseController
         // Adressen aus der DB (Whitelist der Forderungs-Namen), nicht aus dem
         // POST — deckt auch bereits gespeicherte Adressen ab, deren Feld leer
         // gepostet wurde.
-        $adressen = $emailModel->findEmailsFuer(array_column($forderungen, 'person'));
+        $adressen = $personModel->findEmailsFuer(array_column($forderungen, 'person'));
 
         // Rückmelde-Frist aus dem POST — ungültig/leer fällt auf den
         // berechneten Default zurück (kein harter Fehler, das Formular ist
@@ -843,54 +843,73 @@ class SchuldenController extends BaseController
         }
     }
 
-    // ==================== E-MAIL-ADRESSEN (Issue #35) ====================
+    // ==================== PERSONEN-VERWALTUNG (Issue #61) ====================
 
     /**
-     * Verwaltung der Personen-E-Mail-Adressen
+     * Verwaltung des Personen-Registers (Vor-/Nachname, E-Mail, aktiv).
+     * Löst die frühere reine E-Mail-Adressverwaltung ab. Optional ?edit=ID
+     * blendet den Bearbeiten-Modus für einen Eintrag im Formular ein.
      */
-    public function emails()
+    public function personen()
     {
+        $personModel = new PersonModel();
+
+        $editId = (int) $this->request->getGet('edit');
+        $bearbeiten = $editId > 0 ? $personModel->find($editId) : null;
+
         $data = [
-            'title' => 'E-Mail-Adressen',
-            'eintraege' => (new PersonEmailModel())->getAlle(),
-            'personen_namen' => $this->schuldModel->getPersonenNamen(),
+            'title' => 'Personen',
+            'eintraege' => $personModel->getAlle(),
+            'bearbeiten' => $bearbeiten,
         ];
 
-        return view('schulden/emails', $data);
+        return view('schulden/personen', $data);
     }
 
     /**
-     * Adresse anlegen bzw. aktualisieren (Upsert über den Namen)
+     * Person anlegen (kein id) bzw. aktualisieren (id vorhanden).
      */
-    public function emailsStore()
+    public function personenStore()
     {
-        $name = trim((string) $this->request->getPost('name'));
-        $email = trim((string) $this->request->getPost('email'));
+        $personModel = new PersonModel();
 
-        $emailModel = new PersonEmailModel();
+        $id = (int) $this->request->getPost('id');
+        $daten = [
+            'vorname' => person_normalisiere((string) $this->request->getPost('vorname')),
+            'nachname' => person_normalisiere((string) $this->request->getPost('nachname')),
+            'email' => trim((string) $this->request->getPost('email')) ?: null,
+            'aktiv' => $this->request->getPost('aktiv') !== null ? 1 : 0,
+        ];
 
-        if (!$emailModel->upsertEmail($name, $email)) {
-            return redirect()->back()->withInput()->with('errors', $emailModel->errors());
+        $ok = $id > 0 ? $personModel->update($id, $daten) : $personModel->insert($daten);
+
+        if (!$ok) {
+            return redirect()->back()->withInput()->with('errors', $personModel->errors());
         }
 
-        return redirect()->to('/schulden/emails')->with('success', 'E-Mail-Adresse für ' . $name . ' gespeichert.');
+        $anzeige = PersonModel::anzeigename($daten);
+
+        return redirect()->to('/schulden/personen')
+            ->with('success', 'Person ' . $anzeige . ' gespeichert.');
     }
 
     /**
-     * Adresse löschen
+     * Person löschen. Verknüpfte schulden-Einträge behalten ihren Namen
+     * (person_id → NULL per FK ON DELETE SET NULL), der Ledger bleibt intakt.
      */
-    public function emailsDelete($id)
+    public function personenDelete($id)
     {
-        $emailModel = new PersonEmailModel();
-        $eintrag = $emailModel->find($id);
+        $personModel = new PersonModel();
+        $eintrag = $personModel->find($id);
 
         if (!$eintrag) {
-            return redirect()->to('/schulden/emails')->with('error', 'Eintrag nicht gefunden.');
+            return redirect()->to('/schulden/personen')->with('error', 'Person nicht gefunden.');
         }
 
-        $emailModel->delete($id);
+        $personModel->delete($id);
 
-        return redirect()->to('/schulden/emails')->with('success', 'E-Mail-Adresse von ' . $eintrag['name'] . ' gelöscht.');
+        return redirect()->to('/schulden/personen')
+            ->with('success', 'Person ' . PersonModel::anzeigename($eintrag) . ' gelöscht.');
     }
 
     // ==================== PRIVATE HELPER METHODS ====================
@@ -932,9 +951,11 @@ class SchuldenController extends BaseController
         $monatsName = GetraenkeRechnungImport::monatsName($monat, $monatBis);
         $grund = SchuldModel::getraenkeImportGrund($monatsName);
 
-        $bekannteNamen = array_map('mb_strtolower', $this->schuldModel->getPersonenNamen());
+        // „Bekannt" = im Personen-Register vorhanden (Match über person_schluessel).
+        // #62 nutzt dieses Register für die Nachname→Vollname-Auflösung.
+        $register = (new PersonModel())->alleMitSchluessel();
         foreach ($ergebnis['personen'] as &$person) {
-            $person['bekannt'] = in_array(mb_strtolower($person['person']), $bekannteNamen, true);
+            $person['bekannt'] = isset($register[person_schluessel($person['person'])]);
         }
         unset($person);
 
@@ -1026,6 +1047,7 @@ class SchuldenController extends BaseController
         foreach ($personen as $person) {
             $ok = $this->schuldModel->insert([
                 'person' => $person['person'],
+                'person_id' => (new PersonModel())->findIdFuerName($person['person']),
                 'typ' => 'forderung',
                 'kategorie' => 'getraenke',
                 'datum' => $datum,
@@ -1185,6 +1207,7 @@ class SchuldenController extends BaseController
     {
         return [
             'person' => $daten['person'],
+            'person_id' => (new PersonModel())->findIdFuerName($daten['person']),
             'typ' => $daten['typ'] ?? 'forderung',
             'kategorie' => $daten['kategorie'] ?? 'getraenke',
             'datum' => $daten['datum'],

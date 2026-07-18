@@ -26,7 +26,7 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
 - `docker exec kassensystem-vdst-web vendor/bin/phpunit tests/unit/` — Tests
   (`HealthTest`, `BetragTest`, `SchuldLabelTest`, `GetraenkeBeglichenTest`,
   `GetraenkeImportParserTest`, `RechnungPdfTest`, `RechnungVersandTest`,
-  `PersonSchluesselTest`);
+  `PersonSchluesselTest`, `PersonModelTest`);
   entspricht `composer test`
 - `docker exec kassensystem-vdst-web php spark migrate` — Migrationen (auch die
   Datei-/Trigger-Cleanup-Migrationen)
@@ -59,9 +59,9 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
 - **Models**: `BelegModel` (belege), `BuchungModel` (buchungen),
   `SchuldModel` (schulden), `AhAbrechnungModel`/`HvAbrechnungModel`
   (ah_/hv_abrechnungen), `AbrechnungBelegModel` (Junction abrechnung_belege —
-  einziger Codepfad für Beleg-Zuordnungen), `PersonEmailModel` (person_emails,
-  Name→E-Mail für den Rechnungsversand), `GetraenkeVersandModel`
-  (getraenke_versand, Versand-Log).
+  einziger Codepfad für Beleg-Zuordnungen), `PersonModel` (persons —
+  Personen-Register mit vorname/nachname/email, autoritative Namens-/E-Mail-Quelle
+  seit Issue #61), `GetraenkeVersandModel` (getraenke_versand, Versand-Log).
 - **Gemeinsame Views**: `app/Views/abrechnungen/*` werden von AH und HV geteilt,
   gesteuert über `$typ` ('ah'|'hv'). HV hat zusätzlich ein Freitext-Feld `begruendung`.
 - **Upload-Logik**: zentral in `app/Libraries/BelegUpload.php` (genutzt von
@@ -77,8 +77,9 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   `formatiere_betrag()`, `normalisiere_betrag()`, `schaetze_archiv_groesse()`,
   `person_normalisiere()`/`person_schluessel()` (kanonischer, whitespace- und
   case-normalisierter Vergleichsschlüssel für Freitext-Personennamen — EINZIGE
-  Quelle für das Matching zwischen `schulden.person`, `person_emails` und
-  `getraenke_versand`, kein Ad-hoc-`mb_strtolower()` daneben),
+  Quelle für das Matching zwischen `schulden.person`, dem Personen-Register
+  (`persons` via `PersonModel`) und `getraenke_versand`, kein Ad-hoc-
+  `mb_strtolower()` daneben; seit Issue #61 zentral über `PersonModel`),
   `person_anker()` (id-/fragment-sicherer Scroll-Anker `person-<slug>` auf Basis
   von `person_schluessel()`, Issue #55).
 - **Design-System** (Issue #47): `public/css/app.css` ist die EINZIGE Theme-Quelle,
@@ -114,9 +115,27 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   und Dashboard-Kachel) mit derselben Datengrundlage wie das Excel
   (`BuchungModel::berechneKontostaende()` + `SchuldModel::berechneInventur()`);
   der Excel-Download bleibt unter `schulden/export/inventur`.
+- **Personen-Register** (Issue #61, Fundament für #59): `PersonModel` (Tabelle
+  `persons`: vorname/nachname/email/aktiv) ist die autoritative Namens-/E-Mail-Quelle.
+  **Registry + Soft-Link** (bewusst KEINE volle Normalisierung): `schulden` hat eine
+  NULLABLE `person_id`-FK (`ON DELETE SET NULL`), behält aber `schulden.person` als
+  denormalisierten Anzeige-/Gruppierungsschlüssel — Aggregation, Detailseite
+  (`?name=`) und Anker/Redirect bleiben namensbasiert. `person_id` ist der Soft-Link,
+  auf dem #62 (Nachname→Vollname) aufsetzt; wird an ALLEN Insert-Pfaden mit bekanntem
+  Namen gesetzt (`SchuldModel::personId()` in den Sync-Methoden,
+  `extrahiereEintrag()`/`erstelleImportForderungen()` im Controller) — Institutions-
+  Zeilen (AH²-Bund/Heimverein, `abrechnung_id` gesetzt) und Gäste bleiben `person_id`
+  NULL. Matching läuft AUSSCHLIESSLICH über `person_schluessel()` — `PersonModel`
+  vereinheitlicht damit das frühere Nebeneinander aus DB-Kollation und PHP-Schlüssel
+  (pure Seams `anzeigename()`/`baueSchluesselMap()`/`idAusMap()`/`emailsAusMap()`,
+  DB-los testbar → `PersonModelTest`). E-Mails liegen in `persons.email`
+  (`person_emails` per Migration entfernt). Verwaltung: `/schulden/personen`
+  (`personen()`/`personenStore()`/`personenDelete()`), Datalists (schulden/belege/
+  buchungen) speisen sich aus `PersonModel::getAnzeigenamen()`.
 - **Schulden** (`SchuldenController`/`SchuldModel`, Views `app/Views/schulden/*`):
-  Ledger pro Person, Person ist **Freitext** (keine Personen-Tabelle; Datalist-Vorschläge,
-  Namen werden getrimmt, Gruppierung case-insensitiv über die DB-Kollation).
+  Ledger pro Person, Person ist **Freitext-String** mit optionalem Soft-Link ins
+  Personen-Register (s.o.; Datalist-Vorschläge aus `persons`, Namen werden getrimmt,
+  Gruppierung case-insensitiv über die DB-Kollation).
   Personen-Detail läuft über `/schulden/person?name=…` (GET-Param wegen
   Leerzeichen/Umlauten, kein URI-Segment). Die Übersicht hat Suche (Name),
   Status-Filter und Sortierung als GET-Parameter (`getPersonenUebersicht($filter)`;
@@ -124,7 +143,8 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   Whitelist `SchuldModel::SORTIERUNGEN`).
 - **Schulden-Verknüpfung** (Issue #38): `schulden` hat Quell-Spalten `beleg_id`/
   `buchung_id` (FK, ON DELETE CASCADE) und `abrechnung_typ`+`abrechnung_id` (kein FK,
-  da zwei Abrechnungs-Tabellen). Automatische Einträge entstehen aus drei Quellen:
+  da zwei Abrechnungs-Tabellen) sowie den Personen-Soft-Link `person_id`
+  (FK → `persons`, ON DELETE SET NULL, Issue #61). Automatische Einträge entstehen aus drei Quellen:
   (1) Beleg mit `erstattung_person` → Verbindlichkeit
   (`SchuldModel::syncBelegVerbindlichkeit`, Hook in BelegeController::store/update),
   (2) Abrechnungs-Statuswechsel → Forderung gegen „AH²-Bund"/„Heimverein" bei
@@ -193,10 +213,11 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   (`person[i]`/`email[i]`, `senden[]`=Index) — NIE den Freitext-Namen als
   POST-Array-Key benutzen (`]` im Namen zerlegt den Key). Name↔Forderung wird
   über `person_schluessel()` gematcht. Beim Senden werden die Adressen NACH dem
-  Upsert frisch aus der DB geladen (`findEmailsFuer`), nicht aus dem POST — so
-  greift auch eine schon gespeicherte Adresse, deren Feld leer gepostet wurde.
-  Adressen liegen in `person_emails` (Upsert beim Versand, Verwaltungsseite
-  `/schulden/emails`); erfolgreiche Sends landen im Log `getraenke_versand`
+  Upsert frisch aus der DB geladen (`PersonModel::findEmailsFuer`), nicht aus dem
+  POST — so greift auch eine schon gespeicherte Adresse, deren Feld leer gepostet
+  wurde. Adressen liegen seit Issue #61 in `persons.email` (Upsert beim Versand
+  über `PersonModel::upsertFuerName` — legt fehlende Personen als Nachname-Eintrag
+  an; Verwaltungsseite `/schulden/personen`); erfolgreiche Sends landen im Log `getraenke_versand`
   („verschickt am"-Badge, Checkbox dann default aus — bewusst keine harte
   Doppelversand-Sperre; PRG-Redirect verhindert Reload-Doppelversand, und die
   PDF-Erzeugung in der Sende-Schleife ist einzeln `try/catch`-gekapselt, damit
@@ -320,10 +341,20 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   Bootstrap-Spinner (`spinner-border spinner-border-sm`), nicht mit Icon.
 
 ## Bewusst entfernt — nicht wieder einbauen
-Multi-User/Rollen, Session-Timeout-Warnsystem mit Auto-Refresh, Keyboard-Shortcuts,
+Multi-User/**Login-Rollen**, Session-Timeout-Warnsystem mit Auto-Refresh, Keyboard-Shortcuts,
 automatische HV-Begründungs-Generatoren (Freitext reicht), Dashboard-Quick-Upload,
 drittes Exportformat (Buchungen-Listen-Excel), DB-Trigger/-Views,
 Tabelle `system_einstellungen` (Konfiguration kommt aus `.env`).
+
+## Bewusst eingeführt (Philosophie-Wende)
+- **Personen-Register `persons`** (Issue #61, Fundament für #59): Nachdem „keine
+  Personen-Tabelle" lange bewusste Doktrin war, wurde eine echte Personen-Tabelle
+  (vorname/nachname/email) eingeführt — Voraussetzung für #62 (Nachname→Vollname)
+  und #63, und erster konkreter Schritt Richtung Vision #1. **Wichtig:** Das ist
+  KEIN Einstieg in Multi-User/Login-Rollen (die bleiben draußen) — es geht um ein
+  Stammdaten-Register der Aktiven, nicht um Auth/Berechtigungen. Umgesetzt als
+  Registry + Soft-Link, damit der bestehende schlanke Schulden-Code (namensbasierte
+  Aggregation) unverändert bleibt (s. Architektur-Abschnitt „Personen-Register").
 
 ## Deployment-Hinweise
 - Produktiv: `CI_ENVIRONMENT = production` und starkes `vdst.master_password` in `.env`.

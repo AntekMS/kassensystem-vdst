@@ -16,8 +16,8 @@
                         <a href="<?= base_url('/schulden/import/uebersicht?monat=' . esc($monat, 'url') . ($monat_bis !== null ? '&bis=' . esc($monat_bis, 'url') : '')) ?>" class="btn btn-outline-vdst">
                             <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Übersichts-PDF (Aushang)
                         </a>
-                        <a href="<?= base_url('/schulden/emails') ?>" class="btn btn-outline-vdst">
-                            <i class="bi bi-envelope-at" aria-hidden="true"></i> E-Mail-Adressen verwalten
+                        <a href="<?= base_url('/schulden/personen') ?>" class="btn btn-outline-vdst">
+                            <i class="bi bi-people" aria-hidden="true"></i> Personen verwalten
                         </a>
                         <a href="<?= base_url('/schulden') ?>" class="btn btn-outline-vdst">
                             <i class="bi bi-arrow-left" aria-hidden="true"></i> Zur Schuldenliste

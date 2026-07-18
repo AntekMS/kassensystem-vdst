@@ -18,9 +18,9 @@ final class RedirectSameSiteTest extends CIUnitTestCase
 {
     private const HOST = 'example.com';
 
-    private function pfad(?string $kandidat): string
+    private function pfad(?string $kandidat, string $indexPage = ''): string
     {
-        return SchuldenController::sameSiteRuecksprungPfad($kandidat, self::HOST);
+        return SchuldenController::sameSiteRuecksprungPfad($kandidat, self::HOST, $indexPage);
     }
 
     public function testSameSiteZielBehaeltPfadUndQuery(): void
@@ -77,5 +77,31 @@ final class RedirectSameSiteTest extends CIUnitTestCase
     public function testLeererEigenerHostFaelltAufDefaultZurueck(): void
     {
         $this->assertSame('/schulden', SchuldenController::sameSiteRuecksprungPfad('https://example.com/schulden', ''));
+    }
+
+    public function testIndexPagePraefixWirdEntferntImNonRewriteBetrieb(): void
+    {
+        // Issue #72: ohne URL-Rewriting steckt "index.php" schon im
+        // Referrer-Pfad — redirect()->to() hängt es über site_url() sonst
+        // ein zweites Mal an ("index.php/index.php/schulden").
+        $this->assertSame(
+            '/schulden/person?name=Hans',
+            $this->pfad('https://example.com/index.php/schulden/person?name=Hans', 'index.php')
+        );
+        $this->assertSame('/', $this->pfad('https://example.com/index.php', 'index.php'));
+    }
+
+    public function testIndexPagePraefixBleibtOhneMatchUnveraendert(): void
+    {
+        // Leeres indexPage (Rewrite aktiv) oder ein Pfad, der nur zufällig mit
+        // "index.php" beginnt (kein eigenes Segment), wird nicht angefasst.
+        $this->assertSame(
+            '/index.php/schulden',
+            $this->pfad('https://example.com/index.php/schulden', '')
+        );
+        $this->assertSame(
+            '/index.phpschulden',
+            $this->pfad('https://example.com/index.phpschulden', 'index.php')
+        );
     }
 }

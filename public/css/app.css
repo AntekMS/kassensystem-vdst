@@ -114,6 +114,17 @@ body {
     display: block;
 }
 
+.app-sidebar-logo {
+    height: 2.25rem;
+    width: auto;
+    display: block;
+    margin-bottom: .5rem;
+    /* Logo ist ein schwarzer Trace auf transparentem Grund (PDF-Branding-Original) —
+       auf der schwarzen Sidebar per Filter in Weiß gedreht statt eine zweite
+       Asset-Variante zu pflegen. */
+    filter: invert(1);
+}
+
 .app-sidebar-brand span {
     display: block;
     font-size: .72rem;
@@ -213,6 +224,14 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.app-topbar-logo {
+    height: 1.4rem;
+    width: auto;
+    vertical-align: -.3rem;
+    margin-right: .35rem;
+    filter: invert(1);
 }
 
 .app-topbar-btn {

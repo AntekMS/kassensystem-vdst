@@ -114,13 +114,18 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   Handler NICHT wieder inline in Views duplizieren.
 - **Exporte**: `app/Helpers/ExcelHelper.php` + `ZipHelper.php`. Pro Bereich genau
   2 Formate: Excel und Komplett-ZIP (Excel + Beleg-Dateien). Ausnahme Schulden:
-  nur ein Export — die Inventur (`ExcelHelper::erstelleInventur`, ein Sheet
-  "Kassenwart – Aktueller Bestand": Kassenbestand + Forderungen − Verbindlichkeiten).
+  die Inventur (`ExcelHelper::erstelleInventur`, ein Sheet "Kassenwart – Aktueller
+  Bestand": Kassenbestand + Forderungen − Verbindlichkeiten) hat statt des ZIPs
+  einen PDF-Export (Issue #70, `schulden/export/inventur-pdf`,
+  `RechnungPdf::inventur()` + `$typ === 'inventur'` im geteilten Template
+  `pdf/rechnung.php` — gleiche Datengrundlage wie das Excel, sekundärer
+  `.btn-outline-vdst`-Button neben dem primären Excel-Download).
 - **Inventur** ist zusätzlich eine eigene HTML-Seite (`GET /inventur` →
   `SchuldenController::inventur`, View `schulden/inventur.php`, eigener Navbar-Punkt
-  und Dashboard-Kachel) mit derselben Datengrundlage wie das Excel
+  und Dashboard-Kachel) mit derselben Datengrundlage wie Excel/PDF
   (`BuchungModel::berechneKontostaende()` + `SchuldModel::berechneInventur()`);
-  der Excel-Download bleibt unter `schulden/export/inventur`.
+  die Downloads bleiben unter `schulden/export/inventur` (Excel) und
+  `schulden/export/inventur-pdf` (PDF).
 - **Personen-Register** (Issue #61, Fundament für #59): `PersonModel` (Tabelle
   `persons`: vorname/nachname/email/aktiv) ist die autoritative Namens-/E-Mail-Quelle.
   **Registry + Soft-Link** (bewusst KEINE volle Normalisierung): `schulden` hat eine
@@ -253,15 +258,16 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   lebenden App-Code koppeln); nicht parsebare Gründe bleiben NULL und tauchen
   — wie vorher — nicht im Versand auf.
   Test: `tests/unit/GetraenkeImportParserTest.php`.
-- **PDF-Rechnungen** (Issue #35): `app/Libraries/RechnungPdf.php` (dompdf) rendert
-  das geteilte Template `app/Views/pdf/rechnung.php` (gesteuert über `$typ`:
-  `einzel`|`uebersicht`|`coleur_bund`; Standalone-HTML, eigener `<style>` hier ok).
-  Branding: Logo `public/img/vdst-logo.svg` als Base64-Data-URI + Schwarz/Rot-
-  Typografie. INVARIANTEN: `defaultFont 'DejaVu Sans'` + `loadHtml(..., 'UTF-8')`
-  (sonst kaputte Umlaute/€), `isRemoteEnabled=false`/`isPhpEnabled=false`,
+- **PDF-Rechnungen** (Issue #35, seit #70 auch Inventur): `app/Libraries/RechnungPdf.php`
+  (dompdf) rendert das geteilte Template `app/Views/pdf/rechnung.php` (gesteuert über
+  `$typ`: `einzel`|`uebersicht`|`coleur_bund`|`inventur`; Standalone-HTML, eigener
+  `<style>` hier ok). Branding: Logo `public/img/vdst-logo.svg` als Base64-Data-URI +
+  Schwarz/Rot-Typografie. INVARIANTEN: `defaultFont 'DejaVu Sans'` + `loadHtml(...,
+  'UTF-8')` (sonst kaputte Umlaute/€), `isRemoteEnabled=false`/`isPhpEnabled=false`,
   Font-Cache/TempDir auf `WRITEPATH.'cache/'` (vendor/ evtl. nicht beschreibbar).
-  Dateinamen über `RechnungPdf::dateiname()` (ASCII-Slug). Test:
-  `tests/unit/RechnungPdfTest.php`.
+  Dateinamen über `RechnungPdf::dateiname()` (ASCII-Slug, Präfix „Getraenkerechnung")
+  bzw. `RechnungPdf::inventurDateiname()` (Inventur, Präfix „Inventur" analog zum
+  Excel-Dateinamen). Test: `tests/unit/RechnungPdfTest.php`.
 - **Rechnungsversand** (Issue #35): `/schulden/import/versand?monat=JJJJ-MM`
   (Redirect-Ziel nach importConfirm, jederzeit erneut aufrufbar) listet die
   importierten Forderungen des Monats mit E-Mail-Feld und Auswahl; „Rechnungen

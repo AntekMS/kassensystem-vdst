@@ -501,6 +501,32 @@ class SchuldenController extends BaseController
         }
     }
 
+    /**
+     * Inventur-Export: "Kassenwart – Aktueller Bestand" als PDF (Issue #70) —
+     * PDF-Pendant zum Excel-Export, gleiche Datengrundlage.
+     */
+    public function exportInventurPdf()
+    {
+        $kontostaende = (new BuchungModel())->berechneKontostaende();
+        $inventur = $this->schuldModel->berechneInventur();
+        $summeKassen = array_sum(array_column($kontostaende, 'saldo'));
+        $summeGesamt = $summeKassen
+            + ($inventur['forderung']['summe'] ?? 0)
+            - ($inventur['verbindlichkeit']['summe'] ?? 0);
+
+        try {
+            $pdf = (new RechnungPdf())->inventur($kontostaende, $inventur, $summeKassen, $summeGesamt, date('Y-m-d'));
+
+            return $this->response
+                ->download(RechnungPdf::inventurDateiname(date('Y-m-d')), $pdf)
+                ->setContentType('application/pdf');
+        } catch (\Exception $e) {
+            log_message('error', 'Inventur-PDF-Export Fehler: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Fehler beim Inventur-PDF-Export: ' . $e->getMessage());
+        }
+    }
+
     // ==================== GETRÄNKERECHNUNG-IMPORT (Issue #35) ====================
 
     /**

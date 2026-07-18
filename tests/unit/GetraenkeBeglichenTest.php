@@ -62,6 +62,18 @@ final class GetraenkeBeglichenTest extends CIUnitTestCase
     }
 
     /**
+     * Endmonat-Normalisierung der Import-Marker (Issue #64): bis === von ist
+     * ein Einzelmonat und wird als NULL gespeichert/gematcht — dieselbe
+     * Semantik wie GetraenkeRechnungImport::monatsName().
+     */
+    public function testImportMonatBisNormalisierung(): void
+    {
+        $this->assertNull(SchuldModel::importMonatBis('2025-11', null));
+        $this->assertNull(SchuldModel::importMonatBis('2025-11', '2025-11'));
+        $this->assertSame('2025-12', SchuldModel::importMonatBis('2025-11', '2025-12'));
+    }
+
+    /**
      * DB-loser Test-Doppelgänger: überschreibt die beiden DB-Zugriffe (Lesen der
      * offenen Forderungen, Anlegen des Ausgleichs) und macht den ausgelagerten
      * Ausgleichs-Loop (ohne Transaktions-Boilerplate) öffentlich aufrufbar.

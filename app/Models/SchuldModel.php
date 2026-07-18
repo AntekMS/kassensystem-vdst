@@ -46,12 +46,24 @@ class SchuldModel extends Model
     /**
      * Grund der importierten Getränke-Forderungen eines Monats (Issue #35).
      *
-     * Einziger Codepfad für diesen String — Abfragen matchen ihn IMMER exakt,
-     * nie per LIKE-Prefix: GETRAENKE_BEGLICHEN_GRUND beginnt gleich.
+     * Seit Issue #64 reiner Anzeige-/Editier-Text: identifiziert werden die
+     * Import-Forderungen über die typisierten Spalten import_monat/
+     * import_monat_bis (siehe getImportForderungen), nicht mehr über den grund.
      */
     public static function getraenkeImportGrund(string $monatsName): string
     {
         return 'Getränkerechnung ' . $monatsName;
+    }
+
+    /**
+     * Normalisiert den Endmonat eines Import-Zeitraums für import_monat_bis
+     * (Issue #64): bis === von ist ein Einzelmonat und wird — wie in
+     * GetraenkeRechnungImport::monatsName() — als NULL gespeichert/gematcht.
+     * Einzige Normalisierungsquelle; Insert und Abfragen nutzen sie beide.
+     */
+    public static function importMonatBis(string $monat, ?string $monatBis): ?string
+    {
+        return $monatBis === $monat ? null : $monatBis;
     }
 
     protected $table = 'schulden';
@@ -63,7 +75,8 @@ class SchuldModel extends Model
 
     protected $allowedFields = [
         'person', 'person_id', 'typ', 'kategorie', 'datum', 'grund', 'betrag',
-        'beleg_id', 'buchung_id', 'abrechnung_typ', 'abrechnung_id'
+        'beleg_id', 'buchung_id', 'abrechnung_typ', 'abrechnung_id',
+        'import_monat', 'import_monat_bis'
     ];
 
     protected $useTimestamps = true;
@@ -505,18 +518,21 @@ class SchuldModel extends Model
     }
 
     /**
-     * Importierte Getränke-Forderungen eines Monats, aggregiert pro Person
-     * (Issue #35) — kanonische Datenquelle für Übersichts-PDF und
+     * Importierte Getränke-Forderungen eines Monats bzw. Zeitraums, aggregiert
+     * pro Person (Issue #35) — kanonische Datenquelle für Übersichts-PDF und
      * Versand-Seite; jederzeit re-derivierbar, keine Session nötig.
      *
+     * Identifiziert über die typisierten Spalten import_monat/import_monat_bis
+     * (Issue #64) — der editierbare grund ist nur noch Anzeigetext.
      * GROUP BY macht die Liste robust gegen (erlaubten) Doppelimport.
      *
      * @return array<array{person: string, betrag: string}>
      */
-    public function getImportForderungen(string $monatsName)
+    public function getImportForderungen(string $monat, ?string $monatBis = null)
     {
         return $this->select('person, SUM(betrag) AS betrag')
-            ->where('grund', self::getraenkeImportGrund($monatsName))
+            ->where('import_monat', $monat)
+            ->where('import_monat_bis', self::importMonatBis($monat, $monatBis))
             ->where('typ', 'forderung')
             ->where('kategorie', 'getraenke')
             ->groupBy('person')

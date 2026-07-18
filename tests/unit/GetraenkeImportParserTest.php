@@ -246,6 +246,14 @@ final class GetraenkeImportParserTest extends CIUnitTestCase
             ['von' => '2025-11', 'bis' => null],
             GetraenkeRechnungImport::parseMonatsName(GetraenkeRechnungImport::monatsName('2025-11', '2025-11'))
         );
+
+        // Auch ein handgeschriebener Pseudo-Zeitraum mit bis === von wird
+        // normalisiert — sonst entstünde ein von==bis-Markerpaar, das keine
+        // Abfrage (alle normalisieren über importMonatBis) je matchen könnte.
+        $this->assertSame(
+            ['von' => '2025-11', 'bis' => null],
+            GetraenkeRechnungImport::parseMonatsName('November–November 2025')
+        );
     }
 
     public function testParseMonatsNameLehntFremdtexteAb(): void

@@ -163,7 +163,13 @@ class SchuldenController extends BaseController
             return $fehler;
         }
 
-        if ($this->schuldModel->insert($this->extrahiereEintrag($daten))) {
+        $eintrag = $this->extrahiereEintrag($daten);
+        // Manuell nachgetragene Forderung mit kanonischem Import-grund gehört
+        // zum Abrechnungslauf des Monats (Issue #64-Nachtrag) — sonst fehlt
+        // die Person lautlos auf Versand-Seite/Übersichts-PDF.
+        $eintrag += SchuldModel::importMarkerAusGrund($eintrag['typ'], $eintrag['kategorie'], $eintrag['grund']);
+
+        if ($this->schuldModel->insert($eintrag)) {
             return redirect()->to('/schulden/person?name=' . urlencode($daten['person']))
                 ->with('success', 'Eintrag wurde erfolgreich erstellt!');
         }
@@ -674,7 +680,7 @@ class SchuldenController extends BaseController
         }
 
         $emails = (new PersonModel())->findEmailsFuer(array_column($personen, 'person'));
-        $versendet = (new GetraenkeVersandModel())->getVersendetFuerMonat($monat);
+        $versendet = (new GetraenkeVersandModel())->getVersendetFuerMonat($monat, $monatBis);
 
         foreach ($personen as &$person) {
             $key = person_schluessel($person['person']);
@@ -844,7 +850,7 @@ class SchuldenController extends BaseController
             }
 
             if ($ok) {
-                $versandLog->logVersand($monat, $name, $email);
+                $versandLog->logVersand($monat, $monatBis, $name, $email);
             }
 
             $ergebnisse[] = [
@@ -1030,14 +1036,12 @@ class SchuldenController extends BaseController
         }
 
         // Doppelimport-Erkennung über die typisierten Import-Spalten (Issue #64),
-        // nicht über den editierbaren grund-Text.
-        $vorhandene = $this->schuldModel
-            ->where('import_monat', $monat)
-            ->where('import_monat_bis', SchuldModel::importMonatBis($monat, $monatBis))
-            ->countAllResults();
+        // nicht über den editierbaren grund-Text. Overlap-Match, damit auch
+        // ein November-Import nach einem November–Dezember-Import auffällt.
+        $vorhandene = $this->schuldModel->zaehleUeberlappendeImportForderungen($monat, $monatBis);
         if ($vorhandene > 0) {
-            $warnungen[] = 'Es existieren bereits ' . $vorhandene . ' importierte Einträge für '
-                . $monatsName . ' — diese Rechnung wurde möglicherweise schon importiert.';
+            $warnungen[] = 'Es existieren bereits ' . $vorhandene . ' importierte Einträge, deren Zeitraum sich mit '
+                . $monatsName . ' überschneidet — diese Rechnung wurde möglicherweise schon importiert.';
         }
 
         foreach (['coleur' => 'Coleur', 'bund' => 'Bund'] as $key => $label) {

@@ -249,11 +249,15 @@ class GetraenkeRechnungImport
 
     /**
      * Gegenstück zu monatsName() (Issue #64): parst einen deutschen Monatsnamen
-     * bzw. Zeitraum zurück nach "YYYY-MM" — gebraucht von der Backfill-Migration,
-     * die bestehenden Getränke-Forderungen ihren import_monat aus dem grund ableitet.
+     * bzw. Zeitraum zurück nach "YYYY-MM" — genutzt von
+     * SchuldModel::importMarkerAusGrund() (manuell nachgetragene Forderungen
+     * mit kanonischem Import-grund bekommen so ihre Marker); die
+     * Backfill-Migration 2026-07-18 trägt eine eingefrorene Kopie.
      *
      * Versteht genau die drei monatsName()-Formate ("November 2025",
      * "November–Dezember 2025", "November 2025–Januar 2026"); alles andere → null.
+     * bis === von wird — wie überall (SchuldModel::importMonatBis) — zu
+     * NULL normalisiert, damit nie ein unmatchbares von==bis-Paar entsteht.
      *
      * @return ?array{von: string, bis: ?string}
      */
@@ -281,7 +285,7 @@ class GetraenkeRechnungImport
             return null;
         }
 
-        return ['von' => $von, 'bis' => $bis];
+        return ['von' => $von, 'bis' => $bis === $von ? null : $bis];
     }
 
     /**

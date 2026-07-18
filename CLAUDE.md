@@ -101,7 +101,13 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   Klasse behalten (app.js `showMessage()` injiziert dorthin). Für Listen-Views
   vorbereitet: `.table-stack` (+ `data-label` je `<td>`, Aktions-Zelle
   `.stack-actions`, Summe als `.summe-mobile d-lg-none`), `.badge-status-*`,
-  `.filter-bar`, `.empty-state`, `.btn-icon`.
+  `.filter-bar`, `.empty-state`, `.btn-icon`. VDSt-Logo (Issue #69) in
+  `.app-sidebar-brand` (Desktop-Sidebar + Mobile-Offcanvas, da dieselbe `<aside>`)
+  und `.app-topbar-brand` (Mobile-Topbar) über dieselbe Asset-Datei wie das
+  PDF-Branding (`public/img/vdst-logo.svg`, schwarzer Trace auf transparentem
+  Grund) — auf dem schwarzen Hintergrund per `filter: invert(1)`
+  (`.app-sidebar-logo`/`.app-topbar-logo`) in Weiß gedreht statt eine zweite
+  Asset-Variante zu pflegen.
 - **Geteiltes JS** (`public/js/app.js`, in `layouts/main.php` eingebunden):
   `confirmDelete()`, `showMessage()`, Export-Toasts; Views binden Verhalten per CSS-Klasse
   `js-autosubmit` (Filter-Selects) bzw. `js-betrag-format` (Betrag-Eingaben) — solche

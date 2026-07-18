@@ -14,7 +14,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
     <!-- VDSt Design-System (einzige Theme-Quelle) -->
-    <link href="<?= base_url('css/app.css') ?>?v=5" rel="stylesheet">
+    <link href="<?= base_url('css/app.css') ?>?v=6" rel="stylesheet">
 
     <?= $this->renderSection('styles') ?>
 </head>
@@ -24,6 +24,7 @@
 <aside class="offcanvas-lg offcanvas-start app-sidebar" tabindex="-1" id="appSidebar" aria-label="Hauptnavigation">
     <div class="app-sidebar-brand">
         <a href="<?= base_url('/dashboard') ?>">
+            <img src="<?= base_url('img/vdst-logo.svg') ?>" alt="" class="app-sidebar-logo">
             VDSt Kassensystem
             <span>Verein deutscher Studenten zu Erlangen</span>
         </a>
@@ -86,7 +87,10 @@
                 aria-controls="appSidebar" title="Navigation öffnen" aria-label="Navigation öffnen">
             <i class="bi bi-list" aria-hidden="true"></i>
         </button>
-        <a class="app-topbar-brand" href="<?= base_url('/dashboard') ?>">VDSt Kassensystem</a>
+        <a class="app-topbar-brand" href="<?= base_url('/dashboard') ?>">
+            <img src="<?= base_url('img/vdst-logo.svg') ?>" alt="" class="app-topbar-logo">
+            VDSt Kassensystem
+        </a>
         <a class="app-topbar-btn app-topbar-action" href="<?= base_url('/belege/create') ?>"
            title="Beleg erfassen" aria-label="Beleg erfassen">
             <i class="bi bi-plus-lg" aria-hidden="true"></i>

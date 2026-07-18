@@ -193,7 +193,7 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   Zufallsnamen in `writable/uploads/import/` geparkt (Basename in der Session,
   Confirm parst NEU, Altlasten >24h — auch verwaiste Temp-PDFs — werden
   weggeräumt). Doppelimport ist erlaubt, die Vorschau warnt aber (Erkennung über
-  `SchuldModel::getraenkeImportGrund($monatsName)`).
+  die Marker-Spalten `import_monat`/`import_monat_bis`, s.u. Issue #64).
   Nachname→Vollname-Auflösung (Issue #62): der Parser bleibt DB-agnostisch (roher
   Nachname); die Auflösung gegen das Personen-Register liegt im reinen Resolver
   `app/Libraries/GetraenkeImportAufloeser::loese($personen, nachnameMap, $wahlen)`.
@@ -217,10 +217,21 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   erlaubt einen Zeitraum; `monatsName($von,$bis)` rendert ihn („November–Dezember
   2025" bzw. „November 2025–Januar 2026"). Der Zeitraum wird als `von`+`bis` in
   Session/Query durchgereicht (`SchuldenController::versandQuery()` baut den
-  Query-String, `leseMonatBis()` validiert `bis`); der daraus erzeugte Monatsname
-  ist der einzige Wert, aus dem `grund` entsteht — er bleibt zwischen Import,
-  Vorschau, Versand, Übersicht-PDF und Doppelimport-Erkennung identisch (weiter
-  exakter `grund`-Match, kein LIKE).
+  Query-String, `leseMonatBis()` validiert `bis`).
+  Typisierter Import-Marker (Issue #64): `schulden.import_monat` (`JJJJ-MM`,
+  Startmonat, indiziert) + `import_monat_bis` (Endmonat bei Zeitraum, sonst NULL)
+  identifizieren die Import-Forderungen — der editierbare `grund`
+  (`SchuldModel::getraenkeImportGrund()`) ist NUR noch Anzeige-/Editier-Text,
+  kein Schlüssel mehr. Normalisierung `bis === von → NULL` zentral über
+  `SchuldModel::importMonatBis()` (Parität zu `monatsName()`); Insert
+  (`erstelleImportForderungen`), `getImportForderungen($monat,$monatBis)` und
+  Doppelimport-Check (`baueImportVorschau`) nutzen ausschließlich diese Spalten.
+  Die Marker sperren die Einträge NICHT (`istAutomatisch()` prüft sie bewusst
+  nicht — Import-Forderungen bleiben editierbar). Bestandsdaten wurden per
+  Migration `2026-07-18-000001_SchuldenImportMonat` aus dem `grund` backfilled
+  (Reverse-Parser `GetraenkeRechnungImport::parseMonatsName()`, Gegenstück zu
+  `monatsName()`; nicht parsebare Gründe bleiben NULL und tauchen — wie vorher —
+  nicht im Versand auf).
   Test: `tests/unit/GetraenkeImportParserTest.php`.
 - **PDF-Rechnungen** (Issue #35): `app/Libraries/RechnungPdf.php` (dompdf) rendert
   das geteilte Template `app/Views/pdf/rechnung.php` (gesteuert über `$typ`:
@@ -236,8 +247,9 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   importierten Forderungen des Monats mit E-Mail-Feld und Auswahl; „Rechnungen
   verschicken" mailt die personalisierte PDF-Einzelrechnung (`RechnungVersand`,
   CI4-Email-Service, Anhang aus dem Buffer). Datenquelle ist IMMER
-  `SchuldModel::getImportForderungen($monatsName)` (exakter `grund`-Match — NIE
-  `LIKE 'Getränkerechnung %'`, das fängt GETRAENKE_BEGLICHEN_GRUND mit; Beträge
+  `SchuldModel::getImportForderungen($monat, $monatBis)` (Match über die
+  Marker-Spalten `import_monat`/`import_monat_bis`, Issue #64 — NIE über den
+  editierbaren `grund` oder gar `LIKE 'Getränkerechnung %'`; Beträge
   nie aus dem POST). Das Versand-Formular ist **index-basiert**
   (`person[i]`/`email[i]`, `senden[]`=Index) — NIE den Freitext-Namen als
   POST-Array-Key benutzen (`]` im Namen zerlegt den Key). Name↔Forderung wird

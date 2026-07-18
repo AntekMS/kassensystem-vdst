@@ -248,6 +248,57 @@ class GetraenkeRechnungImport
     }
 
     /**
+     * Gegenstück zu monatsName() (Issue #64): parst einen deutschen Monatsnamen
+     * bzw. Zeitraum zurück nach "YYYY-MM" — gebraucht von der Backfill-Migration,
+     * die bestehenden Getränke-Forderungen ihren import_monat aus dem grund ableitet.
+     *
+     * Versteht genau die drei monatsName()-Formate ("November 2025",
+     * "November–Dezember 2025", "November 2025–Januar 2026"); alles andere → null.
+     *
+     * @return ?array{von: string, bis: ?string}
+     */
+    public static function parseMonatsName(string $name): ?array
+    {
+        $teile = explode('–', trim($name), 2);
+
+        $bis = null;
+        if (isset($teile[1])) {
+            $bis = self::parseEinzelMonatsName(trim($teile[1]));
+            if ($bis === null) {
+                return null;
+            }
+        }
+
+        $vonTeil = trim($teile[0]);
+        // Zeitraum im gleichen Jahr: links steht nur der Monatsname, das Jahr
+        // liefert der Endmonat ("November–Dezember 2025").
+        if ($bis !== null && array_search($vonTeil, self::MONATSNAMEN, true) !== false) {
+            $vonTeil .= ' ' . substr($bis, 0, 4);
+        }
+
+        $von = self::parseEinzelMonatsName($vonTeil);
+        if ($von === null || ($bis !== null && $bis < $von)) {
+            return null;
+        }
+
+        return ['von' => $von, 'bis' => $bis];
+    }
+
+    /**
+     * "November 2025" → "2025-11", sonst null.
+     */
+    private static function parseEinzelMonatsName(string $name): ?string
+    {
+        if (preg_match('/^(\p{L}+) (\d{4})$/u', $name, $treffer) !== 1) {
+            return null;
+        }
+
+        $nummer = array_search($treffer[1], self::MONATSNAMEN, true);
+
+        return $nummer === false ? null : $treffer[2] . '-' . $nummer;
+    }
+
+    /**
      * Erkennt die Trennzeile vor den Summenzeilen (nur Asterisken).
      */
     public static function istTrennzeile(string $wert): bool

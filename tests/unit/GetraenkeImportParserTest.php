@@ -217,6 +217,51 @@ final class GetraenkeImportParserTest extends CIUnitTestCase
     }
 
     /**
+     * Reverse-Parser (Issue #64): parseMonatsName ist das Gegenstück zu
+     * monatsName — die Backfill-Migration leitet damit import_monat/
+     * import_monat_bis der Bestands-Forderungen aus dem grund ab.
+     * Roundtrip über alle drei Formate.
+     */
+    public function testParseMonatsNameRoundtrip(): void
+    {
+        $faelle = [
+            ['2025-11', null],       // "November 2025"
+            ['2025-11', '2025-12'],  // "November–Dezember 2025" (gleiches Jahr)
+            ['2025-11', '2026-01'],  // "November 2025–Januar 2026" (Jahreswechsel)
+            ['2026-03', null],       // Umlaut-Monat "März 2026"
+        ];
+
+        foreach ($faelle as [$von, $bis]) {
+            $name = GetraenkeRechnungImport::monatsName($von, $bis);
+            $this->assertSame(
+                ['von' => $von, 'bis' => $bis],
+                GetraenkeRechnungImport::parseMonatsName($name),
+                'Roundtrip fehlgeschlagen für "' . $name . '"'
+            );
+        }
+
+        // bis === von rendert als Einzelmonat → parst zurück zu bis = null
+        // (dieselbe Normalisierung wie SchuldModel::importMonatBis).
+        $this->assertSame(
+            ['von' => '2025-11', 'bis' => null],
+            GetraenkeRechnungImport::parseMonatsName(GetraenkeRechnungImport::monatsName('2025-11', '2025-11'))
+        );
+    }
+
+    public function testParseMonatsNameLehntFremdtexteAb(): void
+    {
+        // Der Rest des GETRAENKE_BEGLICHEN_GRUND nach dem Präfix — darf nie
+        // als Import-Zeitraum durchgehen.
+        $this->assertNull(GetraenkeRechnungImport::parseMonatsName('beglichen'));
+        $this->assertNull(GetraenkeRechnungImport::parseMonatsName('November 2025 (korrigiert)'));
+        $this->assertNull(GetraenkeRechnungImport::parseMonatsName('Pfingsten 2025'));
+        $this->assertNull(GetraenkeRechnungImport::parseMonatsName('November'));
+        $this->assertNull(GetraenkeRechnungImport::parseMonatsName(''));
+        // Verdrehter Zeitraum (Ende vor Anfang) wird nicht akzeptiert.
+        $this->assertNull(GetraenkeRechnungImport::parseMonatsName('Dezember 2025–November 2025'));
+    }
+
+    /**
      * Dateiname→Monat-Ableitung (Issue #57): erkennt deutsche Monatsnamen im
      * Original-Dateinamen, mit oder ohne Jahr; ohne Jahr wird ein plausibles
      * Jahr geschätzt (nie ein weit in der Zukunft liegender Monat).

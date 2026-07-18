@@ -613,7 +613,7 @@ class SchuldenController extends BaseController
         );
 
         // 1) Forderungen als ein Batch (Transaktion): ganz oder gar nicht
-        $fehler = $this->erstelleImportForderungen($aufgeloest, $datum, $monatsName);
+        $fehler = $this->erstelleImportForderungen($aufgeloest, $datum, $monat, $monatBis);
         if ($fehler !== null) {
             return $fehler;
         }
@@ -640,8 +640,8 @@ class SchuldenController extends BaseController
 
     /**
      * Schritt 3: Versand-Seite — Personen des Monats mit Betrag, E-Mail-Adresse
-     * und Auswahl. Datenquelle sind die importierten Forderungen (exakter
-     * grund-Match), daher jederzeit erneut aufrufbar.
+     * und Auswahl. Datenquelle sind die importierten Forderungen (Match über
+     * import_monat/import_monat_bis, Issue #64), daher jederzeit erneut aufrufbar.
      */
     public function importVersand()
     {
@@ -656,7 +656,7 @@ class SchuldenController extends BaseController
         }
 
         $monatsName = GetraenkeRechnungImport::monatsName($monat, $monatBis);
-        $personen = $this->schuldModel->getImportForderungen($monatsName);
+        $personen = $this->schuldModel->getImportForderungen($monat, $monatBis);
 
         if ($personen === []) {
             // Kommt der Aufruf direkt nach einem Import (Erfolgs-Flash gesetzt),
@@ -757,7 +757,7 @@ class SchuldenController extends BaseController
 
         $monatsName = GetraenkeRechnungImport::monatsName($monat, $monatBis);
         $forderungen = [];
-        foreach ($this->schuldModel->getImportForderungen($monatsName) as $zeile) {
+        foreach ($this->schuldModel->getImportForderungen($monat, $monatBis) as $zeile) {
             $forderungen[person_schluessel($zeile['person'])] = $zeile;
         }
 
@@ -881,7 +881,7 @@ class SchuldenController extends BaseController
         }
 
         $monatsName = GetraenkeRechnungImport::monatsName($monat, $monatBis);
-        $personen = $this->schuldModel->getImportForderungen($monatsName);
+        $personen = $this->schuldModel->getImportForderungen($monat, $monatBis);
 
         if ($personen === []) {
             return redirect()->to('/schulden/import')
@@ -1007,7 +1007,6 @@ class SchuldenController extends BaseController
         bool $monatAusDateinameUebernommen = false
     ): array {
         $monatsName = GetraenkeRechnungImport::monatsName($monat, $monatBis);
-        $grund = SchuldModel::getraenkeImportGrund($monatsName);
 
         // Nachname → Vollname gegen das Personen-Register auflösen (Issue #62):
         // eindeutige Treffer automatisch, mehrdeutige/unbekannte werden in der
@@ -1030,10 +1029,15 @@ class SchuldenController extends BaseController
                 . 'bitte die markierten Namen unten zuordnen (oder als Gast übernehmen).';
         }
 
-        $vorhandene = $this->schuldModel->where('grund', $grund)->countAllResults();
+        // Doppelimport-Erkennung über die typisierten Import-Spalten (Issue #64),
+        // nicht über den editierbaren grund-Text.
+        $vorhandene = $this->schuldModel
+            ->where('import_monat', $monat)
+            ->where('import_monat_bis', SchuldModel::importMonatBis($monat, $monatBis))
+            ->countAllResults();
         if ($vorhandene > 0) {
-            $warnungen[] = 'Es existieren bereits ' . $vorhandene . ' Einträge mit dem Grund „' . $grund
-                . '" — diese Rechnung wurde möglicherweise schon importiert.';
+            $warnungen[] = 'Es existieren bereits ' . $vorhandene . ' importierte Einträge für '
+                . $monatsName . ' — diese Rechnung wurde möglicherweise schon importiert.';
         }
 
         foreach (['coleur' => 'Coleur', 'bund' => 'Bund'] as $key => $label) {
@@ -1131,8 +1135,10 @@ class SchuldenController extends BaseController
      * jeder Eintrag trägt `person` (Anzeigename/Gast), `person_id` (?int) und
      * `betrag`. Gibt bei Fehlern eine Redirect-Response zurück, sonst null.
      */
-    private function erstelleImportForderungen(array $personen, string $datum, string $monatsName)
+    private function erstelleImportForderungen(array $personen, string $datum, string $monat, ?string $monatBis)
     {
+        $grund = SchuldModel::getraenkeImportGrund(GetraenkeRechnungImport::monatsName($monat, $monatBis));
+
         $db = \Config\Database::connect();
         $db->transStart();
 
@@ -1146,7 +1152,11 @@ class SchuldenController extends BaseController
                 'typ' => 'forderung',
                 'kategorie' => 'getraenke',
                 'datum' => $datum,
-                'grund' => SchuldModel::getraenkeImportGrund($monatsName),
+                'grund' => $grund,
+                // Typisierter Marker (Issue #64) — identifiziert die Forderung
+                // für Versand/Übersicht/Doppelimport, der grund ist nur Anzeige.
+                'import_monat' => $monat,
+                'import_monat_bis' => SchuldModel::importMonatBis($monat, $monatBis),
                 'betrag' => number_format($person['betrag'], 2, '.', ''),
             ]);
 

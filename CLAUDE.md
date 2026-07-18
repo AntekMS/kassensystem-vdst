@@ -26,7 +26,7 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
 - `docker exec kassensystem-vdst-web vendor/bin/phpunit tests/unit/` — Tests
   (`HealthTest`, `BetragTest`, `SchuldLabelTest`, `GetraenkeBeglichenTest`,
   `GetraenkeImportParserTest`, `RechnungPdfTest`, `RechnungVersandTest`,
-  `PersonSchluesselTest`, `PersonModelTest`);
+  `PersonSchluesselTest`, `PersonModelTest`, `GetraenkeImportAufloeserTest`);
   entspricht `composer test`
 - `docker exec kassensystem-vdst-web php spark migrate` — Migrationen (auch die
   Datei-/Trigger-Cleanup-Migrationen)
@@ -121,11 +121,11 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   NULLABLE `person_id`-FK (`ON DELETE SET NULL`), behält aber `schulden.person` als
   denormalisierten Anzeige-/Gruppierungsschlüssel — Aggregation, Detailseite
   (`?name=`) und Anker/Redirect bleiben namensbasiert. `person_id` ist der Soft-Link,
-  auf dem #62 (Nachname→Vollname) aufsetzt; wird an ALLEN Insert-Pfaden mit bekanntem
-  Namen gesetzt (`SchuldModel::personId()` in den Sync-Methoden,
-  `extrahiereEintrag()`/`erstelleImportForderungen()` im Controller) — Institutions-
-  Zeilen (AH²-Bund/Heimverein, `abrechnung_id` gesetzt) und Gäste bleiben `person_id`
-  NULL. Matching läuft AUSSCHLIESSLICH über `person_schluessel()` — `PersonModel`
+  auf dem #62 (Nachname→Vollname beim Getränke-Import) aufsetzt; wird an ALLEN
+  Insert-Pfaden mit bekanntem Namen gesetzt (`SchuldModel::personId()` in den
+  Sync-Methoden, `extrahiereEintrag()` im Controller; beim Import bereits vom
+  Resolver aufgelöst, s.u.) — Institutions-Zeilen (AH²-Bund/Heimverein,
+  `abrechnung_id` gesetzt) und Gäste bleiben `person_id` NULL. Matching läuft AUSSCHLIESSLICH über `person_schluessel()` — `PersonModel`
   vereinheitlicht damit das frühere Nebeneinander aus DB-Kollation und PHP-Schlüssel
   (pure Seams `anzeigename()`/`baueSchluesselMap()`/`idAusMap()`/`emailsAusMap()`,
   DB-los testbar → `PersonModelTest`). E-Mails liegen in `persons.email`
@@ -162,7 +162,7 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   Confirm → Versand, SchuldenController::import/importUpload/importConfirm/
   importVersand). Parser `app/Libraries/GetraenkeRechnungImport.php` liest die
   Excel des Getränkewarts:
-  Sheet „Bundesbrüder & Gäste" → pro Nachname eine manuelle Getränke-Forderung
+  Sheet „Bundesbrüder & Gäste" → pro Nachname eine Getränke-Forderung
   über „Gesamt − Ausstehend" (Personenanzahl variabel: ab Zeile 3 bis Trennzeile/
   `Gesamtanzahl:`, `(Einfügespalte)` und 0-Beträge übersprungen; bewusst OHNE
   Quell-Verknüpfung, damit editierbar); Sheet „Coleur & Bund" → zwei
@@ -180,6 +180,21 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   Confirm parst NEU, Altlasten >24h — auch verwaiste Temp-PDFs — werden
   weggeräumt). Doppelimport ist erlaubt, die Vorschau warnt aber (Erkennung über
   `SchuldModel::getraenkeImportGrund($monatsName)`).
+  Nachname→Vollname-Auflösung (Issue #62): der Parser bleibt DB-agnostisch (roher
+  Nachname); die Auflösung gegen das Personen-Register liegt im reinen Resolver
+  `app/Libraries/GetraenkeImportAufloeser::loese($personen, nachnameMap, $wahlen)`.
+  Eindeutiger Nachname-Treffer (`PersonModel::baueNachnameMap`, strikter Match nur
+  auf `nachname`) → automatisch Anzeigename + `person_id`; mehrdeutig (≥2 gleiche
+  Nachnamen) / unbekannt (0) → in der Vorschau interaktiv per `<select>` zuordnen
+  (mehrdeutig: Kandidaten; unbekannt: alle Personen; je + „als Gast übernehmen" =
+  roher Nachname, `person_id` NULL). Die Wahl wird index-basiert
+  (`nachname[i]`/`wahl[i]`, NIE Freitext-Name als Array-Key) durch den Confirm-POST
+  getragen; `importConfirm` liest daher jetzt Session **und** `wahl`-POST
+  (`leseImportWahlen()`). Der Resolver validiert die `person_id`-Wahlen serverseitig
+  (mehrdeutig: nur unter den Kandidaten; unbekannt: gegen ALLE Personen);
+  `erstelleImportForderungen()` speichert die bereits aufgelösten `person`/`person_id`.
+  Doppelimport-/grund-/Monatslogik unverändert (nur der gespeicherte Name ändert
+  sich). Tests: `GetraenkeImportAufloeserTest`, `baueNachnameMap` in `PersonModelTest`.
   Monat/Zeitraum (Issue #57): Das Monatsfeld in `importUpload()` ist optional —
   bleibt es leer, schlägt `GetraenkeRechnungImport::monatAusDateiname()` einen
   Monat aus dem Original-Dateinamen vor (deutscher Monatsname, Jahr aus dem Namen

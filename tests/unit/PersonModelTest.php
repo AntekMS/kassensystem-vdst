@@ -93,4 +93,37 @@ final class PersonModelTest extends CIUnitTestCase
 
         $this->assertSame([], $emails);
     }
+
+    public function testBaueNachnameMapGruppiertNachNachname(): void
+    {
+        $map = PersonModel::baueNachnameMap($this->fixtures());
+
+        // Ein Eintrag je Nachname; case-/whitespace-toleranter Schlüssel.
+        $this->assertCount(1, $map[person_schluessel('Sobkowiak')]);
+        $this->assertSame(1, (int) $map[person_schluessel('sobkowiak')][0]['id']);
+        $this->assertArrayHasKey(person_schluessel('Kuhn'), $map);
+    }
+
+    public function testBaueNachnameMapErkenntMehrdeutigkeit(): void
+    {
+        // Zwei Personen mit gleichem Nachnamen → Liste mit 2 (Mehrdeutigkeit).
+        $map = PersonModel::baueNachnameMap([
+            ['id' => 1, 'vorname' => 'Anna', 'nachname' => 'Müller', 'email' => null],
+            ['id' => 2, 'vorname' => 'Bernd', 'nachname' => 'müller', 'email' => null],
+            ['id' => 3, 'vorname' => null, 'nachname' => 'Kuhn', 'email' => null],
+        ]);
+
+        $this->assertCount(2, $map[person_schluessel('Müller')]);
+        $this->assertCount(1, $map[person_schluessel('Kuhn')]);
+    }
+
+    public function testBaueNachnameMapUeberspringtLeereNachnamen(): void
+    {
+        $map = PersonModel::baueNachnameMap([
+            ['id' => 1, 'vorname' => 'X', 'nachname' => '', 'email' => null],
+            ['id' => 2, 'vorname' => null, 'nachname' => '  ', 'email' => null],
+        ]);
+
+        $this->assertSame([], $map);
+    }
 }

@@ -86,7 +86,18 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   eingebunden von `layouts/main.php` und `auth/login.php` (Cache-Buster `?v=N` bei
   CSS-Änderungen hochzählen). Tokens: Vereinsfarben (`--vdst-rot` #dc143c nur als
   Akzent — genau EIN roter `.btn-vdst` = Primäraktion pro Seite), Grau-Rampe
-  `--grau-50…900`, Statusfarben, Radius/Schatten. Legacy-Klassen (`.btn-vdst`,
+  `--grau-50…900`, Statusfarben, Radius/Schatten. Seit Issue #14 (Vorstufe
+  Darkmode) sind ALLE Farbwerte in `app.css` als Custom Properties
+  hinterlegt — keine rohen Hex-/rgba()-Literale mehr in den Regeln (nur noch
+  in den `:root`-Token-Definitionen selbst); u.a. `--surface` (Kartenflächen,
+  vorher verstreutes `#fff`), `--chrome-schwarz` (reines Schwarz von Sidebar/
+  Topbar/Login-Header, bewusst getrennt von `--vdst-schwarz`), `--*-rgb`-
+  Geschwister-Tokens (`--vdst-weiss-rgb`, `--vdst-schwarz-rgb`, `--vdst-rot-rgb`,
+  `--vdst-rot-hover-rgb`) für `rgba(var(--…-rgb), Alpha)`-Nutzung, sowie
+  `--vdst-rot-text`/`--badge-gruen-*`/`--badge-amber-*` für die Soft-Badge-
+  Textfarben. Voraussetzung für den eigentlichen Darkmode
+  (`[data-bs-theme="dark"]`-Wertesatz + Umschalter), der als eigener
+  Folge-PR kommt. Legacy-Klassen (`.btn-vdst`,
   `.btn-outline-vdst`, `.card-vdst`, `.table-vdst`, `.kontostand-card`,
   `.page-title`, `.saldo-positiv/-negativ`) wurden umgestylt, NICHT umbenannt.
   Button-Hierarchie: `.btn-vdst` = rote Primäraktion (max. eine pro Seite),

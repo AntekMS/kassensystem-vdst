@@ -17,7 +17,10 @@ nachhalten (Schuldenliste + Inventur-Export).
   `<style>`-Blöcke mehr in Views (Ausnahmen: seitenspezifische
   `renderSection('styles')` und das Standalone-PDF-Template
   `app/Views/pdf/rechnung.php`, das dompdf ohne app.css rendert)
-- Docker-Setup (`docker-compose up -d` → App auf :8080, phpMyAdmin auf :8081)
+- Docker-Setup (`docker-compose up -d` → App auf :8080, phpMyAdmin auf :8081);
+  Dev-Mails fängt ein **Mailpit**-Container ab (UI http://localhost:8025 —
+  läuft separat im Compose-Netz, Startbefehl in der README, `email.*` in
+  `.env` zeigt auf `mailpit:1025`)
 - Lokal alternativ: `php spark serve` + MySQL (XAMPP-Default in `app/Config/Database.php`)
 
 ## Befehle
@@ -339,7 +342,13 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   (Redirect-Ziel nach importConfirm, jederzeit erneut aufrufbar) listet die
   importierten Forderungen des Monats mit E-Mail-Feld und Auswahl; „Rechnungen
   verschicken" mailt die personalisierte PDF-Einzelrechnung (`RechnungVersand`,
-  CI4-Email-Service, Anhang aus dem Buffer). Datenquelle ist IMMER
+  CI4-Email-Service, Anhang aus dem Buffer). Je Zeile gibt es eine
+  **Einzelrechnungs-Vorschau** (`GET schulden/import/rechnung?monat=…&person=…`
+  → `importEinzelPdf()`, PDF inline im neuen Tab): exakt dasselbe PDF wie der
+  Mail-Anhang (gleiche Datenquelle, Positionen über den geteilten Helper
+  `ladeImportPositionen()`, gleicher Summen-Guard), ohne Versand und ohne
+  Log-Eintrag; der `person`-GET-Parameter ist nur Suchschlüssel
+  (person_schluessel-Match), Name/Betrag kommen aus der DB. Datenquelle ist IMMER
   `SchuldModel::getImportForderungen($monat, $monatBis)` (Match über die
   Marker-Spalten `import_monat`/`import_monat_bis`, Issue #64 — NIE über den
   editierbaren `grund` oder gar `LIKE 'Getränkerechnung %'`; Beträge

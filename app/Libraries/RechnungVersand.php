@@ -40,10 +40,12 @@ class RechnungVersand
     }
 
     /**
-     * Verschickt eine einzelne Rechnung mit PDF-Anhang (aus dem Buffer,
+     * Verschickt eine einzelne Nachricht mit Datei-Anhang (aus dem Buffer,
      * keine Temp-Datei). Fehler landen im Log, nie als Exception in der UI.
+     * $mime steuert den Anhang-Typ — Default PDF (Einzelrechnung, Issue #35);
+     * der Abrechnungs-Auto-Versand (Issue #37) reicht 'application/zip' durch.
      */
-    public function sende(string $empfaenger, string $betreff, string $text, string $pdf, string $pdfName): bool
+    public function sende(string $empfaenger, string $betreff, string $text, string $anhang, string $anhangName, string $mime = 'application/pdf'): bool
     {
         $email = service('email');
         $email->clear(true); // true = auch Anhänge des vorigen Sends verwerfen
@@ -52,7 +54,7 @@ class RechnungVersand
         $email->setSubject($betreff);
         $email->setMessage($text);
         // Mit gesetztem MIME-Type behandelt CI4 den ersten Parameter als Buffer
-        $email->attach($pdf, 'attachment', $pdfName, 'application/pdf');
+        $email->attach($anhang, 'attachment', $anhangName, $mime);
 
         if ($email->send()) {
             return true;
@@ -123,6 +125,38 @@ class RechnungVersand
 
         return [
             'betreff' => 'Getränkerechnung ' . $monatsName . ' – VDSt zu Erlangen',
+            'text' => implode("\n\n", $absaetze),
+        ];
+    }
+
+    /**
+     * Betreff und Text der automatischen Abrechnungs-Monatsmail (Issue #37).
+     * Geht an den Kassenwart selbst als fertiges Paket zum Prüfen/Weiterleiten —
+     * bewusst sachlich, ohne Frist-/Bank-Absätze. Rein und testbar.
+     *
+     * @param string $typName    Anzeigename der Abrechnung ("AH²", "Heimverein")
+     * @param string $monatsName Monat im Klartext (z.B. "Juni 2026")
+     * @return array{betreff: string, text: string}
+     */
+    public static function baueAbrechnungMail(string $typName, string $monatsName): array
+    {
+        $kassenwart = trim((string) env('vdst.kassenwart_name', ''));
+        $gruss = $kassenwart !== '' ? $kassenwart : 'der Kassenwart';
+        $zeichen = trim((string) env('vdst.kassenwart_zeichen', ''));
+
+        $absaetze = [
+            'Hallo ' . $gruss . ',',
+            'im Anhang findest du die offene ' . $typName . '-Abrechnung für ' . $monatsName
+                . ' (Excel plus alle Belege als ZIP) — automatisch erzeugt zum Monatsende.',
+            'Bitte prüfe die Abrechnung und leite sie an den zuständigen Verantwortlichen weiter. '
+                . 'Der Status in der Anwendung bleibt unverändert; setze ihn dort wie gewohnt selbst auf „eingereicht".',
+            'Mit freundlichen Grüßen,' . "\n"
+                . $gruss . "\n"
+                . 'Kassenwart' . ($zeichen !== '' ? ' ' . $zeichen : ''),
+        ];
+
+        return [
+            'betreff' => $typName . '-Abrechnung ' . $monatsName . ' – automatischer Monatsexport',
             'text' => implode("\n\n", $absaetze),
         ];
     }

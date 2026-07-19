@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Anmeldung | VDSt Kassensystem</title>
 
+    <!-- Darkmode VOR dem CSS setzen, sonst kurzes Aufblitzen im falschen Theme -->
+    <script>
+        (function () {
+            var stored = localStorage.getItem('vdst-theme');
+            var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-bs-theme', theme);
+        })();
+    </script>
+
     <link rel="icon" href="<?= base_url('favicon.ico') ?>">
 
     <!-- Bootstrap 5 CSS -->
@@ -14,14 +23,20 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
     <!-- VDSt Design-System (einzige Theme-Quelle) -->
-    <link href="<?= base_url('css/app.css') ?>?v=7" rel="stylesheet">
+    <link href="<?= base_url('css/app.css') ?>?v=8" rel="stylesheet">
 </head>
 <body class="login-page">
 <div class="login-container">
     <!-- Header -->
     <div class="login-header">
-        <h1>VDSt Kassensystem</h1>
-        <p>Verein deutscher Studenten zu Erlangen</p>
+        <div>
+            <h1>VDSt Kassensystem</h1>
+            <p>Verein deutscher Studenten zu Erlangen</p>
+        </div>
+        <button type="button" class="app-theme-toggle" id="themeToggle" title="Darkmode umschalten"
+                aria-label="Darkmode umschalten" aria-pressed="false">
+            <i class="bi bi-moon-stars" aria-hidden="true"></i>
+        </button>
     </div>
 
     <!-- Login Form -->
@@ -123,6 +138,26 @@
             if (e.key === 'Enter') {
                 form.submit();
             }
+        });
+
+        // Darkmode-Umschalter
+        const themeToggle = document.getElementById('themeToggle');
+        const syncThemeIcon = function () {
+            const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+            const icon = themeToggle.querySelector('.bi');
+            icon.classList.toggle('bi-moon-stars', !isDark);
+            icon.classList.toggle('bi-sun', isDark);
+            themeToggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+        };
+
+        syncThemeIcon();
+
+        themeToggle.addEventListener('click', function () {
+            const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+            const next = isDark ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-bs-theme', next);
+            localStorage.setItem('vdst-theme', next);
+            syncThemeIcon();
         });
     });
 </script>

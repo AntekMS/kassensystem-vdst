@@ -11,10 +11,20 @@
     /* Vereinsfarben — bewusst nur als Akzente eingesetzt:
        Schwarz trägt die Sidebar, Rot markiert die Primäraktion */
     --vdst-schwarz: #111111;
+    --vdst-schwarz-rgb: 17, 17, 17;
     --vdst-weiss: #ffffff;
+    --vdst-weiss-rgb: 255, 255, 255;
     --vdst-rot: #dc143c;
+    --vdst-rot-rgb: 220, 20, 60;
     --vdst-rot-hover: #b01030;
+    --vdst-rot-hover-rgb: 176, 16, 48;
     --vdst-rot-tint: #fdeef1;
+    --vdst-rot-text: #a30f2d;
+
+    /* Reines Schwarz für Sidebar/Topbar/Login-Header — bewusst getrennt von
+       --vdst-schwarz (#111111), da beide Werte im Bestand unterschiedlich
+       sind und hier nicht angeglichen werden */
+    --chrome-schwarz: #000000;
 
     /* Neutrale Grau-Rampe */
     --grau-50: #f8f9fa;
@@ -26,17 +36,26 @@
     --grau-700: #495057;
     --grau-900: #212529;
 
+    /* Kartenflächen ("weißes Papier") */
+    --surface: #ffffff;
+
     /* Semantische Statusfarben */
     --status-positiv: #198754;
     --status-negativ: var(--vdst-rot);
     --status-wartend: #b47d00;
 
+    /* Soft-Badge-Farben */
+    --badge-gruen-bg: #e4f4ec;
+    --badge-gruen-text: #116644;
+    --badge-amber-bg: #fdf3dd;
+    --badge-amber-text: #8a6100;
+
     /* Form & Tiefe */
     --radius-sm: .375rem;
     --radius: .5rem;
     --radius-lg: .75rem;
-    --schatten-sm: 0 1px 2px rgba(17, 17, 17, .06);
-    --schatten: 0 1px 3px rgba(17, 17, 17, .08), 0 4px 16px rgba(17, 17, 17, .06);
+    --schatten-sm: 0 1px 2px rgba(var(--vdst-schwarz-rgb), .06);
+    --schatten: 0 1px 3px rgba(var(--vdst-schwarz-rgb), .08), 0 4px 16px rgba(var(--vdst-schwarz-rgb), .06);
 
     --sidebar-breite: 240px;
 
@@ -45,8 +64,8 @@
     --bs-body-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --bs-link-color: var(--vdst-rot);
     --bs-link-hover-color: var(--vdst-rot-hover);
-    --bs-link-color-rgb: 220, 20, 60;
-    --bs-link-hover-color-rgb: 176, 16, 48;
+    --bs-link-color-rgb: var(--vdst-rot-rgb);
+    --bs-link-hover-color-rgb: var(--vdst-rot-hover-rgb);
 }
 
 body {
@@ -70,10 +89,10 @@ body {
    per !important zurück — daher hier gezielt gegenhalten. */
 .app-sidebar {
     --bs-offcanvas-width: var(--sidebar-breite);
-    --bs-offcanvas-bg: #000000;
-    --bs-offcanvas-color: #ffffff;
-    background-color: #000000 !important;
-    color: #ffffff;
+    --bs-offcanvas-bg: var(--chrome-schwarz);
+    --bs-offcanvas-color: var(--vdst-weiss);
+    background-color: var(--chrome-schwarz) !important;
+    color: var(--vdst-weiss);
     display: flex;
     flex-direction: column;
 }
@@ -99,7 +118,7 @@ body {
 
 .app-sidebar-brand {
     padding: 1.1rem 1.15rem 1rem;
-    border-bottom: 1px solid rgba(255, 255, 255, .12);
+    border-bottom: 1px solid rgba(var(--vdst-weiss-rgb), .12);
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -107,7 +126,7 @@ body {
 }
 
 .app-sidebar-brand a {
-    color: #fff;
+    color: var(--vdst-weiss);
     text-decoration: none;
     font-weight: 700;
     font-size: 1.05rem;
@@ -129,7 +148,7 @@ body {
     display: block;
     font-size: .72rem;
     font-weight: 400;
-    color: rgba(255, 255, 255, .55);
+    color: rgba(var(--vdst-weiss-rgb), .55);
     margin-top: .15rem;
 }
 
@@ -144,24 +163,24 @@ body {
     align-items: center;
     gap: .6rem;
     padding: .55rem 1.15rem;
-    color: rgba(255, 255, 255, .72);
+    color: rgba(var(--vdst-weiss-rgb), .72);
     text-decoration: none;
     font-size: .925rem;
     border-left: 3px solid transparent;
 }
 
 .app-nav-link .bi {
-    color: rgba(255, 255, 255, .5);
+    color: rgba(var(--vdst-weiss-rgb), .5);
 }
 
 .app-nav-link:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, .06);
+    color: var(--vdst-weiss);
+    background: rgba(var(--vdst-weiss-rgb), .06);
 }
 
 .app-nav-link.active {
-    color: #fff;
-    background: rgba(220, 20, 60, .16);
+    color: var(--vdst-weiss);
+    background: rgba(var(--vdst-rot-rgb), .16);
     border-left-color: var(--vdst-rot);
     font-weight: 600;
 }
@@ -175,7 +194,7 @@ body {
     font-size: .66rem;
     letter-spacing: .14em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, .4);
+    color: rgba(var(--vdst-weiss-rgb), .4);
 }
 
 .app-nav-link.app-nav-sub {
@@ -185,7 +204,7 @@ body {
 
 .app-sidebar-foot {
     padding: .9rem 1.15rem;
-    border-top: 1px solid rgba(255, 255, 255, .12);
+    border-top: 1px solid rgba(var(--vdst-weiss-rgb), .12);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -194,7 +213,7 @@ body {
 
 .app-sidebar-user {
     font-size: .85rem;
-    color: rgba(255, 255, 255, .8);
+    color: rgba(var(--vdst-weiss-rgb), .8);
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -203,8 +222,8 @@ body {
 
 /* Mobile Topbar (nur unter lg sichtbar) */
 .app-topbar {
-    background: #000;
-    color: #fff;
+    background: var(--chrome-schwarz);
+    color: var(--vdst-weiss);
     display: flex;
     align-items: center;
     gap: .5rem;
@@ -216,7 +235,7 @@ body {
 
 .app-topbar-brand {
     flex: 1 1 auto;
-    color: #fff;
+    color: var(--vdst-weiss);
     text-decoration: none;
     font-weight: 600;
     font-size: .95rem;
@@ -244,13 +263,13 @@ body {
     border: 0;
     border-radius: var(--radius-sm);
     background: transparent;
-    color: #fff;
+    color: var(--vdst-weiss);
     font-size: 1.15rem;
 }
 
 .app-topbar-btn:hover {
-    background: rgba(255, 255, 255, .12);
-    color: #fff;
+    background: rgba(var(--vdst-weiss-rgb), .12);
+    color: var(--vdst-weiss);
 }
 
 .app-topbar-action {
@@ -276,8 +295,8 @@ body {
 /* ---------- Abmelden-Button (Sidebar) ---------- */
 .btn-logout {
     background: transparent;
-    border: 1px solid rgba(255, 255, 255, .3);
-    color: rgba(255, 255, 255, .75);
+    border: 1px solid rgba(var(--vdst-weiss-rgb), .3);
+    color: rgba(var(--vdst-weiss-rgb), .75);
     padding: .25rem .7rem;
     border-radius: var(--radius-sm);
     font-size: .82rem;
@@ -287,32 +306,32 @@ body {
 .btn-logout:hover {
     background: var(--vdst-rot);
     border-color: var(--vdst-rot);
-    color: #fff;
+    color: var(--vdst-weiss);
 }
 
 /* ---------- Buttons ---------- */
 /* Primäraktion — karmesinrot, bewusst maximal eine pro Seite */
 .btn-vdst {
-    --bs-btn-color: #fff;
+    --bs-btn-color: var(--vdst-weiss);
     --bs-btn-bg: var(--vdst-rot);
     --bs-btn-border-color: var(--vdst-rot);
-    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-color: var(--vdst-weiss);
     --bs-btn-hover-bg: var(--vdst-rot-hover);
     --bs-btn-hover-border-color: var(--vdst-rot-hover);
-    --bs-btn-active-color: #fff;
+    --bs-btn-active-color: var(--vdst-weiss);
     --bs-btn-active-bg: var(--vdst-rot-hover);
     --bs-btn-active-border-color: var(--vdst-rot-hover);
-    --bs-btn-disabled-color: #fff;
+    --bs-btn-disabled-color: var(--vdst-weiss);
     --bs-btn-disabled-bg: var(--vdst-rot);
     --bs-btn-disabled-border-color: var(--vdst-rot);
-    --bs-btn-focus-shadow-rgb: 220, 20, 60;
+    --bs-btn-focus-shadow-rgb: var(--vdst-rot-rgb);
     font-weight: 600;
 }
 
 /* Neutrale Sekundäraktion */
 .btn-outline-vdst {
     --bs-btn-color: var(--grau-900);
-    --bs-btn-bg: #fff;
+    --bs-btn-bg: var(--surface);
     --bs-btn-border-color: var(--grau-300);
     --bs-btn-hover-color: var(--grau-900);
     --bs-btn-hover-bg: var(--grau-100);
@@ -321,20 +340,20 @@ body {
     --bs-btn-active-bg: var(--grau-100);
     --bs-btn-active-border-color: var(--grau-300);
     --bs-btn-disabled-color: var(--grau-500);
-    --bs-btn-disabled-bg: #fff;
+    --bs-btn-disabled-bg: var(--surface);
     --bs-btn-disabled-border-color: var(--grau-200);
     --bs-btn-focus-shadow-rgb: 108, 117, 125;
 }
 
 /* Segment-Umschalter (z.B. AH²/HV, Radio-Button-Gruppen): aktiv = dunkel */
 .btn-outline-vdst.active {
-    --bs-btn-active-color: #fff;
+    --bs-btn-active-color: var(--vdst-weiss);
     --bs-btn-active-bg: var(--grau-900);
     --bs-btn-active-border-color: var(--grau-900);
 }
 
 .btn-check:checked + .btn-outline-vdst {
-    color: #fff;
+    color: var(--vdst-weiss);
     background-color: var(--grau-900);
     border-color: var(--grau-900);
 }
@@ -367,7 +386,7 @@ body {
     --bs-card-border-color: var(--grau-200);
     --bs-card-border-radius: var(--radius-lg);
     --bs-card-inner-border-radius: calc(var(--radius-lg) - 1px);
-    --bs-card-cap-bg: #ffffff;
+    --bs-card-cap-bg: var(--surface);
     box-shadow: var(--schatten-sm);
 }
 
@@ -376,7 +395,7 @@ body {
 }
 
 .card-vdst .card-header {
-    background-color: #fff;
+    background-color: var(--surface);
     color: var(--grau-900);
     font-weight: 600;
     border-bottom: 1px solid var(--grau-100);
@@ -385,7 +404,7 @@ body {
 /* Akzent-Header (z.B. „Ausgewählte Belege"): getönt statt roter Fläche */
 .card-header.card-header-rot {
     background-color: var(--vdst-rot-tint);
-    color: #a30f2d;
+    color: var(--vdst-rot-text);
     border-bottom: 1px solid var(--vdst-rot);
 }
 
@@ -398,11 +417,11 @@ body {
 /* Kontostand-/Stat-Karten */
 .kontostand-card {
     border: 1px solid var(--grau-200);
-    background-color: #fff;
+    background-color: var(--surface);
 }
 
 .kontostand-card .card-header {
-    background-color: #fff;
+    background-color: var(--surface);
     color: var(--grau-600);
     font-size: .72rem;
     font-weight: 600;
@@ -521,7 +540,7 @@ body {
 /* ---------- Tabellen ---------- */
 /* Heller Tabellenkopf statt schwarzem Balken */
 thead.table-vdst {
-    --bs-table-bg: #ffffff;
+    --bs-table-bg: var(--surface);
     --bs-table-color: var(--grau-600);
 }
 
@@ -535,7 +554,7 @@ thead.table-vdst th {
 
 /* .table-vdst wird in einigen Views auch als Karten-Header verwendet */
 .card-header.table-vdst {
-    background-color: #fff;
+    background-color: var(--surface);
     color: var(--grau-900);
     font-weight: 600;
     border-bottom: 1px solid var(--grau-100);
@@ -592,21 +611,21 @@ tfoot.table-light {
 
 .badge-status-rot {
     background: var(--vdst-rot-tint);
-    color: #a30f2d;
+    color: var(--vdst-rot-text);
 }
 
 .badge-status-gruen {
-    background: #e4f4ec;
-    color: #116644;
+    background: var(--badge-gruen-bg);
+    color: var(--badge-gruen-text);
 }
 
 .badge-status-amber {
-    background: #fdf3dd;
-    color: #8a6100;
+    background: var(--badge-amber-bg);
+    color: var(--badge-amber-text);
 }
 
 .badge-status-outline {
-    background: #fff;
+    background: var(--surface);
     color: var(--grau-700);
     border: 1px solid var(--grau-300);
 }
@@ -637,7 +656,7 @@ tfoot.table-light {
 .form-control:focus,
 .form-select:focus {
     border-color: var(--vdst-rot);
-    box-shadow: 0 0 0 .2rem rgba(220, 20, 60, .12);
+    box-shadow: 0 0 0 .2rem rgba(var(--vdst-rot-rgb), .12);
 }
 
 @media (max-width: 991.98px) {
@@ -660,7 +679,7 @@ tfoot.table-light {
 }
 
 .upload-area:hover {
-    background-color: rgba(17, 17, 17, .02);
+    background-color: rgba(var(--vdst-schwarz-rgb), .02);
 }
 
 /* Das JS setzt .dragover auf die innere #uploadZone */
@@ -723,7 +742,7 @@ tfoot.table-light {
     }
 
     .table-stack tr {
-        background: #fff;
+        background: var(--surface);
         border: 1px solid var(--grau-200);
         border-radius: var(--radius);
         box-shadow: var(--schatten-sm);
@@ -738,7 +757,7 @@ tfoot.table-light {
         padding: .6rem .9rem;
         border-bottom: 1px solid var(--grau-100);
         text-align: right;
-        background: #fff;
+        background: var(--surface);
     }
 
     .table-stack td::before {
@@ -780,7 +799,7 @@ tfoot.table-light {
 
     /* Ghost-Icons bekommen gestapelt sichtbare Flächen */
     .table-stack td.stack-actions .btn-icon {
-        background: #fff;
+        background: var(--surface);
         border: 1px solid var(--grau-300);
         color: var(--grau-700);
         border-radius: var(--radius-sm);
@@ -829,18 +848,18 @@ tfoot.table-light {
 }
 
 .login-container {
-    background: #fff;
+    background: var(--surface);
     border: 1px solid var(--grau-200);
     border-radius: var(--radius-lg);
-    box-shadow: var(--schatten), 0 12px 32px rgba(17, 17, 17, .08);
+    box-shadow: var(--schatten), 0 12px 32px rgba(var(--vdst-schwarz-rgb), .08);
     max-width: 420px;
     width: 100%;
     overflow: hidden;
 }
 
 .login-header {
-    background: #000;
-    color: #fff;
+    background: var(--chrome-schwarz);
+    color: var(--vdst-weiss);
     padding: 1.5rem 1.75rem 1.25rem;
     border-bottom: 3px solid var(--vdst-rot);
 }
@@ -853,7 +872,7 @@ tfoot.table-light {
 
 .login-header p {
     margin: .25rem 0 0;
-    color: rgba(255, 255, 255, .6);
+    color: rgba(var(--vdst-weiss-rgb), .6);
     font-size: .85rem;
 }
 

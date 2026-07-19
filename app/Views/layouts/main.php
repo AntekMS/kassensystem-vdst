@@ -14,7 +14,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
     <!-- VDSt Design-System (einzige Theme-Quelle) -->
-    <link href="<?= base_url('css/app.css') ?>?v=6" rel="stylesheet">
+    <link href="<?= base_url('css/app.css') ?>?v=7" rel="stylesheet">
 
     <?= $this->renderSection('styles') ?>
 </head>

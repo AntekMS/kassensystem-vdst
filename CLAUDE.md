@@ -140,7 +140,11 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   Grund) — auf dem schwarzen Hintergrund per `filter: invert(1)`
   (`.app-sidebar-logo`/`.app-topbar-logo`) in Weiß gedreht statt eine zweite
   Asset-Variante zu pflegen.
-- **Geteiltes JS** (`public/js/app.js`, in `layouts/main.php` eingebunden):
+- **Geteiltes JS** (`public/js/app.js`, in `layouts/main.php` eingebunden mit
+  eigenem Cache-Buster `?v=N` — analog zu `app.css` bei JS-Änderungen
+  hochzählen, sonst bleibt bei Bestandsnutzern die alte Version im
+  Browser-Cache hängen, da die Datei ohne Query-String nur `ETag`/
+  `Last-Modified` mitbekommt, kein `Cache-Control`):
   `confirmDelete()`, `showMessage()`, Export-Toasts; Views binden Verhalten per CSS-Klasse
   `js-autosubmit` (Filter-Selects) bzw. `js-betrag-format` (Betrag-Eingaben) — solche
   Handler NICHT wieder inline in Views duplizieren.

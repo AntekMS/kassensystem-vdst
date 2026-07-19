@@ -159,7 +159,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <!-- Gemeinsames Kassensystem-JS -->
-<script src="<?= base_url('js/app.js') ?>"></script>
+<script src="<?= base_url('js/app.js') ?>?v=1"></script>
 
 <?= $this->renderSection('scripts') ?>
 </body>

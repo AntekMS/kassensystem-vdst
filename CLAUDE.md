@@ -26,8 +26,8 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
 - `docker exec kassensystem-vdst-web vendor/bin/phpunit tests/unit/` — Tests
   (`HealthTest`, `BetragTest`, `SchuldLabelTest`, `GetraenkeBeglichenTest`,
   `GetraenkeImportParserTest`, `RechnungPdfTest`, `RechnungVersandTest`,
-  `PersonSchluesselTest`, `PersonModelTest`, `GetraenkeImportAufloeserTest`);
-  entspricht `composer test`
+  `PersonSchluesselTest`, `PersonModelTest`, `GetraenkeImportAufloeserTest`,
+  `SchuldPositionTest`); entspricht `composer test`
 - `docker exec kassensystem-vdst-web php spark migrate` — Migrationen (auch die
   Datei-/Trigger-Cleanup-Migrationen)
 - `docker exec kassensystem-vdst-web php spark routes` — Routenliste
@@ -61,7 +61,9 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   (ah_/hv_abrechnungen), `AbrechnungBelegModel` (Junction abrechnung_belege —
   einziger Codepfad für Beleg-Zuordnungen), `PersonModel` (persons —
   Personen-Register mit vorname/nachname/email, autoritative Namens-/E-Mail-Quelle
-  seit Issue #61), `GetraenkeVersandModel` (getraenke_versand, Versand-Log).
+  seit Issue #61), `GetraenkeVersandModel` (getraenke_versand, Versand-Log),
+  `SchuldPositionModel` (schuld_positionen — Getränkedetails je Import-Forderung,
+  Issue #63, siehe „Getränkedetails" unten).
 - **Gemeinsame Views**: `app/Views/abrechnungen/*` werden von AH und HV geteilt,
   gesteuert über `$typ` ('ah'|'hv'). HV hat zusätzlich ein Freitext-Feld `begruendung`.
 - **Upload-Logik**: zentral in `app/Libraries/BelegUpload.php` (genutzt von
@@ -294,10 +296,39 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   lebenden App-Code koppeln); nicht parsebare Gründe bleiben NULL und tauchen
   — wie vorher — nicht im Versand auf.
   Test: `tests/unit/GetraenkeImportParserTest.php`.
+- **Getränkedetails** (Issue #63, #59b): der Parser liest zusätzlich zu den
+  Summen die Einzelpositionen (Menge je Getränk × Einzelpreis) — die
+  Getränkespalten stehen zwischen Namens- und „Getränke"-Summenspalte (Namen
+  Zeile 1, Preise Zeile 2), im Coleur/Bund-Sheet je Block zwischen Label- und
+  „Gesamt:"-Spalte. Die Internet-Pauschale hat KEINEN Stückpreis in Zeile 2
+  (dort steht der Umlage-Topf) — sie wird als Rest `Betrag − Getränkesumme`
+  übernommen, nur wenn die Internet-Spalte gezählt ist. Positionen sind
+  BEST-EFFORT: trifft die Positionssumme die gecachten Summenwerte nicht
+  (editierte Datei, unerklärbarer Rest), bleibt die Liste leer und nur der
+  Endbetrag zählt — Beträge werden NIE aus Positionen berechnet. Speicherung
+  in `schuld_positionen` (`SchuldPositionModel`, FK `schuld_id` ON DELETE
+  CASCADE, Migration `2026-07-19-000002`) beim Anlegen der Import-Forderungen;
+  Coleur/Bund-Positionen werden NICHT gespeichert (deren PDF-Beleg entsteht
+  sofort beim Import aus dem Parse-Ergebnis). Der Aufloeser (#62) reicht
+  `positionen` unverändert durch. Rendering-Invariante: `RechnungPdf::
+  positionenFuer()` (→ purer Seam `SchuldPositionModel::summePasst()`) lässt
+  Details nur ins PDF, wenn ihre Summe den autoritativen `schulden.betrag`
+  trifft — eine nachträglich editierte Forderung fällt automatisch auf die
+  reine Gesamtsumme zurück (Rechnungslayout wie vor #63). Beim Versand werden
+  die Positionen über die `ids`-Spalte (GROUP_CONCAT in
+  `getImportForderungen`) geladen und via purem Seam
+  `SchuldPositionModel::fuegeZusammen()` gemerged (Doppelimport: gleiche
+  Bezeichnung+Einzelpreis addiert). Die Import-Vorschau zeigt die Positionen
+  als muted-Zeile unter dem Nachnamen. Manuell nachgetragene Forderungen
+  haben keine Positionen → PDF zeigt wie bisher nur den Betrag.
+  Tests: `SchuldPositionTest`, Positions-Fälle in
+  `GetraenkeImportParserTest`/`RechnungPdfTest`/`GetraenkeImportAufloeserTest`.
 - **PDF-Rechnungen** (Issue #35, seit #70 auch Inventur): `app/Libraries/RechnungPdf.php`
   (dompdf) rendert das geteilte Template `app/Views/pdf/rechnung.php` (gesteuert über
   `$typ`: `einzel`|`uebersicht`|`coleur_bund`|`inventur`; Standalone-HTML, eigener
-  `<style>` hier ok). Branding: Logo `public/img/vdst-logo.svg` als Base64-Data-URI +
+  `<style>` hier ok). `einzel` und `coleur_bund` nehmen optional Getränkedetails
+  (`$positionen`, Issue #63 — s.o., inkl. Summen-Guard `positionenFuer()`).
+  Branding: Logo `public/img/vdst-logo.svg` als Base64-Data-URI +
   Schwarz/Rot-Typografie. INVARIANTEN: `defaultFont 'DejaVu Sans'` + `loadHtml(...,
   'UTF-8')` (sonst kaputte Umlaute/€), `isRemoteEnabled=false`/`isPhpEnabled=false`,
   Font-Cache/TempDir auf `WRITEPATH.'cache/'` (vendor/ evtl. nicht beschreibbar).

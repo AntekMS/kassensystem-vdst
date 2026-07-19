@@ -19,10 +19,10 @@ use App\Models\PersonModel;
 class GetraenkeImportAufloeser
 {
     /**
-     * @param array<array{person: string, betrag: float}> $personen  Parser-Output
+     * @param array<array{person: string, betrag: float, positionen?: array}> $personen  Parser-Output
      * @param array<string, array<array>>                 $nachnameMap  schluessel(nachname) => Personen
      * @param array<string, ?int>                         $wahlen       schluessel(Nachname) => gewählte person_id
-     * @return array<array{roh: string, betrag: float, status: string, kandidaten: array<array>, person: string, person_id: ?int}>
+     * @return array<array{roh: string, betrag: float, positionen: array, status: string, kandidaten: array<array>, person: string, person_id: ?int}>
      */
     public static function loese(array $personen, array $nachnameMap, array $wahlen = []): array
     {
@@ -57,6 +57,9 @@ class GetraenkeImportAufloeser
             $ergebnis[] = [
                 'roh' => $roh,
                 'betrag' => (float) $eintrag['betrag'],
+                // Getränkedetails (Issue #63) unverändert durchreichen — sie
+                // hängen am Eintrag, nicht an der aufgelösten Person.
+                'positionen' => $eintrag['positionen'] ?? [],
                 'status' => $status,
                 'kandidaten' => $kandidaten,
                 // Aufgelöst → Anzeigename der Person; sonst roher Nachname (Gast).

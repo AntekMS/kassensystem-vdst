@@ -564,11 +564,14 @@ class SchuldModel extends Model
      * (Issue #64) — der editierbare grund ist nur noch Anzeigetext.
      * GROUP BY macht die Liste robust gegen (erlaubten) Doppelimport.
      *
-     * @return array<array{person: string, betrag: string}>
+     * ids trägt die zugrundeliegenden schulden-ids (GROUP_CONCAT) — darüber
+     * lädt der Versand die Getränkedetails (schuld_positionen, Issue #63).
+     *
+     * @return array<array{person: string, betrag: string, ids: string}>
      */
     public function getImportForderungen(string $monat, ?string $monatBis = null)
     {
-        return $this->select('person, SUM(betrag) AS betrag')
+        return $this->select('person, SUM(betrag) AS betrag, GROUP_CONCAT(id) AS ids')
             ->where('import_monat', $monat)
             ->where('import_monat_bis', self::importMonatBis($monat, $monatBis))
             ->where('typ', 'forderung')

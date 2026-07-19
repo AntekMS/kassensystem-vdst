@@ -13,6 +13,7 @@ use App\Models\BuchungModel;
 use App\Models\GetraenkeVersandModel;
 use App\Models\PersonModel;
 use App\Models\SchuldModel;
+use App\Models\SchuldPositionModel;
 
 /**
  * SchuldenController - Schuldenliste & Inventur (Issue #27)
@@ -881,6 +882,14 @@ class SchuldenController extends BaseController
         $versandLog = new GetraenkeVersandModel();
         $ergebnisse = [];
 
+        // Getränkedetails (Issue #63) für alle Forderungen des Monats in einem
+        // Rutsch laden — je Person über die GROUP_CONCAT-ids zusammengesetzt.
+        $alleIds = [];
+        foreach ($forderungen as $zeile) {
+            $alleIds = array_merge($alleIds, explode(',', (string) ($zeile['ids'] ?? '')));
+        }
+        $positionenNachSchuld = (new SchuldPositionModel())->getFuerSchulden($alleIds);
+
         foreach ((array) $this->request->getPost('senden') as $index) {
             $key = person_schluessel((string) ($namenNachIndex[$index] ?? ''));
 
@@ -900,8 +909,17 @@ class SchuldenController extends BaseController
             // PDF-Erzeugung (dompdf) kann werfen — ein Fehler bei Person N darf
             // nicht den ganzen POST abbrechen (sonst Teil-Versand ohne PRG,
             // Reload würde erneut senden).
+            // Positionen der Person zusammenführen (mehrere schulden-Zeilen =
+            // erlaubter Doppelimport); ob sie zum Betrag passen, entscheidet
+            // RechnungPdf::positionenFuer.
+            $positionen = [];
+            foreach (explode(',', (string) ($forderungen[$key]['ids'] ?? '')) as $schuldId) {
+                $positionen = array_merge($positionen, $positionenNachSchuld[(int) $schuldId] ?? []);
+            }
+            $positionen = SchuldPositionModel::fuegeZusammen($positionen);
+
             try {
-                $pdf = $rechnungPdf->einzel($name, $monatsName, $betrag, date('Y-m-d'));
+                $pdf = $rechnungPdf->einzel($name, $monatsName, $betrag, date('Y-m-d'), $positionen);
                 $mail = RechnungVersand::baueMail($name, $monatsName, $frist);
                 $ok = $versand->sende($email, $mail['betreff'], $mail['text'], $pdf, RechnungPdf::dateiname($monatsName, $name));
             } catch (\Throwable $e) {
@@ -1203,6 +1221,7 @@ class SchuldenController extends BaseController
     private function erstelleImportForderungen(array $personen, string $datum, string $monat, ?string $monatBis)
     {
         $grund = SchuldModel::getraenkeImportGrund(GetraenkeRechnungImport::monatsName($monat, $monatBis));
+        $positionModel = new SchuldPositionModel();
 
         $db = \Config\Database::connect();
         $db->transStart();
@@ -1234,6 +1253,10 @@ class SchuldenController extends BaseController
                         . implode(' ', $this->schuldModel->errors())
                 );
             }
+
+            // Getränkedetails zur Forderung (Issue #63) — insert() liefert die
+            // neue id; leere Positionslisten (Parser-Fallback) speichern nichts.
+            $positionModel->speichereFuerSchuld((int) $ok, $person['positionen'] ?? []);
         }
 
         $db->transComplete();
@@ -1267,7 +1290,17 @@ class SchuldenController extends BaseController
             $tmpPdf = $this->importTmpVerzeichnis() . uniqid('rechnung_', true) . '.pdf';
 
             try {
-                if (file_put_contents($tmpPdf, $rechnungPdf->coleurBund($label, $monatsName, (float) $ergebnis[$key], $datum)) === false) {
+                $pdfBytes = $rechnungPdf->coleurBund(
+                    $label,
+                    $monatsName,
+                    (float) $ergebnis[$key],
+                    $datum,
+                    // Getränkedetails (Issue #63) direkt aus dem Parse-Ergebnis —
+                    // der Beleg entsteht sofort, keine Speicherung nötig.
+                    $ergebnis[$key . '_positionen'] ?? []
+                );
+
+                if (file_put_contents($tmpPdf, $pdfBytes) === false) {
                     throw new \RuntimeException('PDF-Rechnung konnte nicht geschrieben werden (' . $tmpPdf . ')');
                 }
 

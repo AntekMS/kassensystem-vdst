@@ -22,9 +22,11 @@ use Dompdf\Options;
 class RechnungPdf
 {
     /**
-     * Rechnung für die AH-Abrechnung (Label 'Coleur' oder 'Bund')
+     * Rechnung für die AH-Abrechnung (Label 'Coleur' oder 'Bund'), optional
+     * mit Getränkedetails (Issue #63) — Details erscheinen nur, wenn ihre
+     * Summe zum Betrag passt (positionenFuer), sonst wie bisher eine Zeile.
      */
-    public function coleurBund(string $label, string $monatsName, float $betrag, string $datum): string
+    public function coleurBund(string $label, string $monatsName, float $betrag, string $datum, array $positionen = []): string
     {
         return $this->render([
             'typ' => 'coleur_bund',
@@ -32,6 +34,7 @@ class RechnungPdf
             'monats_name' => $monatsName,
             'betrag' => $betrag,
             'datum' => $datum,
+            'positionen' => self::positionenFuer($positionen, $betrag),
         ]);
     }
 
@@ -51,9 +54,11 @@ class RechnungPdf
     }
 
     /**
-     * Personalisierte Einzelrechnung (E-Mail-Anhang)
+     * Personalisierte Einzelrechnung (E-Mail-Anhang), optional mit
+     * Getränkedetails (Issue #63) — Details erscheinen nur, wenn ihre Summe
+     * zum Betrag passt (positionenFuer), sonst nur die Gesamtsumme.
      */
-    public function einzel(string $person, string $monatsName, float $betrag, string $datum): string
+    public function einzel(string $person, string $monatsName, float $betrag, string $datum, array $positionen = []): string
     {
         return $this->render([
             'typ' => 'einzel',
@@ -61,7 +66,22 @@ class RechnungPdf
             'monats_name' => $monatsName,
             'betrag' => $betrag,
             'datum' => $datum,
+            'positionen' => self::positionenFuer($positionen, $betrag),
         ]);
+    }
+
+    /**
+     * Guard der Getränkedetails (Issue #63): Positionen werden nur gerendert,
+     * wenn ihre Summe den autoritativen Rechnungsbetrag trifft — eine
+     * nachträglich editierte Forderung fällt so automatisch auf die reine
+     * Gesamtsumme zurück statt eine widersprüchliche Rechnung auszuweisen.
+     *
+     * @param list<array{summe: float|string}> $positionen
+     * @return list<array>
+     */
+    public static function positionenFuer(array $positionen, float $betrag): array
+    {
+        return \App\Models\SchuldPositionModel::summePasst($positionen, $betrag) ? array_values($positionen) : [];
     }
 
     /**

@@ -9,6 +9,19 @@
 $datumAnzeige = date('d.m.Y', strtotime($datum));
 $kassenwart = trim((string) env('vdst.kassenwart_name', ''));
 $kopfzusatz = $typ === 'inventur' ? 'Inventur' : 'Getränkeabrechnung';
+
+// Getränkedetails (Issue #63): $positionen ist bereits durch
+// RechnungPdf::positionenFuer gegen den Betrag geprüft — hier nur noch rendern.
+$positionen = $positionen ?? [];
+
+// Mengen ohne überflüssige Nachkommastellen ("2" statt "2,00", aber "1,5")
+$formatiereAnzahl = static function ($anzahl): string {
+    $anzahl = (float) $anzahl;
+
+    return abs($anzahl - round($anzahl)) < 0.005
+        ? (string) (int) round($anzahl)
+        : number_format($anzahl, 2, ',', '.');
+};
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -125,6 +138,33 @@ $kopfzusatz = $typ === 'inventur' ? 'Inventur' : 'Getränkeabrechnung';
     <h1>Getränkerechnung <?= esc($monats_name) ?></h1>
     <div class="untertitel">für <?= esc($person) ?></div>
 
+    <?php if ($positionen !== []): ?>
+        <table class="posten">
+            <thead>
+                <tr>
+                    <th>Getränk</th>
+                    <th class="betrag-spalte">Anzahl</th>
+                    <th class="betrag-spalte">Einzelpreis</th>
+                    <th class="betrag-spalte">Summe</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($positionen as $position): ?>
+                    <tr>
+                        <td><?= esc($position['bezeichnung']) ?></td>
+                        <td class="betrag-spalte"><?= esc($formatiereAnzahl($position['anzahl'])) ?></td>
+                        <td class="betrag-spalte"><?= esc(formatiere_betrag((float) $position['einzelpreis'])) ?></td>
+                        <td class="betrag-spalte"><?= esc(formatiere_betrag((float) $position['summe'])) ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                <tr class="summe">
+                    <td colspan="3">Gesamt</td>
+                    <td class="betrag-spalte"><?= esc(formatiere_betrag((float) $betrag)) ?></td>
+                </tr>
+            </tbody>
+        </table>
+    <?php endif; ?>
+
     <div class="betrag-kasten">
         <div class="label">Zu zahlender Betrag</div>
         <div class="betrag"><?= esc(formatiere_betrag((float) $betrag)) ?></div>
@@ -225,24 +265,51 @@ $kopfzusatz = $typ === 'inventur' ? 'Inventur' : 'Getränkeabrechnung';
     <h1>Getränkerechnung <?= esc($monats_name) ?> – <?= esc($label) ?></h1>
     <div class="untertitel">Anteil <?= esc($label) ?> gemäß Getränkeliste</div>
 
-    <table class="posten">
-        <thead>
-            <tr>
-                <th>Position</th>
-                <th class="betrag-spalte">Betrag</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>Getränke <?= esc($monats_name) ?> – Anteil <?= esc($label) ?></td>
-                <td class="betrag-spalte"><?= esc(formatiere_betrag((float) $betrag)) ?></td>
-            </tr>
-            <tr class="summe">
-                <td>Gesamt</td>
-                <td class="betrag-spalte"><?= esc(formatiere_betrag((float) $betrag)) ?></td>
-            </tr>
-        </tbody>
-    </table>
+    <?php if ($positionen !== []): ?>
+        <table class="posten">
+            <thead>
+                <tr>
+                    <th>Getränk</th>
+                    <th class="betrag-spalte">Anzahl</th>
+                    <th class="betrag-spalte">Einzelpreis</th>
+                    <th class="betrag-spalte">Summe</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($positionen as $position): ?>
+                    <tr>
+                        <td><?= esc($position['bezeichnung']) ?></td>
+                        <td class="betrag-spalte"><?= esc($formatiereAnzahl($position['anzahl'])) ?></td>
+                        <td class="betrag-spalte"><?= esc(formatiere_betrag((float) $position['einzelpreis'])) ?></td>
+                        <td class="betrag-spalte"><?= esc(formatiere_betrag((float) $position['summe'])) ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                <tr class="summe">
+                    <td colspan="3">Gesamt</td>
+                    <td class="betrag-spalte"><?= esc(formatiere_betrag((float) $betrag)) ?></td>
+                </tr>
+            </tbody>
+        </table>
+    <?php else: ?>
+        <table class="posten">
+            <thead>
+                <tr>
+                    <th>Position</th>
+                    <th class="betrag-spalte">Betrag</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Getränke <?= esc($monats_name) ?> – Anteil <?= esc($label) ?></td>
+                    <td class="betrag-spalte"><?= esc(formatiere_betrag((float) $betrag)) ?></td>
+                </tr>
+                <tr class="summe">
+                    <td>Gesamt</td>
+                    <td class="betrag-spalte"><?= esc(formatiere_betrag((float) $betrag)) ?></td>
+                </tr>
+            </tbody>
+        </table>
+    <?php endif; ?>
 
     <p class="hinweis">
         Grundlage ist die monatliche Getränkeliste des Getränkewarts;

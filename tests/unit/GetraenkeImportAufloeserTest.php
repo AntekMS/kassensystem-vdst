@@ -49,6 +49,19 @@ final class GetraenkeImportAufloeserTest extends CIUnitTestCase
         $this->assertSame(35.4, $aufgeloest[0]['betrag']);
     }
 
+    /** Getränkedetails (Issue #63) hängen am Eintrag und überleben die Auflösung. */
+    public function testPositionenWerdenDurchgereicht(): void
+    {
+        $positionen = [['bezeichnung' => 'Biere', 'anzahl' => 2.0, 'einzelpreis' => 1.3, 'summe' => 2.6]];
+        $personen = [['person' => 'Sobkowiak', 'betrag' => 2.6, 'positionen' => $positionen]];
+
+        $aufgeloest = GetraenkeImportAufloeser::loese($personen, $this->map());
+
+        $this->assertSame($positionen, $aufgeloest[0]['positionen']);
+        // Parser-Output ohne Positionen (defensive Abwärtskompatibilität) → leere Liste
+        $this->assertSame([], GetraenkeImportAufloeser::loese($this->personen(), $this->map())[0]['positionen']);
+    }
+
     public function testMehrdeutigOhneWahlBleibtGast(): void
     {
         $aufgeloest = GetraenkeImportAufloeser::loese($this->personen(), $this->map());

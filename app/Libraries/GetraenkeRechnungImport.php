@@ -16,6 +16,16 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  *   die Schuldenliste im System, sonst würden sie doppelt zählen).
  * - Sheet "Coleur & Bund": zwei Gesamtsummen für die AH-Abrechnung.
  *
+ * Getränkedetails (Issue #63, #59b): zusätzlich zu den Summen werden die
+ * Einzelpositionen (Menge je Getränk) gelesen — die Getränkespalten stehen
+ * zwischen der Namensspalte und der "Getränke"-Summenspalte, Zeile 1 trägt
+ * die Getränkenamen, Zeile 2 die Einzelpreise. Die Internet-Pauschale hat
+ * keinen zuverlässigen Preis in Zeile 2 und wird als Rest
+ * (Betrag − Getränkesumme) übernommen. Positionen sind BEST-EFFORT: stimmt
+ * ihre Summe nicht mit den gecachten Summenwerten überein (editierte Datei,
+ * unerklärbarer Rest), bleibt die Positionsliste leer und nur der Endbetrag
+ * zählt — die Beträge selbst werden nie aus den Positionen berechnet.
+ *
  * WICHTIG: Es werden ausschließlich die in der Datei gecachten Formelwerte
  * gelesen (getOldCalculatedValue), NIE getCalculatedValue()/toArray() —
  * die übrigen Sheets enthalten TRANSPOSE-Formeln, an denen die
@@ -39,9 +49,15 @@ class GetraenkeRechnungImport
     private const SUCHBEREICH_SPALTEN = 15;
 
     /**
+     * Toleranz für den Abgleich Positionssumme ↔ gecachte Summenwerte —
+     * deckt Float-Rauschen der gecachten Formelwerte ab (z.B. 2.9000000000004).
+     */
+    private const SUMMEN_TOLERANZ = 0.011;
+
+    /**
      * Lädt die xlsx und parst beide Sheets.
      *
-     * @return array{personen: list<array{person: string, betrag: float}>, coleur: ?float, bund: ?float}
+     * @return array{personen: list<array{person: string, betrag: float, positionen: list<array{bezeichnung: string, anzahl: float, einzelpreis: float, summe: float}>}>, coleur: ?float, bund: ?float, coleur_positionen: list<array>, bund_positionen: list<array>}
      * @throws \RuntimeException bei unlesbarer Datei oder fehlenden Sheets/Spalten
      */
     public function parseDatei(string $pfad): array
@@ -88,7 +104,7 @@ class GetraenkeRechnungImport
      * Personen ohne Betrag werden übersprungen.
      *
      * @param array<int, array<int, mixed>> $zeilen 1-basiert [zeile][spalte]
-     * @return list<array{person: string, betrag: float}>
+     * @return list<array{person: string, betrag: float, positionen: list<array{bezeichnung: string, anzahl: float, einzelpreis: float, summe: float}>}>
      * @throws \RuntimeException wenn Spalten fehlen oder keine Person einen Betrag hat
      */
     public function parsePersonen(array $zeilen): array
@@ -103,6 +119,13 @@ class GetraenkeRechnungImport
         if ($ausstehendSpalte === null) {
             throw new \RuntimeException('Die Spalte "Ausstehend" wurde im Sheet "' . self::SHEET_PERSONEN . '" nicht gefunden.');
         }
+
+        // Getränkedetails (Issue #63): Spalten 2 bis vor "Getränke" sind die
+        // Getränke (Name in Zeile 1, Einzelpreis in Zeile 2); "Internet*" hat
+        // keinen verlässlichen Zeile-2-Preis und läuft über den Rest-Betrag.
+        $getraenkeSpalte = self::findeSpalte($kopfzeile, 'Getränke');
+        $internetSpalte = self::findeSpalteMitPraefix($kopfzeile, 'internet');
+        $getraenkeSpalten = $this->leseGetraenkeSpalten($kopfzeile, $zeilen[self::ERSTE_PERSONEN_ZEILE - 1] ?? [], $getraenkeSpalte);
 
         $personen = [];
         $letzteZeile = empty($zeilen) ? 0 : max(array_keys($zeilen));
@@ -125,7 +148,17 @@ class GetraenkeRechnungImport
                 continue;
             }
 
-            $personen[] = ['person' => $name, 'betrag' => $betrag];
+            $personen[] = [
+                'person' => $name,
+                'betrag' => $betrag,
+                'positionen' => $getraenkeSpalte === null ? [] : $this->lesePositionen(
+                    $zeilen[$zeile],
+                    $getraenkeSpalten,
+                    self::alsZahl($zeilen[$zeile][$getraenkeSpalte] ?? null),
+                    $internetSpalte,
+                    $betrag
+                ),
+            ];
         }
 
         if ($personen === []) {
@@ -136,18 +169,113 @@ class GetraenkeRechnungImport
     }
 
     /**
+     * Sammelt die Getränkespalten (Spalte, Bezeichnung, Einzelpreis) zwischen
+     * der Namensspalte und der "Getränke"-Summenspalte.
+     *
+     * @return list<array{spalte: int, bezeichnung: string, einzelpreis: float}>
+     */
+    private function leseGetraenkeSpalten(array $kopfzeile, array $preisZeile, ?int $getraenkeSpalte): array
+    {
+        if ($getraenkeSpalte === null) {
+            return [];
+        }
+
+        $spalten = [];
+        for ($spalte = 2; $spalte < $getraenkeSpalte; $spalte++) {
+            $bezeichnung = trim((string) ($kopfzeile[$spalte] ?? ''));
+            if ($bezeichnung === '' || self::istTrennzeile($bezeichnung)) {
+                continue;
+            }
+
+            $spalten[] = [
+                'spalte' => $spalte,
+                'bezeichnung' => $bezeichnung,
+                'einzelpreis' => self::alsZahl($preisZeile[$spalte] ?? null),
+            ];
+        }
+
+        return $spalten;
+    }
+
+    /**
+     * Liest die Einzelpositionen einer Personen-Zeile (Menge × Einzelpreis je
+     * Getränk, Issue #63). Zwei Konsistenz-Checks entscheiden, ob die Details
+     * vertrauenswürdig sind — sonst leere Liste (nur der Endbetrag zählt):
+     * 1. Die Summe der Getränkepositionen muss die gecachte "Getränke"-Summe
+     *    der Zeile treffen.
+     * 2. Ein Rest zum Endbetrag ist nur mit gezählter Internet-Pauschale
+     *    erklärbar (deren Zeile-2-"Preis" ist der Umlage-Topf, nicht der
+     *    Stückpreis — der Stückpreis ergibt sich aus dem Rest).
+     *
+     * @param array<int, mixed> $zeile
+     * @param list<array{spalte: int, bezeichnung: string, einzelpreis: float}> $getraenkeSpalten
+     * @return list<array{bezeichnung: string, anzahl: float, einzelpreis: float, summe: float}>
+     */
+    private function lesePositionen(array $zeile, array $getraenkeSpalten, float $getraenkeSumme, ?int $internetSpalte, float $betrag): array
+    {
+        $positionen = [];
+        foreach ($getraenkeSpalten as $getraenk) {
+            $anzahl = $zeile[$getraenk['spalte']] ?? null;
+            if (!is_numeric($anzahl) || abs((float) $anzahl) < 0.005) {
+                continue;
+            }
+
+            $positionen[] = [
+                'bezeichnung' => $getraenk['bezeichnung'],
+                'anzahl' => (float) $anzahl,
+                'einzelpreis' => $getraenk['einzelpreis'],
+                'summe' => round((float) $anzahl * $getraenk['einzelpreis'], 2),
+            ];
+        }
+
+        $positionsSumme = round(array_sum(array_column($positionen, 'summe')), 2);
+        if (abs($positionsSumme - $getraenkeSumme) > self::SUMMEN_TOLERANZ) {
+            return [];
+        }
+
+        $rest = round($betrag - $positionsSumme, 2);
+        if (abs($rest) <= self::SUMMEN_TOLERANZ) {
+            return $positionen;
+        }
+
+        $internetAnzahl = $internetSpalte === null ? 0.0 : self::alsZahl($zeile[$internetSpalte] ?? null);
+        if ($rest < 0 || $internetAnzahl <= 0) {
+            return [];
+        }
+
+        $positionen[] = [
+            'bezeichnung' => 'Internet',
+            'anzahl' => $internetAnzahl,
+            'einzelpreis' => round($rest / $internetAnzahl, 2),
+            'summe' => $rest,
+        ];
+
+        return $positionen;
+    }
+
+    /**
      * Parst das Coleur-&-Bund-Sheet: sucht die Label-Zellen "Coleur:"/"Bund:",
      * darunter die "Gesamt:"-Überschrift und liest den Wert zwei Zeilen unter
      * der Überschrift (= Label-Zeile + 3). Nicht gefunden → null.
      *
+     * Zusätzlich die Einzelpositionen des Blocks (Issue #63): zwischen Label-
+     * und "Gesamt:"-Spalte stehen die Getränke (Name in der Header-Zeile,
+     * Preis eine Zeile tiefer, Menge in der Summen-Zeile). Best-effort wie im
+     * Personen-Sheet: Positionssumme ≠ Blocksumme → leere Liste.
+     *
      * @param array<int, array<int, mixed>> $zeilen 1-basiert [zeile][spalte]
-     * @return array{coleur: ?float, bund: ?float}
+     * @return array{coleur: ?float, bund: ?float, coleur_positionen: list<array>, bund_positionen: list<array>}
      */
     public function parseColeurBund(array $zeilen): array
     {
+        $coleur = $this->findeBlock($zeilen, 'coleur');
+        $bund = $this->findeBlock($zeilen, 'bund');
+
         return [
-            'coleur' => $this->findeBlockSumme($zeilen, 'coleur'),
-            'bund' => $this->findeBlockSumme($zeilen, 'bund'),
+            'coleur' => $coleur['summe'],
+            'bund' => $bund['summe'],
+            'coleur_positionen' => $coleur['positionen'],
+            'bund_positionen' => $bund['positionen'],
         ];
     }
 
@@ -311,10 +439,16 @@ class GetraenkeRechnungImport
     }
 
     /**
-     * Sucht die Summe eines Blocks (Label → "Gesamt:"-Header → Wert).
+     * Sucht einen Block (Label → "Gesamt:"-Header → Wert) samt Einzelpositionen.
+     * Blocklayout: Label-Zeile, darunter Header (Getränkenamen + "Gesamt:"),
+     * darunter Preise, darunter Mengen mit der Summe in der "Gesamt:"-Spalte.
+     *
+     * @return array{summe: ?float, positionen: list<array{bezeichnung: string, anzahl: float, einzelpreis: float, summe: float}>}
      */
-    private function findeBlockSumme(array $zeilen, string $label): ?float
+    private function findeBlock(array $zeilen, string $label): array
     {
+        $leer = ['summe' => null, 'positionen' => []];
+
         for ($zeile = 1; $zeile <= self::SUCHBEREICH_ZEILEN; $zeile++) {
             for ($spalte = 1; $spalte <= self::SUCHBEREICH_SPALTEN; $spalte++) {
                 if (self::normalisiertesLabel($zeilen[$zeile][$spalte] ?? null) !== $label) {
@@ -328,15 +462,56 @@ class GetraenkeRechnungImport
                     }
 
                     $wert = $zeilen[$zeile + 3][$g] ?? null;
+                    if (!is_numeric($wert)) {
+                        return $leer;
+                    }
 
-                    return is_numeric($wert) ? round((float) $wert, 2) : null;
+                    $summe = round((float) $wert, 2);
+
+                    return [
+                        'summe' => $summe,
+                        'positionen' => $this->leseBlockPositionen($zeilen, $zeile + 1, $spalte + 1, $g, $summe),
+                    ];
                 }
 
-                return null;
+                return $leer;
             }
         }
 
-        return null;
+        return $leer;
+    }
+
+    /**
+     * Einzelpositionen eines Coleur-/Bund-Blocks: Getränkespalten zwischen
+     * Label- und "Gesamt:"-Spalte; Mengen 0 werden übersprungen. Trifft die
+     * Positionssumme die Blocksumme nicht, leere Liste (best-effort).
+     *
+     * @return list<array{bezeichnung: string, anzahl: float, einzelpreis: float, summe: float}>
+     */
+    private function leseBlockPositionen(array $zeilen, int $headerZeile, int $ersteSpalte, int $gesamtSpalte, float $blockSumme): array
+    {
+        $positionen = [];
+
+        for ($spalte = $ersteSpalte; $spalte < $gesamtSpalte; $spalte++) {
+            $bezeichnung = trim((string) ($zeilen[$headerZeile][$spalte] ?? ''));
+            $anzahl = $zeilen[$headerZeile + 2][$spalte] ?? null;
+
+            if ($bezeichnung === '' || !is_numeric($anzahl) || abs((float) $anzahl) < 0.005) {
+                continue;
+            }
+
+            $einzelpreis = self::alsZahl($zeilen[$headerZeile + 1][$spalte] ?? null);
+            $positionen[] = [
+                'bezeichnung' => $bezeichnung,
+                'anzahl' => (float) $anzahl,
+                'einzelpreis' => $einzelpreis,
+                'summe' => round((float) $anzahl * $einzelpreis, 2),
+            ];
+        }
+
+        $positionsSumme = round(array_sum(array_column($positionen, 'summe')), 2);
+
+        return abs($positionsSumme - $blockSumme) > self::SUMMEN_TOLERANZ ? [] : $positionen;
     }
 
     /**
@@ -385,6 +560,21 @@ class GetraenkeRechnungImport
 
         foreach ($kopfzeile as $spalte => $wert) {
             if (mb_strtolower(trim((string) $wert)) === $gesucht) {
+                return (int) $spalte;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Spaltenindex per Header-Präfix (case-insensitiv) — für die
+     * "Internet*"-Spalte, deren Fußnoten-Sternchen nicht zum Namen gehört.
+     */
+    private static function findeSpalteMitPraefix(array $kopfzeile, string $praefix): ?int
+    {
+        foreach ($kopfzeile as $spalte => $wert) {
+            if (str_starts_with(mb_strtolower(trim((string) $wert)), mb_strtolower($praefix))) {
                 return (int) $spalte;
             }
         }

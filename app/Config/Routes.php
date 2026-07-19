@@ -101,6 +101,7 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
             $routes->get('preview/(:num)', "{$controller}::preview/$1");
             $routes->post('changeStatus/(:num)', "{$controller}::changeStatus/$1");
             $routes->get('exportExcel/(:num)', "{$controller}::exportExcel/$1");
+            $routes->get('exportPdf/(:num)', "{$controller}::exportPdf/$1");
             $routes->get('downloadZip/(:num)', "{$controller}::downloadBelegeZip/$1");
             $routes->post('delete/(:num)', "{$controller}::delete/$1");
         });

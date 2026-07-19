@@ -39,6 +39,32 @@ class RechnungPdf
     }
 
     /**
+     * AH²-/HV-Monatsabrechnung als PDF-Rechnung (Issue #83) — VDSt-gebrandetes
+     * Pendant zum Excel-Export (`ExcelHelper::erstelle{Ah,Hv}Abrechnung`), das den
+     * Excel-/ZIP-Export bewusst ERGÄNZT, nicht ersetzt. Belegliste + Gesamtsumme,
+     * bei HV zusätzlich die Freitext-Begründung aus der Abrechnung.
+     *
+     * @param string $typName    Anzeigename ('AH²' | 'HV')
+     * @param string $monatsName Monat im Klartext (z.B. "Juni 2024")
+     * @param array  $abrechnung Abrechnungs-Zeile (titel/gesamtsumme/begruendung)
+     * @param array<array{beschreibung?: string, rechnungsdatum?: string, belegnummer?: string, betrag?: float|string, lieferant?: string}> $belege
+     * @param string $datum      Erstellungsdatum als 'Y-m-d'
+     */
+    public function abrechnung(string $typName, string $monatsName, array $abrechnung, array $belege, string $datum): string
+    {
+        return $this->render([
+            'typ' => 'abrechnung',
+            'typ_name' => $typName,
+            'monats_name' => $monatsName,
+            'titel' => (string) ($abrechnung['titel'] ?? ''),
+            'gesamtsumme' => (float) ($abrechnung['gesamtsumme'] ?? 0),
+            'begruendung' => (string) ($abrechnung['begruendung'] ?? ''),
+            'belege' => $belege,
+            'datum' => $datum,
+        ]);
+    }
+
+    /**
      * Monats-Übersicht aller Personen (für den Aushang)
      *
      * @param array<array{person: string, betrag: float|string}> $personen

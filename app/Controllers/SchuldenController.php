@@ -882,14 +882,6 @@ class SchuldenController extends BaseController
         $versandLog = new GetraenkeVersandModel();
         $ergebnisse = [];
 
-        // Getränkedetails (Issue #63) für alle Forderungen des Monats in einem
-        // Rutsch laden — je Person über die GROUP_CONCAT-ids zusammengesetzt.
-        $alleIds = [];
-        foreach ($forderungen as $zeile) {
-            $alleIds = array_merge($alleIds, explode(',', (string) ($zeile['ids'] ?? '')));
-        }
-        $positionenNachSchuld = (new SchuldPositionModel())->getFuerSchulden($alleIds);
-
         foreach ((array) $this->request->getPost('senden') as $index) {
             $key = person_schluessel((string) ($namenNachIndex[$index] ?? ''));
 
@@ -909,14 +901,7 @@ class SchuldenController extends BaseController
             // PDF-Erzeugung (dompdf) kann werfen — ein Fehler bei Person N darf
             // nicht den ganzen POST abbrechen (sonst Teil-Versand ohne PRG,
             // Reload würde erneut senden).
-            // Positionen der Person zusammenführen (mehrere schulden-Zeilen =
-            // erlaubter Doppelimport); ob sie zum Betrag passen, entscheidet
-            // RechnungPdf::positionenFuer.
-            $positionen = [];
-            foreach (explode(',', (string) ($forderungen[$key]['ids'] ?? '')) as $schuldId) {
-                $positionen = array_merge($positionen, $positionenNachSchuld[(int) $schuldId] ?? []);
-            }
-            $positionen = SchuldPositionModel::fuegeZusammen($positionen);
+            $positionen = $this->ladeImportPositionen($forderungen[$key]);
 
             try {
                 $pdf = $rechnungPdf->einzel($name, $monatsName, $betrag, date('Y-m-d'), $positionen);
@@ -984,6 +969,82 @@ class SchuldenController extends BaseController
 
             return redirect()->back()->with('error', 'Fehler beim Erzeugen des PDFs: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Einzelrechnungs-Vorschau: exakt das PDF, das der Versand als Anhang
+     * erzeugt (gleiche Datenquelle, gleiche Positionen, gleicher Guard) —
+     * inline im Browser statt als Mail, ohne Versand-Log-Eintrag.
+     */
+    public function importEinzelPdf()
+    {
+        $monat = (string) $this->request->getGet('monat');
+        $monatBis = $this->leseMonatBis((string) $this->request->getGet('bis'));
+
+        if (!preg_match('/^\d{4}-\d{2}$/', $monat)) {
+            return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Monat angegeben.');
+        }
+        if ($monatBis === false) {
+            return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Endmonat angegeben.');
+        }
+
+        $monatsName = GetraenkeRechnungImport::monatsName($monat, $monatBis);
+
+        // Person über person_schluessel matchen (wie der Versand), Betrag und
+        // Name kommen aus der DB — der GET-Parameter ist nur der Suchschlüssel.
+        $gesucht = person_schluessel((string) $this->request->getGet('person'));
+        $forderung = null;
+        foreach ($this->schuldModel->getImportForderungen($monat, $monatBis) as $zeile) {
+            if (person_schluessel($zeile['person']) === $gesucht) {
+                $forderung = $zeile;
+                break;
+            }
+        }
+
+        if ($forderung === null) {
+            return redirect()->to('/schulden/import/versand?' . $this->versandQuery($monat, $monatBis))
+                ->with('error', 'Für diese Person wurde keine importierte Getränke-Forderung in ' . $monatsName . ' gefunden.');
+        }
+
+        try {
+            $pdf = (new RechnungPdf())->einzel(
+                $forderung['person'],
+                $monatsName,
+                (float) $forderung['betrag'],
+                date('Y-m-d'),
+                $this->ladeImportPositionen($forderung)
+            );
+
+            return $this->response
+                ->setContentType('application/pdf')
+                ->setHeader('Content-Disposition', 'inline; filename="' . RechnungPdf::dateiname($monatsName, $forderung['person']) . '"')
+                ->setBody($pdf);
+        } catch (\Throwable $e) {
+            log_message('error', 'Einzelrechnungs-Vorschau Fehler (' . $forderung['person'] . '): ' . $e->getMessage());
+
+            return redirect()->to('/schulden/import/versand?' . $this->versandQuery($monat, $monatBis))
+                ->with('error', 'Fehler beim Erzeugen des PDFs: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Getränkedetails (Issue #63) einer Import-Forderungszeile laden: die
+     * GROUP_CONCAT-ids aus getImportForderungen auflösen und die Positionen
+     * mehrerer schulden-Zeilen (erlaubter Doppelimport) zusammenführen. Ob
+     * sie zum Betrag passen, entscheidet RechnungPdf::positionenFuer.
+     *
+     * @param array{ids?: string} $forderung
+     * @return list<array>
+     */
+    private function ladeImportPositionen(array $forderung): array
+    {
+        $ids = array_filter(explode(',', (string) ($forderung['ids'] ?? '')));
+        $positionen = [];
+        foreach ((new SchuldPositionModel())->getFuerSchulden($ids) as $liste) {
+            $positionen = array_merge($positionen, $liste);
+        }
+
+        return SchuldPositionModel::fuegeZusammen($positionen);
     }
 
     // ==================== PERSONEN-VERWALTUNG (Issue #61) ====================

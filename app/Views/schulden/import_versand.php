@@ -91,6 +91,7 @@
                                     <th class="text-center">Senden</th>
                                     <th>Person</th>
                                     <th class="text-end">Betrag</th>
+                                    <th class="text-center">Rechnung</th>
                                     <th>E-Mail-Adresse</th>
                                     <th>Status</th>
                                 </tr>
@@ -108,6 +109,14 @@
                                         </td>
                                         <td data-label="Person"><strong><?= esc($person['person']) ?></strong></td>
                                         <td data-label="Betrag" class="text-end"><?= formatiere_betrag($person['betrag']) ?></td>
+                                        <td data-label="Rechnung" class="text-center">
+                                            <a href="<?= base_url('/schulden/import/rechnung?monat=' . esc($monat, 'url') . ($monat_bis !== null ? '&bis=' . esc($monat_bis, 'url') : '') . '&person=' . esc($person['person'], 'url')) ?>"
+                                               target="_blank" rel="noopener" class="btn btn-outline-vdst btn-sm btn-icon"
+                                               title="Rechnungs-PDF ansehen (wird nicht verschickt)"
+                                               aria-label="Rechnungs-PDF für <?= esc($person['person']) ?> ansehen">
+                                                <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
+                                            </a>
+                                        </td>
                                         <td data-label="E-Mail-Adresse">
                                             <input type="email" class="form-control form-control-sm"
                                                    name="email[<?= (int) $i ?>]"

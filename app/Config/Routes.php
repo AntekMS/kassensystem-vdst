@@ -75,6 +75,8 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
         $routes->get('import/versand', 'SchuldenController::importVersand');
         $routes->post('import/versand/senden', 'SchuldenController::importVersandSenden');
         $routes->get('import/uebersicht', 'SchuldenController::importUebersichtPdf');
+        // Einzelrechnungs-Vorschau (PDF inline, ohne Versand)
+        $routes->get('import/rechnung', 'SchuldenController::importEinzelPdf');
         // Personen-Register (Issue #61): Vor-/Nachname + E-Mail
         $routes->get('personen', 'SchuldenController::personen');
         $routes->post('personen/store', 'SchuldenController::personenStore');

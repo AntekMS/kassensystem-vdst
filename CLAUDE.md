@@ -30,9 +30,12 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   (`HealthTest`, `BetragTest`, `SchuldLabelTest`, `GetraenkeBeglichenTest`,
   `GetraenkeImportParserTest`, `RechnungPdfTest`, `RechnungVersandTest`,
   `PersonSchluesselTest`, `PersonModelTest`, `GetraenkeImportAufloeserTest`,
-  `SchuldPositionTest`); entspricht `composer test`
+  `SchuldPositionTest`, `AbrechnungVersandTest`); entspricht `composer test`
 - `docker exec kassensystem-vdst-web php spark migrate` — Migrationen (auch die
   Datei-/Trigger-Cleanup-Migrationen)
+- `docker exec kassensystem-vdst-web php spark abrechnungen:versenden` — automatischer
+  Monats-Versand der offenen Abrechnungen (Issue #37, s.u.); für Host-Cron via
+  `scripts/abrechnungen-versenden.sh`
 - `docker exec kassensystem-vdst-web php spark routes` — Routenliste
 - `docker exec kassensystem-vdst-web php -l <datei>` — Syntax-Check einzelner Dateien
 - Smoke-Test/Login-Flow: `curl` gegen `http://localhost/...` **im Container** (CSRF-Token
@@ -107,6 +110,11 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   auf dunklem Grund hin gewählt), `--surface`, `--bs-body-bg`,
   `--vdst-rot-tint`/`--vdst-rot-text`, `--badge-gruen-*`/`--badge-amber-*`,
   `--status-positiv`/`--status-wartend` sowie `--schatten-sm`/`--schatten`.
+  Bootstraps `.table-light`-Utility verdrahtet `color`/`--bs-table-*` fest
+  (`#000`/`#f8f9fa`) und invertiert nicht — daher in `app.css` ein generischer
+  token-basierter `.table-light`-Override (beide Table-Variablen UND `color` aus
+  der Grau-Rampe), damit Inventur-Kopfzeilen (I/II/III) und Abrechnungs-Gesamtsumme
+  im Darkmode lesbar bleiben (Issue #79).
   `--vdst-schwarz`, `--vdst-weiss`, `--chrome-schwarz` und die Rot-Töne bleiben
   ABSICHTLICH themeunabhängig (Sidebar/Topbar/Login-Header sind schon dunkel,
   Marke soll sich nicht ändern). Der Segment-Umschalter-Chip
@@ -404,6 +412,27 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   erzeugen so keine kaputten „BIC: "- oder Leerzeilen; IBAN und
   Verwendungszweck stehen immer. Alle `vdst.bank_*`- und
   `vdst.kassenwart_zeichen`-Keys sind auskommentierte Beispiele in `env`.
+- **Abrechnungs-Auto-Versand** (Issue #37): CLI-Command
+  `app/Commands/AbrechnungenVersenden.php` (`php spark abrechnungen:versenden`,
+  Gruppe `App`) schickt die je **offene** (`entwurf`/`ausstehend`) AH- **und**
+  HV-Abrechnung als **Komplett-ZIP (Excel + Belege)** per E-Mail an den
+  **Kassenwart selbst** (`vdst.kassenwart_email`) — zum Prüfen/Weiterleiten,
+  **Status bleibt UNVERÄNDERT** (kein Auto-`eingereicht`). Iteriert über AH/HV,
+  je `findeOffeneAbrechnung()` (jetzt in BEIDEN Modellen — HV-Parität ergänzt) +
+  `getBelege()`; reiner Seam `AbrechnungenVersenden::sollVersenden(?$abr,$belege)`
+  überspringt fehlende/beleglose Abrechnungen; pro Typ `try/catch`. Anhang-Aufbau
+  gekapselt in `baueAnhang()` (`ZipHelper::erstelleBelegeZip` → Buffer → `unlink`,
+  MIME `application/zip`) — **bewusst isoliert**, weil Issue #83 den Anhang künftig
+  auf eine echte PDF-Rechnung umstellen will (dann nur hier ändern). Mailtext:
+  `RechnungVersand::baueAbrechnungMail($typName,$monatsName)` (rein, sachlich,
+  Signatur wie `baueMail`). Gate: `RechnungVersand::istKonfiguriert()` **und**
+  `vdst.kassenwart_email` gesetzt — sonst sauberer Abbruch. `RechnungVersand::sende()`
+  nimmt jetzt optional `$mime='application/pdf'` (rückwärtskompatibel; ZIP reicht
+  `application/zip` durch). Deutscher Monatsname via jetzt `public`
+  `{Ah,Hv}AbrechnungModel::getMonatName()`. Host-Cron via
+  `scripts/abrechnungen-versenden.sh` (Muster `backup.sh`, z.B. `0 8 1 * *`).
+  `vdst.kassenwart_email` ist auskommentiertes Beispiel in `env`. Test:
+  `tests/unit/AbrechnungVersandTest.php` (DB-los: `baueAbrechnungMail` + `sollVersenden`).
 
 ## Konventionen & Invarianten
 - **Upload-Pfade** sind relativ zu FCPATH (= `public/`): `uploads/belege/YYYY/MM/`.

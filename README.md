@@ -86,6 +86,7 @@ die Defaults gelten nur für lokale Entwicklung.
 docker exec kassensystem-vdst-web vendor/bin/phpunit tests/unit/   # Tests (Health, Betrag, Labels, Import, PDF, Versand)
 docker exec kassensystem-vdst-web php spark migrate                # Migrationen
 docker exec kassensystem-vdst-web php spark routes                 # Routenliste
+docker exec kassensystem-vdst-web php spark abrechnungen:versenden # Abrechnungen an Kassenwart mailen (Issue #37)
 docker exec kassensystem-vdst-web php -l <datei>                   # Syntax-Check
 ```
 
@@ -106,8 +107,20 @@ email.fromName  = 'VDSt Kassenwart'
 ```
 
 Ohne diese Keys bleibt der Versand-Button deaktiviert – Import, Übersichts-PDF
-und Adress-Verwaltung funktionieren trotzdem. Zum lokalen Testen ohne echten
-SMTP-Server eignet sich [Mailpit](https://mailpit.axllent.org):
+und Adress-Verwaltung funktionieren trotzdem.
+
+**Automatischer Monats-Versand der Abrechnungen (Issue #37):** Setzt man zusätzlich
+`vdst.kassenwart_email` in der `.env`, schickt `php spark abrechnungen:versenden`
+die je offene AH- und HV-Abrechnung als ZIP (Excel + Belege) an diese Adresse (der
+Status bleibt unverändert). Für den monatlichen Lauf den Host-Wrapper per Cron
+eintragen (Muster wie `scripts/backup.sh`):
+
+```
+0 8 1 * * /pfad/zu/kassensystem-vdst/scripts/abrechnungen-versenden.sh >> /var/log/kassensystem-abrechnungen.log 2>&1
+```
+
+Zum lokalen Testen ohne echten SMTP-Server eignet sich
+[Mailpit](https://mailpit.axllent.org):
 
 ```bash
 docker run -d --name mailpit --network kassensystem-vdst_kassensystem-network -p 8025:8025 axllent/mailpit

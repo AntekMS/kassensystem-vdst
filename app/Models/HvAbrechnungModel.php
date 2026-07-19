@@ -77,6 +77,19 @@ class HvAbrechnungModel extends Model
     }
 
     /**
+     * Neueste offene (entwurf/ausstehend) Abrechnung oder null.
+     * Spiegelbildlich zu AhAbrechnungModel::findeOffeneAbrechnung() — Ah/Hv-Parität.
+     *
+     * @return array|null
+     */
+    public function findeOffeneAbrechnung()
+    {
+        return $this->whereIn('status', ['entwurf', 'ausstehend'])
+            ->orderBy('abrechnungsmonat', 'DESC')
+            ->first();
+    }
+
+    /**
      * Prüft ob eine HV-Abrechnung für den Monat bereits existiert
      *
      * @param string $abrechnungsmonat
@@ -240,7 +253,7 @@ class HvAbrechnungModel extends Model
      * @param string $abrechnungsmonat Format: Y-m
      * @return string
      */
-    private function getMonatName($abrechnungsmonat)
+    public function getMonatName($abrechnungsmonat)
     {
         $monate = [
             '01' => 'Januar', '02' => 'Februar', '03' => 'März',

@@ -92,6 +92,13 @@
 
 # vdst.kassenwart_name = 'Max Mustermann'
 
+# Empfänger des automatischen Monats-Versands der Abrechnungen (Issue #37,
+# `php spark abrechnungen:versenden`). Der Job schickt die offene AH-/HV-
+# Abrechnung als ZIP (Excel + Belege) an diese Adresse zum Prüfen/Weiterleiten.
+# Ohne diesen Key (oder ohne email.*) ist der Auto-Versand deaktiviert.
+
+# vdst.kassenwart_email = 'kassenwart@example.org'
+
 # Verbindungszeichen für die Mail-Signatur ("Kassenwart {Zeichen}"), z.B. das
 # Bandzeichen. Ohne diesen Key endet die Signatur schlicht mit "Kassenwart".
 

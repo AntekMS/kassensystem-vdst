@@ -650,6 +650,17 @@ thead.table-vdst th {
     font-variant-numeric: tabular-nums;
 }
 
+/* Bootstraps .table-light verdrahtet color/bg fest (#000 / #f8f9fa) und
+   invertiert NICHT auf data-bs-theme="dark" — hier token-basiert überschreiben
+   (beide Table-Variablen UND color, wie thead.table-vdst oben). Betrifft die
+   Inventur-Kopfzeilen I/II/III (tr.table-light) und die Abrechnungs-Gesamtsumme
+   (tfoot.table-light). */
+.table-light {
+    --bs-table-color: var(--grau-900);
+    --bs-table-bg: var(--grau-100);
+    color: var(--grau-900);
+}
+
 tfoot.table-light {
     --bs-table-bg: var(--grau-50);
     border-top: 2px solid var(--grau-200);

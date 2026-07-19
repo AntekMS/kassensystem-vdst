@@ -68,6 +68,42 @@
     --bs-link-hover-color-rgb: var(--vdst-rot-hover-rgb);
 }
 
+/* ---------- Darkmode (Issue #14) ----------
+   Bootstraps natives data-bs-theme-Attribut als Schalter (main.php/login.php
+   setzen es per Init-Script auf <html>). --vdst-schwarz, --vdst-weiss,
+   --chrome-schwarz und die Marken-Rot-Töne bleiben bewusst UNVERÄNDERT —
+   Sidebar/Topbar/Login-Header und die roten Primär-/Statusfarben sind schon
+   dunkel bzw. brand-fest und sollen sich zwischen den Themes nicht ändern. */
+[data-bs-theme="dark"] {
+    /* Grau-Rampe umgekehrt (kein reiner Spiegel — auf Kontrast auf dunklem
+       Grund hin ausgewählt): 50 = dunkelste Fläche … 900 = hellster Text */
+    --grau-50: #1b1c1f;
+    --grau-100: #212327;
+    --grau-200: #2a2c31;
+    --grau-300: #3a3d43;
+    --grau-500: #838b96;
+    --grau-600: #a8afb8;
+    --grau-700: #ced3d9;
+    --grau-900: #eef0f2;
+
+    --surface: #202226;
+    --bs-body-bg: #17181b;
+
+    --vdst-rot-tint: rgba(var(--vdst-rot-rgb), .18);
+    --vdst-rot-text: #ff9caf;
+
+    --badge-gruen-bg: rgba(25, 135, 84, .18);
+    --badge-gruen-text: #6fdba3;
+    --badge-amber-bg: rgba(180, 125, 0, .2);
+    --badge-amber-text: #e0b355;
+
+    --status-positiv: #34c98d;
+    --status-wartend: #e0a83a;
+
+    --schatten-sm: 0 1px 2px rgba(0, 0, 0, .4);
+    --schatten: 0 1px 3px rgba(0, 0, 0, .5), 0 4px 16px rgba(0, 0, 0, .4);
+}
+
 body {
     background-color: var(--bs-body-bg);
     font-family: var(--bs-body-font-family);
@@ -280,6 +316,29 @@ body {
     background: var(--vdst-rot-hover);
 }
 
+/* ---------- Darkmode-Umschalter (Sidebar-Fuß + Login-Header) ----------
+   Sitzt auf schwarzem Chrome-Grund (Sidebar/Topbar/Login-Header), daher
+   fest hell statt über die theme-abhängige Grau-Rampe eingefärbt. Für den
+   Topbar-Toggle reicht die bestehende .app-topbar-btn-Klasse. */
+.app-theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    flex: none;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: rgba(var(--vdst-weiss-rgb), .75);
+    font-size: 1rem;
+}
+
+.app-theme-toggle:hover {
+    background: rgba(var(--vdst-weiss-rgb), .12);
+    color: var(--vdst-weiss);
+}
+
 /* Content-Bereich */
 .main-content {
     padding-top: 1.5rem;
@@ -345,17 +404,20 @@ body {
     --bs-btn-focus-shadow-rgb: 108, 117, 125;
 }
 
-/* Segment-Umschalter (z.B. AH²/HV, Radio-Button-Gruppen): aktiv = dunkel */
+/* Segment-Umschalter (z.B. AH²/HV, Radio-Button-Gruppen): aktiv = dunkel.
+   Bewusst --vdst-schwarz statt --grau-900: dieser Chip soll in jedem Theme
+   als feste dunkle Auswahlfläche lesbar bleiben, --grau-900 kehrt sich im
+   Darkmode aber zu einem hellen Ton um (s. [data-bs-theme="dark"] unten). */
 .btn-outline-vdst.active {
     --bs-btn-active-color: var(--vdst-weiss);
-    --bs-btn-active-bg: var(--grau-900);
-    --bs-btn-active-border-color: var(--grau-900);
+    --bs-btn-active-bg: var(--vdst-schwarz);
+    --bs-btn-active-border-color: var(--vdst-schwarz);
 }
 
 .btn-check:checked + .btn-outline-vdst {
     color: var(--vdst-weiss);
-    background-color: var(--grau-900);
-    border-color: var(--grau-900);
+    background-color: var(--vdst-schwarz);
+    border-color: var(--vdst-schwarz);
 }
 
 /* Leiser Icon-Button für Zeilen-Aktionen in Listen */
@@ -862,6 +924,10 @@ tfoot.table-light {
     color: var(--vdst-weiss);
     padding: 1.5rem 1.75rem 1.25rem;
     border-bottom: 3px solid var(--vdst-rot);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .5rem;
 }
 
 .login-header h1 {

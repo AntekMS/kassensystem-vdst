@@ -95,9 +95,30 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   Geschwister-Tokens (`--vdst-weiss-rgb`, `--vdst-schwarz-rgb`, `--vdst-rot-rgb`,
   `--vdst-rot-hover-rgb`) für `rgba(var(--…-rgb), Alpha)`-Nutzung, sowie
   `--vdst-rot-text`/`--badge-gruen-*`/`--badge-amber-*` für die Soft-Badge-
-  Textfarben. Voraussetzung für den eigentlichen Darkmode
-  (`[data-bs-theme="dark"]`-Wertesatz + Umschalter), der als eigener
-  Folge-PR kommt. Legacy-Klassen (`.btn-vdst`,
+  Textfarben — Voraussetzung für den eigentlichen Darkmode.
+  **Darkmode** (Issue #14): Bootstraps natives `data-bs-theme`-Attribut auf
+  `<html>` ist der Schalter — ein `[data-bs-theme="dark"]`-Block in `app.css`
+  überschreibt die Grau-Rampe (invertiert, nicht 1:1 gespiegelt, auf Kontrast
+  auf dunklem Grund hin gewählt), `--surface`, `--bs-body-bg`,
+  `--vdst-rot-tint`/`--vdst-rot-text`, `--badge-gruen-*`/`--badge-amber-*`,
+  `--status-positiv`/`--status-wartend` sowie `--schatten-sm`/`--schatten`.
+  `--vdst-schwarz`, `--vdst-weiss`, `--chrome-schwarz` und die Rot-Töne bleiben
+  ABSICHTLICH themeunabhängig (Sidebar/Topbar/Login-Header sind schon dunkel,
+  Marke soll sich nicht ändern). Der Segment-Umschalter-Chip
+  (`.btn-outline-vdst.active`/`.btn-check:checked`) nutzt deshalb bewusst
+  `var(--vdst-schwarz)` statt `var(--grau-900)` als Aktiv-Hintergrund — sonst
+  würde er sich im Darkmode zu einer hellen Fläche umkehren. Ein blockierendes
+  Inline-`<script>` ganz oben in `<head>` (VOR den Stylesheets, dupliziert in
+  `main.php` UND `login.php`, da Login standalone ist) liest `localStorage`
+  (`vdst-theme`) bzw. `prefers-color-scheme` und setzt `data-bs-theme`, um
+  einen Flash im falschen Theme zu vermeiden. Umschalt-Buttons (Klasse
+  `.js-theme-toggle`, Icon `bi-moon-stars`/`bi-sun`) sitzen in
+  `.app-sidebar-foot` (Desktop) und `.app-topbar` (Mobile) — Logik in
+  `app.js` (`setTheme()`/`syncThemeToggleIcons()`/`bindThemeToggle()`), da
+  beide Buttons auf derselben Seite synchron bleiben müssen. Die Login-Seite
+  hat einen eigenen Toggle-Button (`#themeToggle` in `.login-header`,
+  `.app-theme-toggle`) mit eigenem, dupliziertem Inline-Handler (kein
+  `app.js` auf der Login-Seite). Legacy-Klassen (`.btn-vdst`,
   `.btn-outline-vdst`, `.card-vdst`, `.table-vdst`, `.kontostand-card`,
   `.page-title`, `.saldo-positiv/-negativ`) wurden umgestylt, NICHT umbenannt.
   Button-Hierarchie: `.btn-vdst` = rote Primäraktion (max. eine pro Seite),

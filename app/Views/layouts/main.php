@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $this->renderSection('title') ?> | VDSt Kassensystem</title>
 
+    <!-- Darkmode VOR dem CSS setzen, sonst kurzes Aufblitzen im falschen Theme -->
+    <script>
+        (function () {
+            var stored = localStorage.getItem('vdst-theme');
+            var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-bs-theme', theme);
+        })();
+    </script>
+
     <link rel="icon" href="<?= base_url('favicon.ico') ?>">
 
     <!-- Bootstrap 5 CSS -->
@@ -14,7 +23,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
     <!-- VDSt Design-System (einzige Theme-Quelle) -->
-    <link href="<?= base_url('css/app.css') ?>?v=7" rel="stylesheet">
+    <link href="<?= base_url('css/app.css') ?>?v=8" rel="stylesheet">
 
     <?= $this->renderSection('styles') ?>
 </head>
@@ -70,13 +79,19 @@
             <i class="bi bi-person-circle" aria-hidden="true"></i>
             <?= esc(session('kassenwart_name') ?? 'VDSt Kassenwart') ?>
         </span>
-        <form action="<?= base_url('/auth/logout') ?>" method="post" class="d-inline"
-              onsubmit="return confirm('Wirklich abmelden?')">
-            <?= csrf_field() ?>
-            <button type="submit" class="btn btn-logout">
-                <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Abmelden
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="app-theme-toggle js-theme-toggle" title="Darkmode umschalten"
+                    aria-label="Darkmode umschalten" aria-pressed="false">
+                <i class="bi bi-moon-stars" aria-hidden="true"></i>
             </button>
-        </form>
+            <form action="<?= base_url('/auth/logout') ?>" method="post" class="d-inline"
+                  onsubmit="return confirm('Wirklich abmelden?')">
+                <?= csrf_field() ?>
+                <button type="submit" class="btn btn-logout">
+                    <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Abmelden
+                </button>
+            </form>
+        </div>
     </div>
 </aside>
 
@@ -91,6 +106,10 @@
             <img src="<?= base_url('img/vdst-logo.svg') ?>" alt="" class="app-topbar-logo">
             VDSt Kassensystem
         </a>
+        <button type="button" class="app-topbar-btn js-theme-toggle" title="Darkmode umschalten"
+                aria-label="Darkmode umschalten" aria-pressed="false">
+            <i class="bi bi-moon-stars" aria-hidden="true"></i>
+        </button>
         <a class="app-topbar-btn app-topbar-action" href="<?= base_url('/belege/create') ?>"
            title="Beleg erfassen" aria-label="Beleg erfassen">
             <i class="bi bi-plus-lg" aria-hidden="true"></i>

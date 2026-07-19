@@ -105,6 +105,32 @@ function bindAutoSubmit(select) {
     });
 }
 
+// ===== Darkmode-Umschalter =====
+
+// Icon/aria-pressed aller .js-theme-toggle-Buttons an den aktuellen Theme-Wert angleichen
+// (main.php hat zwei Instanzen: Sidebar + mobile Topbar)
+function syncThemeToggleIcons(theme) {
+    document.querySelectorAll('.js-theme-toggle').forEach(function (button) {
+        const icon = button.querySelector('.bi');
+        icon.classList.toggle('bi-moon-stars', theme !== 'dark');
+        icon.classList.toggle('bi-sun', theme === 'dark');
+        button.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
+    });
+}
+
+function setTheme(theme) {
+    document.documentElement.setAttribute('data-bs-theme', theme);
+    localStorage.setItem('vdst-theme', theme);
+    syncThemeToggleIcons(theme);
+}
+
+function bindThemeToggle(button) {
+    button.addEventListener('click', function () {
+        const current = document.documentElement.getAttribute('data-bs-theme');
+        setTheme(current === 'dark' ? 'light' : 'dark');
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     // Flash-Messages nach 5 Sekunden automatisch ausblenden
     document.querySelectorAll('.alert:not(.alert-permanent)').forEach(function (alert) {
@@ -118,6 +144,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Gemeinsame Verhaltensweisen per Klasse binden (vorher pro View dupliziert)
     document.querySelectorAll('input.js-betrag-format').forEach(bindBetragFormat);
     document.querySelectorAll('select.js-autosubmit').forEach(bindAutoSubmit);
+    document.querySelectorAll('.js-theme-toggle').forEach(bindThemeToggle);
+    syncThemeToggleIcons(document.documentElement.getAttribute('data-bs-theme'));
 
     initializeExportFeedback();
 });

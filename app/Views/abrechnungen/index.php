@@ -147,6 +147,12 @@
                                                         </li>
                                                         <li>
                                                             <a class="dropdown-item"
+                                                               href="<?= base_url('/abrechnungen/' . $typ . '/exportPdf/' . $abrechnung['id']) ?>">
+                                                                <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> PDF-Rechnung
+                                                            </a>
+                                                        </li>
+                                                        <li>
+                                                            <a class="dropdown-item"
                                                                href="<?= base_url('/abrechnungen/' . $typ . '/downloadZip/' . $abrechnung['id']) ?>">
                                                                 <i class="bi bi-file-earmark-zip" aria-hidden="true"></i> ZIP-Archiv (alle Belege)
                                                             </a>

@@ -38,6 +38,16 @@
                                     </div>
                                 </a>
                             </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center"
+                                   href="<?= base_url('/abrechnungen/' . $typ . '/exportPdf/' . $abrechnung['id']) ?>">
+                                    <i class="bi bi-file-earmark-pdf me-2" aria-hidden="true"></i>
+                                    <div>
+                                        <strong>PDF-Rechnung</strong><br>
+                                        <small class="text-muted">VDSt-gebrandete Abrechnung als PDF</small>
+                                    </div>
+                                </a>
+                            </li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <a class="dropdown-item d-flex align-items-center"
@@ -250,7 +260,7 @@
         <!-- Export-Info -->
         <?php if (count($belege) > 0): ?>
             <div class="row mt-4">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <div class="card">
                         <div class="card-header">
                             <strong><i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Excel-Export</strong>
@@ -270,7 +280,27 @@
                     </div>
                 </div>
 
-                <div class="col-md-6">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <strong><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> PDF-Rechnung</strong>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>VDSt-gebrandete Abrechnung</strong> als PDF-Rechnung:</p>
+                            <ul class="small mb-3">
+                                <li>Vereinslogo und Briefkopf</li>
+                                <li>Belegliste mit Datum und Betrag</li>
+                                <li>Gesamtsumme<?= $typ === 'hv' ? ' und Begründung' : '' ?></li>
+                            </ul>
+                            <a href="<?= base_url('/abrechnungen/' . $typ . '/exportPdf/' . $abrechnung['id']) ?>"
+                               class="btn btn-outline-vdst w-100">
+                                <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> PDF herunterladen
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
                     <div class="card">
                         <div class="card-header">
                             <strong><i class="bi bi-file-earmark-zip" aria-hidden="true"></i> ZIP-Archiv</strong>

@@ -341,6 +341,35 @@ abstract class AbstractAbrechnungenController extends BaseController
     }
 
     /**
+     * PDF-Rechnung der Abrechnung (Issue #83) — VDSt-gebrandetes Pendant zum
+     * Excel-Export, das diesen bewusst ERGÄNZT (Excel/ZIP bleiben).
+     */
+    public function exportPdf($id)
+    {
+        $abrechnung = $this->abrechnungModel->find($id);
+
+        if (!$abrechnung) {
+            return redirect()->back()->with('error', 'Abrechnung nicht gefunden.');
+        }
+
+        $belege = $this->abrechnungModel->getBelege($id);
+
+        try {
+            $monatsName = $this->abrechnungModel->getMonatName($abrechnung['abrechnungsmonat']);
+            $pdf = (new \App\Libraries\RechnungPdf())
+                ->abrechnung($this->typName, $monatsName, $abrechnung, $belege, date('Y-m-d'));
+
+            $filename = strtoupper($this->typ) . '_Abrechnung_' . $abrechnung['abrechnungsmonat'] . '.pdf';
+
+            return $this->response->download($filename, $pdf);
+        } catch (\Throwable $e) {
+            log_message('error', 'Abrechnungs-PDF Fehler: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Fehler beim PDF-Export: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * ZIP-Download aller Belege einer Abrechnung (inkl. Excel)
      */
     public function downloadBelegeZip($id)

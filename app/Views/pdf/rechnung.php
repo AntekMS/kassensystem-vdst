@@ -4,11 +4,15 @@
  * App\Libraries\RechnungPdf für dompdf — kein Browser-View, daher bewusst
  * Standalone-HTML mit eigenem <style>-Block.
  *
- * $typ: 'einzel' | 'uebersicht' | 'coleur_bund' | 'inventur'
+ * $typ: 'einzel' | 'uebersicht' | 'coleur_bund' | 'inventur' | 'abrechnung'
  */
 $datumAnzeige = date('d.m.Y', strtotime($datum));
 $kassenwart = trim((string) env('vdst.kassenwart_name', ''));
-$kopfzusatz = $typ === 'inventur' ? 'Inventur' : 'Getränkeabrechnung';
+$kopfzusatz = match ($typ) {
+    'inventur' => 'Inventur',
+    'abrechnung' => 'Abrechnung',
+    default => 'Getränkeabrechnung',
+};
 
 // Getränkedetails (Issue #63): $positionen ist bereits durch
 // RechnungPdf::positionenFuer gegen den Betrag geprüft — hier nur noch rendern.
@@ -208,6 +212,56 @@ $formatiereAnzahl = static function ($anzahl): string {
 
     <p class="hinweis">
         Bitte die Beträge zeitnah überweisen oder direkt beim Kassenwart begleichen.
+    </p>
+
+<?php elseif ($typ === 'abrechnung'): ?>
+
+    <h1><?= esc($typ_name) ?>-Abrechnung <?= esc($monats_name) ?></h1>
+    <div class="untertitel"><?= esc($titel !== '' ? $titel : 'Monatsabrechnung') ?></div>
+
+    <?php if (trim($begruendung) !== ''): ?>
+        <p class="untertitel"><strong>Begründung:</strong> <?= nl2br(esc($begruendung)) ?></p>
+    <?php endif; ?>
+
+    <table class="posten">
+        <thead>
+            <tr>
+                <th>Beschreibung</th>
+                <th>Datum</th>
+                <th>Beleg-Nr.</th>
+                <th class="betrag-spalte">Betrag</th>
+                <th>Bezugsquelle</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($belege as $beleg): ?>
+                <tr>
+                    <td><?= esc($beleg['beschreibung'] ?? '') ?></td>
+                    <td><?= esc(!empty($beleg['rechnungsdatum']) ? date('d.m.Y', strtotime($beleg['rechnungsdatum'])) : '') ?></td>
+                    <td><?= esc($beleg['belegnummer'] ?? '') ?></td>
+                    <td class="betrag-spalte"><?= esc(formatiere_betrag((float) ($beleg['betrag'] ?? 0))) ?></td>
+                    <td><?= esc(!empty($beleg['lieferant']) ? $beleg['lieferant'] : 'Kassenwart') ?></td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if ($belege === []): ?>
+                <tr><td colspan="5">Keine Belege in dieser Abrechnung.</td></tr>
+            <?php endif; ?>
+            <tr class="summe">
+                <td colspan="3">Gesamtsumme</td>
+                <td class="betrag-spalte"><?= esc(formatiere_betrag((float) $gesamtsumme)) ?></td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="betrag-kasten">
+        <div class="label">Gesamtsumme der Abrechnung</div>
+        <div class="betrag"><?= esc(formatiere_betrag((float) $gesamtsumme)) ?></div>
+    </div>
+
+    <p class="hinweis">
+        Monatsabrechnung des VDSt zu Erlangen. Die zugehörigen Original-Belege
+        liegen dem Kassenwart vor und können separat als ZIP-Archiv abgerufen werden.
     </p>
 
 <?php elseif ($typ === 'inventur'): ?>

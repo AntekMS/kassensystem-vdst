@@ -103,6 +103,30 @@ final class RechnungPdfTest extends CIUnitTestCase
         $this->assertStringStartsWith('%PDF-', $bytes);
     }
 
+    public function testAbrechnungLiefertPdf(): void
+    {
+        // Issue #83: AH²-Monatsabrechnung als PDF-Rechnung (Belegliste + Summe).
+        $abrechnung = ['titel' => 'AH² Abrechnung Juni 2024', 'gesamtsumme' => 42.5];
+        $belege = [
+            ['beschreibung' => 'Getränke Café Müller', 'rechnungsdatum' => '2024-06-15', 'belegnummer' => '2024-06-15-001', 'betrag' => 30.0, 'lieferant' => 'Café Müller'],
+            ['beschreibung' => 'Büromaterial', 'rechnungsdatum' => '2024-06-20', 'belegnummer' => '2024-06-20-002', 'betrag' => 12.5, 'lieferant' => ''],
+        ];
+
+        $bytes = $this->pdf->abrechnung('AH²', 'Juni 2024', $abrechnung, $belege, '2024-06-30');
+
+        $this->assertStringStartsWith('%PDF-', $bytes);
+    }
+
+    public function testAbrechnungMitBegruendungUndOhneBelegeLiefertPdf(): void
+    {
+        // HV-Abrechnung mit Freitext-Begründung, leere Belegliste (Randfall).
+        $abrechnung = ['titel' => 'HV Abrechnung März 2026', 'gesamtsumme' => 0.0, 'begruendung' => 'Renovierung Küche – Anteil Heimverein.'];
+
+        $bytes = $this->pdf->abrechnung('HV', 'März 2026', $abrechnung, [], '2026-03-31');
+
+        $this->assertStringStartsWith('%PDF-', $bytes);
+    }
+
     public function testInventurLiefertPdf(): void
     {
         $kontostaende = [

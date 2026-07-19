@@ -162,7 +162,11 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   `js-autosubmit` (Filter-Selects) bzw. `js-betrag-format` (Betrag-Eingaben) — solche
   Handler NICHT wieder inline in Views duplizieren.
 - **Exporte**: `app/Helpers/ExcelHelper.php` + `ZipHelper.php`. Pro Bereich genau
-  2 Formate: Excel und Komplett-ZIP (Excel + Beleg-Dateien). Ausnahme Schulden:
+  2 Formate: Excel und Komplett-ZIP (Excel + Beleg-Dateien). Abrechnungen haben
+  seit Issue #83 zusätzlich einen **PDF-Rechnungs-Export** (`abrechnungen/{typ}/exportPdf/{id}`
+  → `AbstractAbrechnungenController::exportPdf`, `RechnungPdf::abrechnung`, s.u.
+  „PDF-Rechnungen") — bewusst ERGÄNZEND (Excel/ZIP bleiben), als weiterer Eintrag
+  im Export-Dropdown (index) bzw. dritte Export-Karte (preview). Ausnahme Schulden:
   die Inventur (`ExcelHelper::erstelleInventur`, ein Sheet "Kassenwart – Aktueller
   Bestand": Kassenbestand + Forderungen − Verbindlichkeiten) hat statt des ZIPs
   einen PDF-Export (Issue #70, `schulden/export/inventur-pdf`,
@@ -334,11 +338,17 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   haben keine Positionen → PDF zeigt wie bisher nur den Betrag.
   Tests: `SchuldPositionTest`, Positions-Fälle in
   `GetraenkeImportParserTest`/`RechnungPdfTest`/`GetraenkeImportAufloeserTest`.
-- **PDF-Rechnungen** (Issue #35, seit #70 auch Inventur): `app/Libraries/RechnungPdf.php`
-  (dompdf) rendert das geteilte Template `app/Views/pdf/rechnung.php` (gesteuert über
-  `$typ`: `einzel`|`uebersicht`|`coleur_bund`|`inventur`; Standalone-HTML, eigener
+- **PDF-Rechnungen** (Issue #35, seit #70 auch Inventur, seit #83 auch Abrechnung):
+  `app/Libraries/RechnungPdf.php` (dompdf) rendert das geteilte Template
+  `app/Views/pdf/rechnung.php` (gesteuert über `$typ`:
+  `einzel`|`uebersicht`|`coleur_bund`|`inventur`|`abrechnung`; Standalone-HTML, eigener
   `<style>` hier ok). `einzel` und `coleur_bund` nehmen optional Getränkedetails
   (`$positionen`, Issue #63 — s.o., inkl. Summen-Guard `positionenFuer()`).
+  `abrechnung` (Issue #83, `RechnungPdf::abrechnung($typName,$monatsName,$abrechnung,$belege,$datum)`)
+  ist das VDSt-gebrandete PDF-Pendant zum Abrechnungs-Excel — Belegliste
+  (Beschreibung/Datum/Beleg-Nr./Betrag/Bezugsquelle) + Gesamtsumme, bei HV
+  zusätzlich die Freitext-`begruendung`; **ERGÄNZT** den Excel-/ZIP-Export
+  bewusst, ersetzt ihn NICHT.
   Branding: Logo `public/img/vdst-logo.svg` als Base64-Data-URI +
   Schwarz/Rot-Typografie. INVARIANTEN: `defaultFont 'DejaVu Sans'` + `loadHtml(...,
   'UTF-8')` (sonst kaputte Umlaute/€), `isRemoteEnabled=false`/`isPhpEnabled=false`,

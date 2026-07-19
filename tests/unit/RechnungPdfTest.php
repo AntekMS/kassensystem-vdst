@@ -51,6 +51,31 @@ final class RechnungPdfTest extends CIUnitTestCase
         $this->assertStringStartsWith('%PDF-', $bytes);
     }
 
+    public function testEinzelRechnungMitPositionenLiefertPdf(): void
+    {
+        // Getränkedetails (Issue #63): Positionssumme = Betrag → Tabelle wird gerendert
+        $bytes = $this->pdf->einzel('Müller', 'März 2026', 12.5, '2026-03-31', [
+            ['bezeichnung' => 'Biere', 'anzahl' => 5, 'einzelpreis' => 1.3, 'summe' => 6.5],
+            ['bezeichnung' => 'Spalter', 'anzahl' => 6, 'einzelpreis' => 1.0, 'summe' => 6.0],
+        ]);
+
+        $this->assertStringStartsWith('%PDF-', $bytes);
+    }
+
+    /**
+     * Der Guard der Getränkedetails: Positionen erscheinen nur, wenn ihre
+     * Summe den autoritativen Rechnungsbetrag trifft — sonst leere Liste
+     * (das Template fällt dann auf die reine Gesamtsumme zurück).
+     */
+    public function testPositionenFuerVerwirftUnpassendeSummen(): void
+    {
+        $positionen = [['bezeichnung' => 'Biere', 'anzahl' => 5, 'einzelpreis' => 1.3, 'summe' => 6.5]];
+
+        $this->assertSame($positionen, RechnungPdf::positionenFuer($positionen, 6.5));
+        $this->assertSame([], RechnungPdf::positionenFuer($positionen, 12.5));
+        $this->assertSame([], RechnungPdf::positionenFuer([], 0.0));
+    }
+
     public function testUebersichtLiefertPdf(): void
     {
         $bytes = $this->pdf->uebersicht('November 2025', [
@@ -64,6 +89,16 @@ final class RechnungPdfTest extends CIUnitTestCase
     public function testColeurBundLiefertPdf(): void
     {
         $bytes = $this->pdf->coleurBund('Coleur', 'November 2025', 47.8, '2025-11-30');
+
+        $this->assertStringStartsWith('%PDF-', $bytes);
+    }
+
+    public function testColeurBundMitPositionenLiefertPdf(): void
+    {
+        $bytes = $this->pdf->coleurBund('Bund', 'November 2025', 33.0, '2025-11-30', [
+            ['bezeichnung' => 'Biere', 'anzahl' => 10, 'einzelpreis' => 1.3, 'summe' => 13.0],
+            ['bezeichnung' => 'Turmherren', 'anzahl' => 40, 'einzelpreis' => 0.5, 'summe' => 20.0],
+        ]);
 
         $this->assertStringStartsWith('%PDF-', $bytes);
     }

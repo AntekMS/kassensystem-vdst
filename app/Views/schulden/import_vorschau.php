@@ -117,6 +117,14 @@
                                                 <td data-label="Nachname (Excel)">
                                                     <input type="hidden" name="nachname[<?= (int) $i ?>]" value="<?= esc($person['roh'], 'attr') ?>">
                                                     <strong><?= esc($person['roh']) ?></strong>
+                                                    <?php if (!empty($person['positionen'])): ?>
+                                                        <div class="small text-muted">
+                                                            <?= esc(implode(', ', array_map(
+                                                                static fn ($p) => rtrim(rtrim(number_format((float) $p['anzahl'], 2, ',', '.'), '0'), ',') . '× ' . $p['bezeichnung'],
+                                                                $person['positionen']
+                                                            ))) ?>
+                                                        </div>
+                                                    <?php endif; ?>
                                                 </td>
                                                 <td data-label="Betrag" class="text-end"><?= formatiere_betrag($person['betrag']) ?></td>
                                                 <td data-label="Zuordnung">

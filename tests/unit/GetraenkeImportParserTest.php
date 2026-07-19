@@ -152,7 +152,14 @@ final class GetraenkeImportParserTest extends CIUnitTestCase
             14 => [10 => 33.0000001],
         ];
 
-        $this->assertSame(['coleur' => 99.7, 'bund' => 33.0], $this->parser->parseColeurBund($zeilen));
+        $ergebnis = $this->parser->parseColeurBund($zeilen);
+
+        $this->assertSame(99.7, $ergebnis['coleur']);
+        $this->assertSame(33.0, $ergebnis['bund']);
+        // Ohne Preis-/Mengenzeilen trifft keine Positionssumme die Blocksumme
+        // → best-effort leer, die Summen bleiben trotzdem nutzbar.
+        $this->assertSame([], $ergebnis['coleur_positionen']);
+        $this->assertSame([], $ergebnis['bund_positionen']);
     }
 
     public function testFindetBloeckeAnAnderenPositionen(): void
@@ -166,13 +173,16 @@ final class GetraenkeImportParserTest extends CIUnitTestCase
             11 => [3 => 7],
         ];
 
-        $this->assertSame(['coleur' => 12.5, 'bund' => 7.0], $this->parser->parseColeurBund($zeilen));
+        $ergebnis = $this->parser->parseColeurBund($zeilen);
+
+        $this->assertSame(12.5, $ergebnis['coleur']);
+        $this->assertSame(7.0, $ergebnis['bund']);
     }
 
     public function testColeurBundNullWennLabelOderWertFehlt(): void
     {
         $this->assertSame(
-            ['coleur' => null, 'bund' => null],
+            ['coleur' => null, 'bund' => null, 'coleur_positionen' => [], 'bund_positionen' => []],
             $this->parser->parseColeurBund([1 => [1 => 'irgendwas']])
         );
 
@@ -185,6 +195,128 @@ final class GetraenkeImportParserTest extends CIUnitTestCase
         $ergebnis = $this->parser->parseColeurBund($zeilen);
 
         $this->assertNull($ergebnis['coleur']);
+    }
+
+    // ==================== GETRÄNKEDETAILS (Issue #63, #59b) ====================
+
+    /**
+     * Personen-Sheet mit Getränkespalten wie in der echten Datei:
+     * Namen in Zeile 1 (Spalten 2 bis vor "Getränke"), Preise in Zeile 2,
+     * Mengen je Person; "Internet*" hat als Zeile-2-Wert den Umlage-Topf (90),
+     * der Stückpreis ergibt sich aus dem Rest Betrag − Getränkesumme.
+     */
+    private function personenZeilenMitGetraenken(): array
+    {
+        return [
+            1 => [1 => '**********', 2 => 'Biere', 3 => 'Spalter', 4 => 'Turmherren', 10 => 'Getränke', 11 => 'Internet*', 12 => 'Ausstehend', 13 => 'Gesamt'],
+            2 => [1 => '**********', 2 => 1.3, 3 => 1, 4 => 0.5, 11 => 90],
+            3 => [1 => 'Sobkowiak', 2 => 2, 3 => 11, 4 => 0, 10 => 13.6, 11 => 1, 13 => 22.6],
+            4 => [1 => 'Achtzehn', 4 => 2, 10 => 1, 13 => 1],
+            5 => [1 => '**********'],
+        ];
+    }
+
+    public function testParstGetraenkePositionenJePerson(): void
+    {
+        $personen = $this->parser->parsePersonen($this->personenZeilenMitGetraenken());
+
+        // Sobkowiak: 2×1,30 + 11×1,00 = 13,60 Getränke + 9,00 Internet-Rest;
+        // Mengen 0 (Turmherren) tauchen nicht auf.
+        $this->assertSame([
+            ['bezeichnung' => 'Biere', 'anzahl' => 2.0, 'einzelpreis' => 1.3, 'summe' => 2.6],
+            ['bezeichnung' => 'Spalter', 'anzahl' => 11.0, 'einzelpreis' => 1.0, 'summe' => 11.0],
+            ['bezeichnung' => 'Internet', 'anzahl' => 1.0, 'einzelpreis' => 9.0, 'summe' => 9.0],
+        ], $personen[0]['positionen']);
+
+        // Achtzehn: nur Getränke, kein Internet-Rest.
+        $this->assertSame(
+            [['bezeichnung' => 'Turmherren', 'anzahl' => 2.0, 'einzelpreis' => 0.5, 'summe' => 1.0]],
+            $personen[1]['positionen']
+        );
+    }
+
+    public function testPositionenAuchBeiAbgezogenemAusstehend(): void
+    {
+        $zeilen = $this->personenZeilenMitGetraenken();
+        // Sobkowiak: 5,00 Altbestand → Betrag 22,60 bleibt, Positionen passen weiter.
+        $zeilen[3][12] = 5;
+        $zeilen[3][13] = 27.6;
+
+        $personen = $this->parser->parsePersonen($zeilen);
+
+        $this->assertSame(22.6, $personen[0]['betrag']);
+        $this->assertCount(3, $personen[0]['positionen']);
+    }
+
+    public function testPositionenLeerWennGetraenkeSummeNichtPasst(): void
+    {
+        $zeilen = $this->personenZeilenMitGetraenken();
+        // Gecachte Getränkesumme passt nicht zu den Mengen (editierte Datei)
+        $zeilen[3][10] = 99;
+
+        $personen = $this->parser->parsePersonen($zeilen);
+
+        $this->assertSame([], $personen[0]['positionen']);
+        $this->assertSame(22.6, $personen[0]['betrag']);
+    }
+
+    public function testPositionenLeerBeiRestOhneInternet(): void
+    {
+        $zeilen = $this->personenZeilenMitGetraenken();
+        // Rest von 9,00 €, aber keine gezählte Internet-Pauschale → unerklärbar
+        unset($zeilen[3][11]);
+
+        $personen = $this->parser->parsePersonen($zeilen);
+
+        $this->assertSame([], $personen[0]['positionen']);
+    }
+
+    public function testPositionenLeerOhneGetraenkeSpalte(): void
+    {
+        // Altes/fremdes Layout ohne "Getränke"-Summenspalte → keine Details,
+        // aber die Beträge funktionieren unverändert.
+        $personen = $this->parser->parsePersonen([
+            1 => [1 => 'X', 5 => 'Ausstehend', 6 => 'Gesamt'],
+            3 => [1 => 'Müller', 6 => 10],
+            4 => [1 => '***'],
+        ]);
+
+        $this->assertSame([], $personen[0]['positionen']);
+        $this->assertSame(10.0, $personen[0]['betrag']);
+    }
+
+    public function testColeurBundMitPositionen(): void
+    {
+        // Block wie in der echten Datei: Header (Label+1), Preise (+2), Mengen (+3)
+        $zeilen = [
+            3 => [3 => 'Coleur:'],
+            4 => [4 => 'Biere', 5 => 'Spalter', 6 => 'Gesamt:'],
+            5 => [4 => 1.3, 5 => 1],
+            6 => [4 => 10, 5 => 5, 6 => 18],
+        ];
+
+        $ergebnis = $this->parser->parseColeurBund($zeilen);
+
+        $this->assertSame(18.0, $ergebnis['coleur']);
+        $this->assertSame([
+            ['bezeichnung' => 'Biere', 'anzahl' => 10.0, 'einzelpreis' => 1.3, 'summe' => 13.0],
+            ['bezeichnung' => 'Spalter', 'anzahl' => 5.0, 'einzelpreis' => 1.0, 'summe' => 5.0],
+        ], $ergebnis['coleur_positionen']);
+    }
+
+    public function testColeurBundPositionenLeerBeiSummenabweichung(): void
+    {
+        $zeilen = [
+            3 => [3 => 'Coleur:'],
+            4 => [4 => 'Biere', 6 => 'Gesamt:'],
+            5 => [4 => 1.3],
+            6 => [4 => 10, 6 => 99],
+        ];
+
+        $ergebnis = $this->parser->parseColeurBund($zeilen);
+
+        $this->assertSame(99.0, $ergebnis['coleur']);
+        $this->assertSame([], $ergebnis['coleur_positionen']);
     }
 
     public function testTrennzeilenErkennung(): void

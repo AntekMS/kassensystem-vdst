@@ -336,7 +336,7 @@ abstract class AbstractAbrechnungenController extends BaseController
         } catch (\Exception $e) {
             log_message('error', 'Excel-Export Fehler: ' . $e->getMessage());
 
-            return redirect()->back()->with('error', 'Fehler beim Excel-Export: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Fehler beim Excel-Export. Details stehen im Fehler-Log.');
         }
     }
 
@@ -361,11 +361,12 @@ abstract class AbstractAbrechnungenController extends BaseController
 
             $filename = strtoupper($this->typ) . '_Abrechnung_' . $abrechnung['abrechnungsmonat'] . '.pdf';
 
-            return $this->response->download($filename, $pdf);
+            return $this->response->download($filename, $pdf)
+                ->setContentType('application/pdf');
         } catch (\Throwable $e) {
             log_message('error', 'Abrechnungs-PDF Fehler: ' . $e->getMessage());
 
-            return redirect()->back()->with('error', 'Fehler beim PDF-Export: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Fehler beim PDF-Export. Details stehen im Fehler-Log.');
         }
     }
 
@@ -403,7 +404,7 @@ abstract class AbstractAbrechnungenController extends BaseController
         } catch (\Exception $e) {
             log_message('error', 'ZIP-Download Fehler: ' . $e->getMessage());
 
-            return redirect()->back()->with('error', 'Fehler beim ZIP-Download: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Fehler beim ZIP-Download. Details stehen im Fehler-Log.');
         }
     }
 

@@ -1,0 +1,24 @@
+# Beleg-Dateien NIE direkt über den Webserver ausliefern.
+#
+# DocumentRoot ist public/ (siehe Dockerfile), und die public/.htaccess-
+# Rewrite-Regel leitet nur NICHT existierende Dateien an index.php weiter
+# (RewriteCond %{REQUEST_FILENAME} !-f). Hochgeladene Belege sind echte
+# Dateien und würden sonst von Apache direkt — unter Umgehung des
+# AuthFilters — ausgeliefert. Belegnummern (JJJJ-MM-TT-NNN) sind rat-/
+# enumerierbar, damit wären Finanzbelege ohne Login abrufbar.
+#
+# Die App liest Beleg-Dateien ausschließlich serverseitig über die
+# authentifizierten Routen belege/download/{id} bzw. belege/preview/{id}
+# (FCPATH-basiert), nie über eine /uploads/-URL — dieses Deny bricht also
+# nichts.
+
+# Apache 2.4
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+
+# Apache 2.2 (Fallback)
+<IfModule !mod_authz_core.c>
+    Order deny,allow
+    Deny from all
+</IfModule>

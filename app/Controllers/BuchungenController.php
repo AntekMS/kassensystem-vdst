@@ -115,7 +115,7 @@ class BuchungenController extends BaseController
                 } catch (\Exception $e) {
                     log_message('error', 'Beleg-Upload bei Buchung fehlgeschlagen: ' . $e->getMessage());
 
-                    return redirect()->back()->withInput()->with('error', 'Fehler beim Beleg-Upload: ' . $e->getMessage());
+                    return redirect()->back()->withInput()->with('error', 'Fehler beim Beleg-Upload. Details stehen im Fehler-Log.');
                 }
             }
         } elseif ($belegOption === 'beleg_waehlen') {
@@ -254,7 +254,7 @@ class BuchungenController extends BaseController
         } catch (\Exception $e) {
             log_message('error', 'Excel-Export Fehler: ' . $e->getMessage());
 
-            return redirect()->back()->with('error', 'Fehler beim Excel-Export: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Fehler beim Excel-Export. Details stehen im Fehler-Log.');
         }
     }
 
@@ -333,7 +333,7 @@ class BuchungenController extends BaseController
         } catch (\Exception $e) {
             log_message('error', 'Kassenbuch ZIP-Export Fehler: ' . $e->getMessage());
 
-            return redirect()->back()->with('error', 'Fehler beim Erstellen der ZIP-Datei: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Fehler beim Erstellen der ZIP-Datei. Details stehen im Fehler-Log.');
         }
     }
 

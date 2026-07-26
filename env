@@ -23,7 +23,12 @@
 # app.baseURL = ''
 # If you have trouble with `.`, you could also use `_`.
 # app_baseURL = ''
-# app.forceGlobalSecureRequests = false
+# HTTPS erzwingen (Produktion). NUR aktivieren, wenn die App HTTPS zuverlässig
+# erkennt — hinter einem TLS-terminierenden Proxy dazu app.proxyIPs setzen und
+# sicherstellen, dass X-Forwarded-Proto ankommt, sonst drohen Redirect-Loops.
+# Das Secure-Flag der Cookies wird in Produktion bereits automatisch gesetzt
+# (Config\Cookie::$secure via ENVIRONMENT).
+# app.forceGlobalSecureRequests = true
 # app.CSPEnabled = false
 
 #--------------------------------------------------------------------

@@ -216,6 +216,16 @@ $formatiereAnzahl = static function ($anzahl): string {
 
 <?php elseif ($typ === 'abrechnung'): ?>
 
+    <?php
+        // Angezeigte Summe aus den gelisteten Belegzeilen ableiten, damit die
+        // Rechnung nie widersprüchlich ist (Zeilen ergäben X, „Gesamtsumme"
+        // aber X'). Deckt sich mit der laufend neu berechneten gesamtsumme,
+        // solange diese konsistent ist — bleibt es aber auch, wenn nicht.
+        $belegSumme = array_sum(array_map(
+            static fn ($beleg): float => (float) ($beleg['betrag'] ?? 0),
+            $belege
+        ));
+    ?>
     <h1><?= esc($typ_name) ?>-Abrechnung <?= esc($monats_name) ?></h1>
     <div class="untertitel"><?= esc($titel !== '' ? $titel : 'Monatsabrechnung') ?></div>
 
@@ -235,9 +245,10 @@ $formatiereAnzahl = static function ($anzahl): string {
         </thead>
         <tbody>
             <?php foreach ($belege as $beleg): ?>
+                <?php $belegTs = !empty($beleg['rechnungsdatum']) ? strtotime($beleg['rechnungsdatum']) : false; ?>
                 <tr>
                     <td><?= esc($beleg['beschreibung'] ?? '') ?></td>
-                    <td><?= esc(!empty($beleg['rechnungsdatum']) ? date('d.m.Y', strtotime($beleg['rechnungsdatum'])) : '') ?></td>
+                    <td><?= esc($belegTs !== false ? date('d.m.Y', $belegTs) : '') ?></td>
                     <td><?= esc($beleg['belegnummer'] ?? '') ?></td>
                     <td class="betrag-spalte"><?= esc(formatiere_betrag((float) ($beleg['betrag'] ?? 0))) ?></td>
                     <td><?= esc(!empty($beleg['lieferant']) ? $beleg['lieferant'] : 'Kassenwart') ?></td>
@@ -248,7 +259,7 @@ $formatiereAnzahl = static function ($anzahl): string {
             <?php endif; ?>
             <tr class="summe">
                 <td colspan="3">Gesamtsumme</td>
-                <td class="betrag-spalte"><?= esc(formatiere_betrag((float) $gesamtsumme)) ?></td>
+                <td class="betrag-spalte"><?= esc(formatiere_betrag($belegSumme)) ?></td>
                 <td></td>
             </tr>
         </tbody>
@@ -256,7 +267,7 @@ $formatiereAnzahl = static function ($anzahl): string {
 
     <div class="betrag-kasten">
         <div class="label">Gesamtsumme der Abrechnung</div>
-        <div class="betrag"><?= esc(formatiere_betrag((float) $gesamtsumme)) ?></div>
+        <div class="betrag"><?= esc(formatiere_betrag($belegSumme)) ?></div>
     </div>
 
     <p class="hinweis">

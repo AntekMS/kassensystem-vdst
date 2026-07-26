@@ -135,8 +135,11 @@ composer.phar
 # VDSt Kassensystem
 #-------------------------
 
-# Beleg-Uploads (Laufzeitdaten, siehe scripts/backup.sh)
-public/uploads/
+# Beleg-Uploads (Laufzeitdaten, siehe scripts/backup.sh) — Inhalt ignorieren,
+# aber die .htaccess-Zugriffssperre versionieren (muss beim Deploy vorhanden
+# sein, siehe CLAUDE.md „Beleg-Dateien NIE direkt ausliefern").
+public/uploads/*
+!public/uploads/.htaccess
 
 # Claude Code Worktrees / lokale Tooling-Dateien
 .claude/

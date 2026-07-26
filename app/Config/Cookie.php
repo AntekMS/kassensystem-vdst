@@ -53,8 +53,13 @@ class Cookie extends BaseConfig
      * --------------------------------------------------------------------------
      *
      * Cookie will only be set if a secure HTTPS connection exists.
+     *
+     * In Produktion (HTTPS) wird das Secure-Flag gesetzt, damit Session- und
+     * CSRF-Cookie nie über eine unverschlüsselte Verbindung mitgehen; lokal
+     * (http://localhost) bleibt es aus, sonst käme die Anmeldung nicht durch.
+     * Gleiche ENVIRONMENT-Gate-Idee wie Config\Security::$redirect.
      */
-    public bool $secure = false;
+    public bool $secure = (ENVIRONMENT === 'production');
 
     /**
      * --------------------------------------------------------------------------

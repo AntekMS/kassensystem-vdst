@@ -448,6 +448,16 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
 - **Upload-Pfade** sind relativ zu FCPATH (= `public/`): `uploads/belege/YYYY/MM/`.
   NIE `public/` voranstellen — das war ein historischer Bug (Dateien in
   `public/public/…`), den `2026-07-08-000001_FixUploadPfade` migriert hat.
+- **Beleg-Dateien NIE direkt ausliefern**: `public/uploads/.htaccess` setzt
+  `Require all denied`. DocumentRoot ist `public/`, und die `public/.htaccess`
+  leitet nur NICHT existierende Dateien an `index.php` (`RewriteCond !-f`) —
+  echte Upload-Dateien würde Apache sonst am AuthFilter vorbei direkt
+  ausliefern (Belegnummern `JJJJ-MM-TT-NNN` sind ratbar → Finanzbelege ohne
+  Login abrufbar). Die App liest Beleg-Dateien ausschließlich serverseitig
+  (FCPATH-basiert) über die authentifizierten Routen `belege/download/{id}`
+  und `belege/preview/{id}` — das Deny bricht also nichts. Achtung: `.htaccess`
+  greift nur bei Apache (`AllowOverride All`); hinter nginx separat
+  `location ^~ /uploads/ { deny all; }` setzen.
 - **Belegnummern**: `YYYY-MM-DD-NNN` aus dem Rechnungsdatum; Dateiname = Belegnummer.
 - **Beträge**: DECIMAL(10,2) in der DB; Eingaben werden vor der Validierung mit
   `normalisiere_betrag()` normalisiert. Deutsches Komma = Dezimaltrenner (`10,50`→`10.50`);
@@ -551,6 +561,16 @@ Tabelle `system_einstellungen` (Konfiguration kommt aus `.env`).
 
 ## Deployment-Hinweise
 - Produktiv: `CI_ENVIRONMENT = production` und starkes `vdst.master_password` in `.env`.
+- **HTTPS/Transport**: In Produktion setzt `Config\Cookie::$secure`
+  (`ENVIRONMENT === 'production'`) automatisch das Secure-Flag auf Session- und
+  CSRF-Cookie (Cookies gehen nie über http). HTTPS-Zwang (`app.forceGlobalSecureRequests`,
+  auskommentiert in `env`) bleibt bewusst manuell — hinter einem
+  TLS-terminierenden Proxy zuerst `app.proxyIPs` setzen und `X-Forwarded-Proto`
+  durchreichen, sonst Redirect-Loops.
+- **Beleg-Dateien**: `public/uploads/.htaccess` (`Require all denied`) muss beim
+  Deploy vorhanden sein — schützt Finanzbelege vor direktem Abruf am AuthFilter
+  vorbei (s. Invariante „Beleg-Dateien NIE direkt ausliefern"). Bei nginx statt
+  Apache greift `.htaccess` NICHT → dort `location ^~ /uploads/ { deny all; }`.
 - Nach Code-Deploy: `php spark migrate` (vorher `./scripts/backup.sh` — sichert DB-Dump
   und `public/uploads/`; Cron-Setup und Recovery-Runbook in `docs/BACKUP.md`).
 - Docker-Passwörter überschreibbar via Umgebungsvariablen (`DB_PASS`,

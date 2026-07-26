@@ -498,7 +498,7 @@ class SchuldenController extends BaseController
         } catch (\Exception $e) {
             log_message('error', 'Inventur-Export Fehler: ' . $e->getMessage());
 
-            return redirect()->back()->with('error', 'Fehler beim Inventur-Export: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Fehler beim Inventur-Export. Details stehen im Fehler-Log.');
         }
     }
 
@@ -524,7 +524,7 @@ class SchuldenController extends BaseController
         } catch (\Exception $e) {
             log_message('error', 'Inventur-PDF-Export Fehler: ' . $e->getMessage());
 
-            return redirect()->back()->with('error', 'Fehler beim Inventur-PDF-Export: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Fehler beim Inventur-PDF-Export. Details stehen im Fehler-Log.');
         }
     }
 
@@ -612,6 +612,15 @@ class SchuldenController extends BaseController
             $ergebnis = (new GetraenkeRechnungImport())->parseDatei($tmpVerzeichnis . $tmpName);
         } catch (\Throwable $e) {
             @unlink($tmpVerzeichnis . $tmpName);
+
+            // Parser-Fehler (RuntimeException) sind bewusst nutzerlesbare
+            // Hinweise ("Sheet X fehlt …"); alles andere (Datei-Move, interne
+            // Fehler) nur generisch, Details ins Log.
+            if (!$e instanceof \RuntimeException) {
+                log_message('error', 'Getränke-Import Upload-Fehler: ' . $e->getMessage());
+
+                return redirect()->back()->withInput()->with('error', 'Die Datei konnte nicht verarbeitet werden. Details stehen im Fehler-Log.');
+            }
 
             return redirect()->back()->withInput()->with('error', $e->getMessage());
         }
@@ -967,7 +976,7 @@ class SchuldenController extends BaseController
         } catch (\Throwable $e) {
             log_message('error', 'Übersichts-PDF Fehler: ' . $e->getMessage());
 
-            return redirect()->back()->with('error', 'Fehler beim Erzeugen des PDFs: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Fehler beim Erzeugen des PDFs. Details stehen im Fehler-Log.');
         }
     }
 
@@ -1023,7 +1032,7 @@ class SchuldenController extends BaseController
             log_message('error', 'Einzelrechnungs-Vorschau Fehler (' . $forderung['person'] . '): ' . $e->getMessage());
 
             return redirect()->to('/schulden/import/versand?' . $this->versandQuery($monat, $monatBis))
-                ->with('error', 'Fehler beim Erzeugen des PDFs: ' . $e->getMessage());
+                ->with('error', 'Fehler beim Erzeugen des PDFs. Details stehen im Fehler-Log.');
         }
     }
 

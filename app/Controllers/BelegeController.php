@@ -123,7 +123,7 @@ class BelegeController extends BaseController
         } catch (\Exception $e) {
             log_message('error', 'Beleg-Upload Fehler: ' . $e->getMessage());
 
-            return redirect()->back()->withInput()->with('error', 'Fehler beim Speichern: ' . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'Fehler beim Speichern. Details stehen im Fehler-Log.');
         }
     }
 
@@ -290,7 +290,7 @@ class BelegeController extends BaseController
         } catch (\Exception $e) {
             log_message('error', 'Beleg-Löschung Fehler: ' . $e->getMessage());
 
-            return redirect()->to('/belege')->with('error', 'Ein Fehler ist beim Löschen aufgetreten: ' . $e->getMessage());
+            return redirect()->to('/belege')->with('error', 'Ein Fehler ist beim Löschen aufgetreten. Details stehen im Fehler-Log.');
         }
     }
 
@@ -341,6 +341,7 @@ class BelegeController extends BaseController
         $mimeType = $mimeTypes[$beleg['dateityp']] ?? 'application/octet-stream';
 
         return $this->response->setHeader('Content-Type', $mimeType)
+            ->setHeader('X-Content-Type-Options', 'nosniff')
             ->setBody(file_get_contents($dateipfad));
     }
 
@@ -364,7 +365,7 @@ class BelegeController extends BaseController
         } catch (\Exception $e) {
             log_message('error', 'Excel-Export Fehler: ' . $e->getMessage());
 
-            return redirect()->back()->with('error', 'Fehler beim Excel-Export: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Fehler beim Excel-Export. Details stehen im Fehler-Log.');
         }
     }
 
@@ -441,7 +442,7 @@ class BelegeController extends BaseController
         } catch (\Exception $e) {
             log_message('error', 'Belege ZIP-Export Fehler: ' . $e->getMessage());
 
-            return redirect()->back()->with('error', 'Fehler beim Erstellen der ZIP-Datei: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Fehler beim Erstellen der ZIP-Datei. Details stehen im Fehler-Log.');
         }
     }
 

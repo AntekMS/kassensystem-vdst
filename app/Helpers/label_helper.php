@@ -295,3 +295,27 @@ if (!function_exists('schaetze_archiv_groesse')) {
         return number_format($gesamtgroesse / (1024 * 1024), 1) . ' MB';
     }
 }
+
+if (!function_exists('bank_daten')) {
+    /**
+     * Vereins-Bankverbindung aus der .env (Issue #96) — EINZIGE Quelle für die
+     * `vdst.bank_*`-Keys, genutzt vom Mailtext (RechnungVersand::baueMail) und
+     * dem allgemeinen Rechnungs-PDF (RechnungPdf::allgemein). `konfiguriert`
+     * hängt allein an der IBAN: ohne IBAN kein Überweisungs-Block, weder in der
+     * Mail noch auf der Rechnung.
+     *
+     * @return array{iban: string, kontoinhaber: string, bic: string, bankname: string, konfiguriert: bool}
+     */
+    function bank_daten(): array
+    {
+        $iban = trim((string) env('vdst.bank_iban', ''));
+
+        return [
+            'iban' => $iban,
+            'kontoinhaber' => trim((string) env('vdst.bank_kontoinhaber', '')),
+            'bic' => trim((string) env('vdst.bank_bic', '')),
+            'bankname' => trim((string) env('vdst.bank_name', '')),
+            'konfiguriert' => $iban !== '',
+        ];
+    }
+}

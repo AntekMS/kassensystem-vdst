@@ -96,21 +96,18 @@ class RechnungVersand
 
         // Überweisungs-Absatz nur, wenn eine IBAN hinterlegt ist — ohne
         // Bank-Konfiguration bleibt es beim Lastschrift-Hinweis oben.
-        $iban = trim((string) env('vdst.bank_iban', ''));
+        // Bankdaten aus der gemeinsamen Quelle (bank_daten(), Issue #96).
+        $bank = bank_daten();
 
-        if ($iban !== '') {
-            $kontoinhaber = trim((string) env('vdst.bank_kontoinhaber', ''));
-            $bic = trim((string) env('vdst.bank_bic', ''));
-            $bankname = trim((string) env('vdst.bank_name', ''));
-
+        if ($bank['konfiguriert']) {
             // Jede Zeile nur bei nicht-leerem Wert — sonst entstünden "BIC: "
             // oder Leerzeilen in der Mail. Verwendungszweck hängt nicht an
             // BIC/Name und bleibt daher immer stehen.
             $bankZeilen = array_filter([
-                $kontoinhaber,
-                'IBAN: ' . $iban,
-                $bic !== '' ? 'BIC: ' . $bic : '',
-                $bankname,
+                $bank['kontoinhaber'],
+                'IBAN: ' . $bank['iban'],
+                $bank['bic'] !== '' ? 'BIC: ' . $bank['bic'] : '',
+                $bank['bankname'],
                 'Verwendungszweck: Getränke ' . $monatsName . ' + dein Name',
             ], static fn (string $zeile): bool => $zeile !== '');
 

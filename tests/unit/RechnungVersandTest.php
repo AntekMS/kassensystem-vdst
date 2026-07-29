@@ -28,6 +28,7 @@ final class RechnungVersandTest extends CIUnitTestCase
     private array $original = [];
     private array $originalEnv = [];
     private array $originalServer = [];
+    private array $originalGetenv = [];
 
     protected function setUp(): void
     {
@@ -40,12 +41,15 @@ final class RechnungVersandTest extends CIUnitTestCase
             'fromEmail' => $config->fromEmail,
         ];
 
-        // CI4 env() liest aus $_ENV UND $_SERVER — beide sichern/leeren, sonst
-        // leaken reale .env-Werte oder Test-Reihenfolge in baueMail().
+        // CI4 env() liest aus $_ENV, $_SERVER UND getenv() — alle drei
+        // sichern/leeren, sonst leaken reale .env-Werte (z.B. ein lokal
+        // gesetztes vdst.bank_iban) oder die Test-Reihenfolge in baueMail().
         foreach (self::ENV_KEYS as $key) {
             $this->originalEnv[$key] = $_ENV[$key] ?? null;
             $this->originalServer[$key] = $_SERVER[$key] ?? null;
+            $this->originalGetenv[$key] = getenv($key);
             unset($_ENV[$key], $_SERVER[$key]);
+            putenv($key);
         }
     }
 
@@ -67,6 +71,12 @@ final class RechnungVersandTest extends CIUnitTestCase
                 unset($_SERVER[$key]);
             } else {
                 $_SERVER[$key] = $this->originalServer[$key];
+            }
+
+            if ($this->originalGetenv[$key] === false) {
+                putenv($key);
+            } else {
+                putenv($key . '=' . $this->originalGetenv[$key]);
             }
         }
 

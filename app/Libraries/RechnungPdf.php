@@ -8,11 +8,14 @@ use Dompdf\Options;
 /**
  * RechnungPdf - VDSt-gebrandete Getränkerechnungen als PDF (Issue #35)
  *
- * Vier Varianten aus einem geteilten Template (app/Views/pdf/rechnung.php,
+ * Varianten aus einem geteilten Template (app/Views/pdf/rechnung.php,
  * gesteuert über $typ wie bei den geteilten abrechnungen/*-Views):
  * - coleurBund: Beleg-Rechnung für die AH-Abrechnung (Coleur bzw. Bund)
  * - uebersicht: allgemeine Monats-Übersicht aller Personen (Aushang)
- * - einzel: personalisierte Rechnung für den E-Mail-Versand
+ * - einzel: personalisierte Getränkerechnung für den E-Mail-Versand
+ * - allgemein: allgemeine Rechnung über beliebige offene Forderungen einer
+ *   Person inkl. Überweisungsdetails (Issue #96)
+ * - abrechnung: AH²-/HV-Monatsabrechnung (Issue #83)
  * - inventur: „Kassenwart – Aktueller Bestand" (Issue #70, PDF-Pendant zum
  *   Excel-Export)
  *
@@ -98,6 +101,39 @@ class RechnungPdf
     }
 
     /**
+     * Allgemeine Rechnung über beliebige offene Forderungen einer Person
+     * (Issue #96) — für Spenden/Einzelforderungen oder alle offenen Schulden.
+     * Anders als `einzel` (ein Getränke-Monatsbetrag) listet sie mehrere
+     * Positionen unterschiedlicher Herkunft und druckt die Überweisungsdetails
+     * an den Verein mit aufs PDF.
+     *
+     * Bewusst pure: die Bankdaten kommen als Parameter (aus `bank_daten()`)
+     * herein, kein env-Zugriff in der PDF-Schicht — so lässt sich die Rechnung
+     * im Muster mit Beispiel-Bankdaten unabhängig von der .env darstellen.
+     * Die Gesamtsumme leitet das Template aus den Positionen ab (kein
+     * Summen-Guard nötig, die Rechnung ist damit nie widersprüchlich).
+     *
+     * @param string $person   Anzeigename der Person
+     * @param array<array{beschreibung: string, datum?: string, betrag: float|string}> $positionen
+     * @param float  $betrag    Gesamtsumme (nur informativ; Template summiert die Zeilen)
+     * @param string $datum     Erstellungsdatum als 'Y-m-d'
+     * @param string $verwendungszweck Verwendungszweck für den Bank-Block
+     * @param array{iban: string, kontoinhaber: string, bic: string, bankname: string, konfiguriert: bool} $bank
+     */
+    public function allgemein(string $person, array $positionen, float $betrag, string $datum, string $verwendungszweck, array $bank): string
+    {
+        return $this->render([
+            'typ' => 'allgemein',
+            'person' => $person,
+            'positionen' => array_values($positionen),
+            'betrag' => $betrag,
+            'datum' => $datum,
+            'verwendungszweck' => $verwendungszweck,
+            'bank' => $bank,
+        ]);
+    }
+
+    /**
      * Guard der Getränkedetails (Issue #63): Positionen werden nur gerendert,
      * wenn ihre Summe den autoritativen Rechnungsbetrag trifft — eine
      * nachträglich editierte Forderung fällt so automatisch auf die reine
@@ -142,12 +178,31 @@ class RechnungPdf
     }
 
     /**
-     * ASCII-sicherer PDF-Dateiname: 'Getraenkerechnung' + Teile,
-     * Umlaute transliteriert, Leerzeichen als Unterstrich.
+     * ASCII-sicherer PDF-Dateiname der Getränkerechnung: 'Getraenkerechnung'
+     * + Teile, Umlaute transliteriert, Leerzeichen als Unterstrich.
      */
     public static function dateiname(string ...$teile): string
     {
-        $name = implode(' ', array_merge(['Getraenkerechnung'], $teile));
+        return self::slugDateiname('Getraenkerechnung', ...$teile);
+    }
+
+    /**
+     * ASCII-sicherer PDF-Dateiname der allgemeinen Rechnung (Issue #96):
+     * Präfix 'Rechnung' + Teile.
+     */
+    public static function rechnungDateiname(string ...$teile): string
+    {
+        return self::slugDateiname('Rechnung', ...$teile);
+    }
+
+    /**
+     * Gemeinsamer ASCII-Slugifier für die PDF-Dateinamen: Präfix + Teile,
+     * Umlaute transliteriert, Leerzeichen als Unterstrich, alles übrige
+     * Nicht-`[A-Za-z0-9_-]` entfernt.
+     */
+    private static function slugDateiname(string $praefix, string ...$teile): string
+    {
+        $name = implode(' ', array_merge([$praefix], $teile));
         $name = strtr($name, [
             'ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue', 'ß' => 'ss',
             'Ä' => 'Ae', 'Ö' => 'Oe', 'Ü' => 'Ue',

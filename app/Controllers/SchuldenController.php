@@ -1040,6 +1040,95 @@ class SchuldenController extends BaseController
         return SchuldPositionModel::fuegeZusammen($positionen);
     }
 
+    // ==================== ALLGEMEINE RECHNUNG (Issue #96) ====================
+
+    /**
+     * Allgemeine Rechnung über ALLE offenen Forderungen einer Person als
+     * Inline-PDF-Vorschau (Issue #96) — Spenden/Getränke/sonstige zusammen,
+     * inkl. Überweisungsdetails. Datenquelle ist ausschließlich die DB
+     * (getForderungenFuerPerson), der GET-Parameter ist nur der Personenname.
+     */
+    public function personRechnungPdf()
+    {
+        $person = trim((string) $this->request->getGet('name'));
+
+        if ($person === '') {
+            throw new \CodeIgniter\Exceptions\PageNotFoundException('Person nicht angegeben');
+        }
+
+        $zeilen = $this->schuldModel->getForderungenFuerPerson($person);
+
+        $positionen = array_map(static fn (array $zeile): array => [
+            'beschreibung' => (string) $zeile['grund'],
+            'datum' => (string) $zeile['datum'],
+            'betrag' => (float) $zeile['betrag'],
+        ], $zeilen);
+
+        $betrag = array_sum(array_column($positionen, 'betrag'));
+
+        if ($betrag < 0.01) {
+            return redirect()->to('/schulden/person?name=' . urlencode($person))
+                ->with('error', 'Für ' . $person . ' gibt es keine offenen Forderungen für eine Rechnung.');
+        }
+
+        return $this->baueRechnungAntwort($person, $positionen, (float) $betrag);
+    }
+
+    /**
+     * Rechnung über EINE einzelne Forderung als Inline-PDF-Vorschau (Issue #96)
+     * — für Spenden/Einzelforderungen; Betrag und Name kommen aus der DB-Zeile.
+     */
+    public function einzelRechnungPdf()
+    {
+        $id = (int) $this->request->getGet('id');
+        $zeile = $id > 0 ? $this->schuldModel->find($id) : null;
+
+        if ($zeile === null || $zeile['typ'] !== 'forderung') {
+            return redirect()->to('/schulden')
+                ->with('error', 'Forderung nicht gefunden.');
+        }
+
+        $positionen = [[
+            'beschreibung' => (string) $zeile['grund'],
+            'datum' => (string) $zeile['datum'],
+            'betrag' => (float) $zeile['betrag'],
+        ]];
+
+        return $this->baueRechnungAntwort((string) $zeile['person'], $positionen, (float) $zeile['betrag']);
+    }
+
+    /**
+     * Gemeinsamer Bauplan für die allgemeine Rechnung: Bankdaten aus der
+     * einzigen Quelle (bank_daten()), PDF über RechnungPdf::allgemein und
+     * Inline-Auslieferung (kein Download, kein Versand-Log) — Muster wie
+     * importEinzelPdf.
+     *
+     * @param list<array{beschreibung: string, datum: string, betrag: float}> $positionen
+     */
+    private function baueRechnungAntwort(string $person, array $positionen, float $betrag)
+    {
+        try {
+            $pdf = (new RechnungPdf())->allgemein(
+                $person,
+                $positionen,
+                $betrag,
+                date('Y-m-d'),
+                'Rechnung ' . $person,
+                bank_daten()
+            );
+
+            return $this->response
+                ->setContentType('application/pdf')
+                ->setHeader('Content-Disposition', 'inline; filename="' . RechnungPdf::rechnungDateiname($person) . '"')
+                ->setBody($pdf);
+        } catch (\Throwable $e) {
+            log_message('error', 'Allgemeine Rechnung Vorschau Fehler (' . $person . '): ' . $e->getMessage());
+
+            return redirect()->to('/schulden/person?name=' . urlencode($person))
+                ->with('error', 'Fehler beim Erzeugen des PDFs. Details stehen im Fehler-Log.');
+        }
+    }
+
     // ==================== PERSONEN-VERWALTUNG (Issue #61) ====================
 
     /**

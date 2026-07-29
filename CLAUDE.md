@@ -89,7 +89,10 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   (`persons` via `PersonModel`) und `getraenke_versand`, kein Ad-hoc-
   `mb_strtolower()` daneben; seit Issue #61 zentral über `PersonModel`),
   `person_anker()` (id-/fragment-sicherer Scroll-Anker `person-<slug>` auf Basis
-  von `person_schluessel()`, Issue #55).
+  von `person_schluessel()`, Issue #55), `bank_daten()` (Issue #96 — liest die
+  Vereins-Bankverbindung `vdst.bank_*` aus der `.env`; EINZIGE Quelle dieser Keys,
+  genutzt vom Mailtext `RechnungVersand::baueMail` UND dem allgemeinen Rechnungs-PDF;
+  `konfiguriert` hängt allein an der IBAN).
 - **Design-System** (Issue #47): `public/css/app.css` ist die EINZIGE Theme-Quelle,
   eingebunden von `layouts/main.php` und `auth/login.php` (Cache-Buster `?v=N` bei
   CSS-Änderungen hochzählen). Tokens: Vereinsfarben (`--vdst-rot` #dc143c nur als
@@ -181,11 +184,11 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   `schulden/export/inventur-pdf` (PDF).
 - **Muster/Vorlagen** (`/muster`, `MusterController`, View `muster/index.php`):
   eine Seite, die JEDES vom System erzeugte Dokument mit **fiktiven Platzhalter-
-  daten** (fest im Controller, KEINE DB-Zugriffe) vorführt — 6 PDFs inline im
+  daten** (fest im Controller, KEINE DB-Zugriffe) vorführt — 7 PDFs inline im
   neuen Tab (`MusterController::zeige` → `setHeader('Content-Disposition','inline')`,
   Muster aus `SchuldenController::importEinzelPdf`), 4 Excel als Download
   (`ExcelHelper::downloadExcel`, kein Inline). Ruft dieselben reinen Generatoren
-  wie der Echtbetrieb (`RechnungPdf::{einzel,uebersicht,coleurBund,abrechnung,
+  wie der Echtbetrieb (`RechnungPdf::{einzel,allgemein,uebersicht,coleurBund,abrechnung,
   inventur}`, `ExcelHelper::erstelle{Kassenbuch,AhAbrechnung,HvAbrechnung,Inventur}`)
   — keine zweite Rendering-Logik. Registry `MusterController::muster()` ist die
   EINZIGE Quelle für Index-Kacheln UND Dispatch (Slug-Whitelist → sonst 404).
@@ -352,10 +355,11 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   haben keine Positionen → PDF zeigt wie bisher nur den Betrag.
   Tests: `SchuldPositionTest`, Positions-Fälle in
   `GetraenkeImportParserTest`/`RechnungPdfTest`/`GetraenkeImportAufloeserTest`.
-- **PDF-Rechnungen** (Issue #35, seit #70 auch Inventur, seit #83 auch Abrechnung):
+- **PDF-Rechnungen** (Issue #35, seit #70 auch Inventur, seit #83 auch Abrechnung,
+  seit #96 auch allgemeine Rechnung):
   `app/Libraries/RechnungPdf.php` (dompdf) rendert das geteilte Template
   `app/Views/pdf/rechnung.php` (gesteuert über `$typ`:
-  `einzel`|`uebersicht`|`coleur_bund`|`inventur`|`abrechnung`; Standalone-HTML, eigener
+  `einzel`|`allgemein`|`uebersicht`|`coleur_bund`|`inventur`|`abrechnung`; Standalone-HTML, eigener
   `<style>` hier ok). `einzel` und `coleur_bund` nehmen optional Getränkedetails
   (`$positionen`, Issue #63 — s.o., inkl. Summen-Guard `positionenFuer()`).
   `abrechnung` (Issue #83, `RechnungPdf::abrechnung($typName,$monatsName,$abrechnung,$belege,$datum)`)
@@ -363,13 +367,42 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   (Beschreibung/Datum/Beleg-Nr./Betrag/Bezugsquelle) + Gesamtsumme, bei HV
   zusätzlich die Freitext-`begruendung`; **ERGÄNZT** den Excel-/ZIP-Export
   bewusst, ersetzt ihn NICHT.
+  `allgemein` (Issue #96, `RechnungPdf::allgemein($person,$positionen,$betrag,$datum,$verwendungszweck,$bank)`)
+  ist die allgemeine Rechnung über beliebige offene Forderungen einer Person
+  (Spenden/Schulden, s.u. „Allgemeine Rechnung") — Positionsliste
+  (Beschreibung/Datum/Betrag) + Gesamtsumme (im Template aus den Positionen
+  abgeleitet, KEIN Summen-Guard) + **Überweisungs-Block** (IBAN/Kontoinhaber/BIC/
+  Bankname/Verwendungszweck, jede Zeile nur bei nicht-leerem Wert, gleiches Muster
+  wie `RechnungVersand::baueMail`). Bewusst PURE: `$bank` kommt als Parameter
+  (aus `bank_daten()`), kein env-Zugriff in der PDF-Schicht → im Muster mit
+  Beispiel-Bankdaten unabhängig von der `.env` darstellbar.
   Branding: Logo `public/img/vdst-logo.svg` als Base64-Data-URI +
   Schwarz/Rot-Typografie. INVARIANTEN: `defaultFont 'DejaVu Sans'` + `loadHtml(...,
   'UTF-8')` (sonst kaputte Umlaute/€), `isRemoteEnabled=false`/`isPhpEnabled=false`,
   Font-Cache/TempDir auf `WRITEPATH.'cache/'` (vendor/ evtl. nicht beschreibbar).
-  Dateinamen über `RechnungPdf::dateiname()` (ASCII-Slug, Präfix „Getraenkerechnung")
-  bzw. `RechnungPdf::inventurDateiname()` (Inventur, Präfix „Inventur" analog zum
-  Excel-Dateinamen). Test: `tests/unit/RechnungPdfTest.php`.
+  Dateinamen über `RechnungPdf::dateiname()` (ASCII-Slug, Präfix „Getraenkerechnung"),
+  `RechnungPdf::rechnungDateiname()` (allgemeine Rechnung, Präfix „Rechnung") bzw.
+  `RechnungPdf::inventurDateiname()` (Inventur, Präfix „Inventur" analog zum
+  Excel-Dateinamen) — alle drei über den gemeinsamen privaten Slugifier
+  `slugDateiname()`. Test: `tests/unit/RechnungPdfTest.php`.
+- **Allgemeine Rechnung** (Issue #96): Rechnung über beliebige offene Forderungen
+  einer Person (Spenden/Einzelforderungen bis „alle offenen Schulden") inkl.
+  Überweisungsdetails — ZWEI Inline-PDF-Vorschau-Endpoints (kein Versand, kein
+  Log; Muster wie `importEinzelPdf`): `GET schulden/person/rechnung?name=…`
+  (`personRechnungPdf()`, ALLE offenen Forderungen der Person) und
+  `GET schulden/rechnung?id=…` (`einzelRechnungPdf()`, eine einzelne Forderung).
+  Beide über den privaten Builder `baueRechnungAntwort()`. Datenquelle:
+  `SchuldModel::getForderungenFuerPerson()` — bewusst NUR `typ='forderung'` (keine
+  Verrechnung mit Verbindlichkeiten, Vorzeichen-Invariante) und ALLE Forderungen
+  (Getränke-Import + manuell) inkl. negativer Ausgleiche, sodass die gelisteten
+  Positionen sich exakt auf den offenen Netto-Restbetrag summieren. `< 0.01` →
+  Redirect mit Hinweis (nichts zu berechnen). UI-Einstiege in `schulden/person.php`:
+  „Gesamtrechnung ansehen" in der Aktionsleiste (nur bei offenen Forderungen) und
+  je positiver Forderungszeile ein „Rechnung"-Link (read-only, daher auch auf
+  automatischen Einträgen). Bankdaten aus `bank_daten()`. Versand per E-Mail ist
+  bewusst NOCH NICHT umgesetzt (Folge-Schritt; `RechnungVersand::sende/
+  istKonfiguriert` bleiben wiederverwendbar). Muster: Slug `allgemeine-rechnung`.
+- **Rechnungsversand** (Issue #35): `/schulden/import/versand?monat=JJJJ-MM`
 - **Rechnungsversand** (Issue #35): `/schulden/import/versand?monat=JJJJ-MM`
   (Redirect-Ziel nach importConfirm, jederzeit erneut aufrufbar) listet die
   importierten Forderungen des Monats mit E-Mail-Feld und Auswahl; „Rechnungen

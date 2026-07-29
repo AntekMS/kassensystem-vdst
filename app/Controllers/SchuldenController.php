@@ -725,14 +725,10 @@ class SchuldenController extends BaseController
         $monat = (string) $this->request->getGet('monat');
         $monatBis = $this->leseMonatBis((string) $this->request->getGet('bis'));
 
-        if (!preg_match('/^\d{4}-\d{2}$/', $monat)) {
-            return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Monat angegeben.');
+        $monatsName = $this->pruefeMonatParams($monat, $monatBis);
+        if ($monatsName instanceof \CodeIgniter\HTTP\RedirectResponse) {
+            return $monatsName;
         }
-        if ($monatBis === false) {
-            return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Endmonat angegeben.');
-        }
-
-        $monatsName = GetraenkeRechnungImport::monatsName($monat, $monatBis);
         $personen = $this->schuldModel->getImportForderungen($monat, $monatBis);
 
         if ($personen === []) {
@@ -825,14 +821,10 @@ class SchuldenController extends BaseController
         $monat = (string) $this->request->getPost('monat');
         $monatBis = $this->leseMonatBis((string) $this->request->getPost('monat_bis'));
 
-        if (!preg_match('/^\d{4}-\d{2}$/', $monat)) {
-            return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Monat angegeben.');
+        $monatsName = $this->pruefeMonatParams($monat, $monatBis);
+        if ($monatsName instanceof \CodeIgniter\HTTP\RedirectResponse) {
+            return $monatsName;
         }
-        if ($monatBis === false) {
-            return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Endmonat angegeben.');
-        }
-
-        $monatsName = GetraenkeRechnungImport::monatsName($monat, $monatBis);
         $forderungen = [];
         foreach ($this->schuldModel->getImportForderungen($monat, $monatBis) as $zeile) {
             $forderungen[person_schluessel($zeile['person'])] = $zeile;
@@ -952,14 +944,10 @@ class SchuldenController extends BaseController
         $monat = (string) $this->request->getGet('monat');
         $monatBis = $this->leseMonatBis((string) $this->request->getGet('bis'));
 
-        if (!preg_match('/^\d{4}-\d{2}$/', $monat)) {
-            return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Monat angegeben.');
+        $monatsName = $this->pruefeMonatParams($monat, $monatBis);
+        if ($monatsName instanceof \CodeIgniter\HTTP\RedirectResponse) {
+            return $monatsName;
         }
-        if ($monatBis === false) {
-            return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Endmonat angegeben.');
-        }
-
-        $monatsName = GetraenkeRechnungImport::monatsName($monat, $monatBis);
         $personen = $this->schuldModel->getImportForderungen($monat, $monatBis);
 
         if ($personen === []) {
@@ -990,14 +978,10 @@ class SchuldenController extends BaseController
         $monat = (string) $this->request->getGet('monat');
         $monatBis = $this->leseMonatBis((string) $this->request->getGet('bis'));
 
-        if (!preg_match('/^\d{4}-\d{2}$/', $monat)) {
-            return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Monat angegeben.');
+        $monatsName = $this->pruefeMonatParams($monat, $monatBis);
+        if ($monatsName instanceof \CodeIgniter\HTTP\RedirectResponse) {
+            return $monatsName;
         }
-        if ($monatBis === false) {
-            return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Endmonat angegeben.');
-        }
-
-        $monatsName = GetraenkeRechnungImport::monatsName($monat, $monatBis);
 
         // Person über person_schluessel matchen (wie der Versand), Betrag und
         // Name kommen aus der DB — der GET-Parameter ist nur der Suchschlüssel.
@@ -1239,6 +1223,25 @@ class SchuldenController extends BaseController
     private function versandQuery(string $monat, ?string $monatBis): string
     {
         return 'monat=' . $monat . ($monatBis !== null ? '&bis=' . $monatBis : '');
+    }
+
+    /**
+     * Validiert Monat (JJJJ-MM) + optionalen, bereits über leseMonatBis()
+     * normalisierten Endmonat und liefert den Monatsnamen im Klartext. Bei
+     * ungültigem Monat/Endmonat kommt stattdessen eine Redirect-Response
+     * zurück — die vier Import-Endpoints teilen sich so dieselbe Guard-Kaskade
+     * (Aufrufer: `if ($x instanceof RedirectResponse) return $x;`).
+     */
+    private function pruefeMonatParams(string $monat, string|false|null $monatBis): string|\CodeIgniter\HTTP\RedirectResponse
+    {
+        if (!preg_match('/^\d{4}-\d{2}$/', $monat)) {
+            return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Monat angegeben.');
+        }
+        if ($monatBis === false) {
+            return redirect()->to('/schulden/import')->with('error', 'Kein gültiger Endmonat angegeben.');
+        }
+
+        return GetraenkeRechnungImport::monatsName($monat, $monatBis);
     }
 
     /**

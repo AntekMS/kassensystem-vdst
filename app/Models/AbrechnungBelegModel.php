@@ -148,41 +148,12 @@ class AbrechnungBelegModel extends Model
     }
 
     /**
-     * Holt alle Abrechnungen für einen bestimmten Beleg
+     * Holt alle Abrechnungen für einen bestimmten Beleg — delegiert an die
+     * Batch-Variante (eine gemeinsame Query-Definition statt zweier Kopien).
      */
     public function getAbrechnungenFuerBeleg($belegId)
     {
-        $abrechnungen = [];
-
-        // AH² Abrechnungen
-        $ahAbrechnungen = $this->select('
-                abrechnung_belege.hinzugefuegt_am,
-                ah_abrechnungen.id,
-                ah_abrechnungen.titel,
-                ah_abrechnungen.abrechnungsmonat,
-                ah_abrechnungen.status,
-                "ah" as typ
-            ')
-            ->join('ah_abrechnungen', 'ah_abrechnungen.id = abrechnung_belege.abrechnung_id')
-            ->where('abrechnung_belege.beleg_id', $belegId)
-            ->where('abrechnung_belege.abrechnung_typ', 'ah')
-            ->findAll();
-
-        // HV Abrechnungen
-        $hvAbrechnungen = $this->select('
-                abrechnung_belege.hinzugefuegt_am,
-                hv_abrechnungen.id,
-                hv_abrechnungen.titel,
-                hv_abrechnungen.abrechnungsmonat,
-                hv_abrechnungen.status,
-                "hv" as typ
-            ')
-            ->join('hv_abrechnungen', 'hv_abrechnungen.id = abrechnung_belege.abrechnung_id')
-            ->where('abrechnung_belege.beleg_id', $belegId)
-            ->where('abrechnung_belege.abrechnung_typ', 'hv')
-            ->findAll();
-
-        return array_merge($ahAbrechnungen, $hvAbrechnungen);
+        return $this->getAbrechnungenFuerBelege([$belegId])[$belegId] ?? [];
     }
 
     /**

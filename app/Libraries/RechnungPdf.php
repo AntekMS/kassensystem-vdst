@@ -46,7 +46,9 @@ class RechnungPdf
      *
      * @param string $typName    Anzeigename ('AH²' | 'HV')
      * @param string $monatsName Monat im Klartext (z.B. "Juni 2024")
-     * @param array  $abrechnung Abrechnungs-Zeile (titel/gesamtsumme/begruendung)
+     * @param array  $abrechnung Abrechnungs-Zeile (titel/begruendung — die
+     *                           Gesamtsumme leitet das Template aus den
+     *                           gelisteten Belegzeilen ab, s. pdf/rechnung.php)
      * @param array<array{beschreibung?: string, rechnungsdatum?: string, belegnummer?: string, betrag?: float|string, lieferant?: string}> $belege
      * @param string $datum      Erstellungsdatum als 'Y-m-d'
      */
@@ -57,7 +59,6 @@ class RechnungPdf
             'typ_name' => $typName,
             'monats_name' => $monatsName,
             'titel' => (string) ($abrechnung['titel'] ?? ''),
-            'gesamtsumme' => (float) ($abrechnung['gesamtsumme'] ?? 0),
             'begruendung' => (string) ($abrechnung['begruendung'] ?? ''),
             'belege' => $belege,
             'datum' => $datum,

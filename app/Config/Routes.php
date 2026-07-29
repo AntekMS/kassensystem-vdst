@@ -86,6 +86,10 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
     // Inventur (eigene Seite, Issue #36; Excel-Export bleibt unter schulden/export/inventur)
     $routes->get('inventur', 'SchuldenController::inventur');
 
+    // Muster/Vorlagen aller erzeugten Dokumente (nur fiktive Beispieldaten)
+    $routes->get('muster', 'MusterController::index');
+    $routes->get('muster/(:segment)', 'MusterController::zeige/$1');
+
     // ==================== AH²- UND HV-ABRECHNUNGEN ====================
     foreach (['ah' => 'AhAbrechnungenController', 'hv' => 'HvAbrechnungenController'] as $typ => $controller) {
         $routes->group("abrechnungen/{$typ}", function ($routes) use ($controller) {

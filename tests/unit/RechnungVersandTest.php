@@ -28,6 +28,7 @@ final class RechnungVersandTest extends CIUnitTestCase
     private array $original = [];
     private array $originalEnv = [];
     private array $originalServer = [];
+    private array $originalGetenv = [];
 
     protected function setUp(): void
     {
@@ -40,12 +41,15 @@ final class RechnungVersandTest extends CIUnitTestCase
             'fromEmail' => $config->fromEmail,
         ];
 
-        // CI4 env() liest aus $_ENV UND $_SERVER — beide sichern/leeren, sonst
-        // leaken reale .env-Werte oder Test-Reihenfolge in baueMail().
+        // CI4 env() liest aus $_ENV, $_SERVER UND getenv() — alle drei
+        // sichern/leeren, sonst leaken reale .env-Werte (z.B. ein lokal
+        // gesetztes vdst.bank_iban) oder die Test-Reihenfolge in baueMail().
         foreach (self::ENV_KEYS as $key) {
             $this->originalEnv[$key] = $_ENV[$key] ?? null;
             $this->originalServer[$key] = $_SERVER[$key] ?? null;
+            $this->originalGetenv[$key] = getenv($key);
             unset($_ENV[$key], $_SERVER[$key]);
+            putenv($key);
         }
     }
 
@@ -67,6 +71,12 @@ final class RechnungVersandTest extends CIUnitTestCase
                 unset($_SERVER[$key]);
             } else {
                 $_SERVER[$key] = $this->originalServer[$key];
+            }
+
+            if ($this->originalGetenv[$key] === false) {
+                putenv($key);
+            } else {
+                putenv($key . '=' . $this->originalGetenv[$key]);
             }
         }
 
@@ -180,6 +190,38 @@ final class RechnungVersandTest extends CIUnitTestCase
         $_ENV['vdst.kassenwart_zeichen'] = 'V!!!';
 
         $mail = RechnungVersand::baueMail('Müller', 'November 2025', '2024-01-05');
+
+        $this->assertStringContainsString("Max Mustermann\nKassenwart V!!!", $mail['text']);
+    }
+
+    public function testBaueAllgemeineRechnungMailGrundstruktur(): void
+    {
+        // Issue #96: allgemeine Rechnungs-Mail — Anrede an die Person, Betreff
+        // ohne Monat/Frist, Hinweis auf den Anhang.
+        $mail = RechnungVersand::baueAllgemeineRechnungMail('Müller');
+
+        $this->assertSame('Rechnung – VDSt zu Erlangen', $mail['betreff']);
+        $this->assertStringContainsString('Hallo Müller,', $mail['text']);
+        $this->assertStringContainsString('siehe Anhang', $mail['text']);
+    }
+
+    public function testBaueAllgemeineRechnungMailOhneBetragUndBankImText(): void
+    {
+        // Betrag und Bankdaten stehen bewusst NUR im PDF-Anhang.
+        $_ENV['vdst.bank_iban'] = 'DE00 0000 0000 0000 0000 00';
+
+        $mail = RechnungVersand::baueAllgemeineRechnungMail('Müller');
+
+        $this->assertStringNotContainsString('€', $mail['text']);
+        $this->assertStringNotContainsString('IBAN', $mail['text']);
+    }
+
+    public function testBaueAllgemeineRechnungMailSignaturMitZeichen(): void
+    {
+        $_ENV['vdst.kassenwart_name'] = 'Max Mustermann';
+        $_ENV['vdst.kassenwart_zeichen'] = 'V!!!';
+
+        $mail = RechnungVersand::baueAllgemeineRechnungMail('Müller');
 
         $this->assertStringContainsString("Max Mustermann\nKassenwart V!!!", $mail['text']);
     }

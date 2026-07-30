@@ -133,6 +133,8 @@ class SchuldenController extends BaseController
             'getraenke_undo' => $getraenkeUndo,
             'ist_institution' => $istInstitution,
             'register_person' => $registerPerson,
+            // Versand der allgemeinen Rechnung (Issue #96): nur bei SMTP-Konfig
+            'smtp_ok' => RechnungVersand::istKonfiguriert(),
         ];
 
         return view('schulden/person', $data);
@@ -1038,6 +1040,193 @@ class SchuldenController extends BaseController
         }
 
         return SchuldPositionModel::fuegeZusammen($positionen);
+    }
+
+    // ==================== ALLGEMEINE RECHNUNG (Issue #96) ====================
+
+    /**
+     * Allgemeine Rechnung über ALLE offenen Forderungen einer Person als
+     * Inline-PDF-Vorschau (Issue #96) — Spenden/Getränke/sonstige zusammen,
+     * inkl. Überweisungsdetails. Datenquelle ist ausschließlich die DB
+     * (getForderungenFuerPerson), der GET-Parameter ist nur der Personenname.
+     */
+    public function personRechnungPdf()
+    {
+        $person = trim((string) $this->request->getGet('name'));
+
+        if ($person === '') {
+            throw new \CodeIgniter\Exceptions\PageNotFoundException('Person nicht angegeben');
+        }
+
+        $positionen = $this->forderungenAlsPositionen($this->schuldModel->getForderungenFuerPerson($person));
+        $betrag = array_sum(array_column($positionen, 'betrag'));
+
+        if ($betrag < 0.01) {
+            return redirect()->to('/schulden/person?name=' . urlencode($person))
+                ->with('error', 'Für ' . $person . ' gibt es keine offenen Forderungen für eine Rechnung.');
+        }
+
+        return $this->baueRechnungAntwort($person, $positionen, (float) $betrag);
+    }
+
+    /**
+     * Rechnung über EINE einzelne Forderung als Inline-PDF-Vorschau (Issue #96)
+     * — für Spenden/Einzelforderungen; Betrag und Name kommen aus der DB-Zeile.
+     */
+    public function einzelRechnungPdf()
+    {
+        $zeile = $this->ladeForderung((int) $this->request->getGet('id'));
+
+        if ($zeile === null) {
+            return redirect()->to('/schulden')
+                ->with('error', 'Forderung nicht gefunden.');
+        }
+
+        return $this->baueRechnungAntwort(
+            (string) $zeile['person'],
+            $this->forderungenAlsPositionen([$zeile]),
+            (float) $zeile['betrag']
+        );
+    }
+
+    /**
+     * Versendet die allgemeine Rechnung über ALLE offenen Forderungen einer
+     * Person per E-Mail (Issue #96). POST ?name=…; adressiert wird die im
+     * Personen-Register hinterlegte Adresse (nicht aus dem POST — der Name ist
+     * nur der Schlüssel). PDF-Anhang identisch zur Vorschau (gleiche Datenquelle),
+     * kein Versand-Log — bewusst keine Doppelversand-Sperre.
+     */
+    public function personRechnungSenden()
+    {
+        $person = trim((string) $this->request->getPost('name'));
+        $ziel = '/schulden/person?name=' . urlencode($person);
+
+        if ($person === '') {
+            return redirect()->to('/schulden')->with('error', 'Person nicht angegeben.');
+        }
+
+        $positionen = $this->forderungenAlsPositionen($this->schuldModel->getForderungenFuerPerson($person));
+        $betrag = array_sum(array_column($positionen, 'betrag'));
+
+        if ($betrag < 0.01) {
+            return redirect()->to($ziel)
+                ->with('error', 'Für ' . $person . ' gibt es keine offenen Forderungen für eine Rechnung.');
+        }
+
+        return $this->sendeRechnung($person, $positionen, (float) $betrag, $ziel);
+    }
+
+    /**
+     * Lädt eine einzelne Forderungs-Zeile über ihre id; NULL, falls sie fehlt
+     * oder keine Forderung ist (Guard für Einzelrechnung/-versand).
+     *
+     * @return array<string, mixed>|null
+     */
+    private function ladeForderung(int $id): ?array
+    {
+        $zeile = $id > 0 ? $this->schuldModel->find($id) : null;
+
+        return ($zeile !== null && $zeile['typ'] === 'forderung') ? $zeile : null;
+    }
+
+    /**
+     * Mappt Forderungs-Zeilen (getForderungenFuerPerson / find) auf die
+     * Positionsliste der allgemeinen Rechnung (Beschreibung/Datum/Betrag).
+     *
+     * @param array<array<string, mixed>> $zeilen
+     * @return list<array{beschreibung: string, datum: string, betrag: float}>
+     */
+    private function forderungenAlsPositionen(array $zeilen): array
+    {
+        return array_map(static fn (array $zeile): array => [
+            'beschreibung' => (string) $zeile['grund'],
+            'datum' => (string) $zeile['datum'],
+            'betrag' => (float) $zeile['betrag'],
+        ], array_values($zeilen));
+    }
+
+    /**
+     * Baut das allgemeine Rechnungs-PDF (Issue #96) — Bankdaten aus der einzigen
+     * Quelle (bank_daten()). Gemeinsam von Vorschau und Versand genutzt, damit
+     * beide byte-identisch dieselbe Rechnung erzeugen.
+     *
+     * @param list<array{beschreibung: string, datum: string, betrag: float}> $positionen
+     */
+    private function baueRechnungPdf(string $person, array $positionen, float $betrag): string
+    {
+        return (new RechnungPdf())->allgemein(
+            $person,
+            $positionen,
+            $betrag,
+            date('Y-m-d'),
+            'Rechnung ' . $person,
+            bank_daten()
+        );
+    }
+
+    /**
+     * Inline-Auslieferung der allgemeinen Rechnung (kein Download, kein
+     * Versand-Log) — Muster wie importEinzelPdf.
+     *
+     * @param list<array{beschreibung: string, datum: string, betrag: float}> $positionen
+     */
+    private function baueRechnungAntwort(string $person, array $positionen, float $betrag)
+    {
+        try {
+            $pdf = $this->baueRechnungPdf($person, $positionen, $betrag);
+
+            return $this->response
+                ->setContentType('application/pdf')
+                ->setHeader('Content-Disposition', 'inline; filename="' . RechnungPdf::rechnungDateiname($person) . '"')
+                ->setBody($pdf);
+        } catch (\Throwable $e) {
+            log_message('error', 'Allgemeine Rechnung Vorschau Fehler (' . $person . '): ' . $e->getMessage());
+
+            return redirect()->to('/schulden/person?name=' . urlencode($person))
+                ->with('error', 'Fehler beim Erzeugen des PDFs. Details stehen im Fehler-Log.');
+        }
+    }
+
+    /**
+     * Erzeugt die allgemeine Rechnung und mailt sie an die im Register
+     * hinterlegte Adresse der Person (Issue #96). Gate über
+     * RechnungVersand::istKonfiguriert(); PDF-Erzeugung + Versand
+     * try/catch-gekapselt. Redirect zurück nach $ziel mit Flash.
+     *
+     * @param list<array{beschreibung: string, datum: string, betrag: float}> $positionen
+     */
+    private function sendeRechnung(string $person, array $positionen, float $betrag, string $ziel)
+    {
+        if (!RechnungVersand::istKonfiguriert()) {
+            return redirect()->to($ziel)
+                ->with('error', 'E-Mail-Versand ist nicht eingerichtet (SMTP fehlt in der .env).');
+        }
+
+        $email = (new PersonModel())->findEmailsFuer([$person])[person_schluessel($person)] ?? '';
+
+        if ($email === '') {
+            return redirect()->to($ziel)
+                ->with('error', 'Für ' . $person . ' ist keine E-Mail-Adresse hinterlegt. Bitte zuerst eine Adresse speichern.');
+        }
+
+        try {
+            $pdf = $this->baueRechnungPdf($person, $positionen, $betrag);
+            $mail = RechnungVersand::baueAllgemeineRechnungMail($person);
+            $ok = (new RechnungVersand())->sende(
+                $email,
+                $mail['betreff'],
+                $mail['text'],
+                $pdf,
+                RechnungPdf::rechnungDateiname($person)
+            );
+        } catch (\Throwable $e) {
+            log_message('error', 'Allgemeine Rechnung Versand Fehler (' . $person . '): ' . $e->getMessage());
+            $ok = false;
+        }
+
+        return $ok
+            ? redirect()->to($ziel)->with('success', 'Rechnung an ' . $email . ' versendet.')
+            : redirect()->to($ziel)->with('error', 'Der Versand ist fehlgeschlagen. Details stehen im Fehler-Log.');
     }
 
     // ==================== PERSONEN-VERWALTUNG (Issue #61) ====================

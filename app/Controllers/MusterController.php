@@ -68,6 +68,13 @@ class MusterController extends BaseController
                 'beschreibung' => 'Monatsabrechnung an den Heimverein als PDF-Rechnung, inklusive Freitext-Begründung.',
             ],
             [
+                'slug' => 'allgemeine-rechnung',
+                'art' => 'pdf',
+                'gruppe' => 'Schulden & Rechnungen',
+                'label' => 'Allgemeine Rechnung',
+                'beschreibung' => 'Rechnung über alle offenen Forderungen einer Person (Spenden, Getränke u.a.) inklusive Überweisungsdetails an den Verein.',
+            ],
+            [
                 'slug' => 'inventur-pdf',
                 'art' => 'pdf',
                 'gruppe' => 'Inventur & Kassenbuch',
@@ -148,6 +155,7 @@ class MusterController extends BaseController
             'einzelrechnung' => $pdf->einzel('Max Mustermann', $monat, 42.50, $datum, $this->getraenkePositionen()),
             'uebersicht' => $pdf->uebersicht($monat, $this->personen(), $datum),
             'coleur-bund' => $pdf->coleurBund('Coleur', $monat, 75.00, $datum, $this->coleurPositionen()),
+            'allgemeine-rechnung' => $pdf->allgemein('Max Mustermann', $this->rechnungPositionen(), 62.50, $datum, 'Rechnung Max Mustermann', $this->musterBank()),
             'abrechnung-ah' => $pdf->abrechnung('AH²', $monat, $this->abrechnungAh(), $this->belegeAh(), $datum),
             'abrechnung-hv' => $pdf->abrechnung('HV', $monat, $this->abrechnungHv(), $this->belegeHv(), $datum),
             'inventur-pdf' => $pdf->inventur($this->kontostaende(), $this->inventur(), $this->summeKassen(), $this->summeGesamt(), $datum),
@@ -195,6 +203,33 @@ class MusterController extends BaseController
             ['bezeichnung' => 'Bier 0,5 l', 'anzahl' => 40.0, 'einzelpreis' => 1.50, 'summe' => 60.00],
             ['bezeichnung' => 'Softdrinks', 'anzahl' => 15.0, 'einzelpreis' => 1.00, 'summe' => 15.00],
         ]; // Summe 75.00
+    }
+
+    /** @return list<array{beschreibung: string, datum: string, betrag: float}> */
+    private function rechnungPositionen(): array
+    {
+        return [
+            ['beschreibung' => 'Getränkerechnung November 2025', 'datum' => '2025-12-01', 'betrag' => 42.50],
+            ['beschreibung' => 'Spende Stiftungsfest', 'datum' => '2026-01-18', 'betrag' => 20.00],
+        ]; // Summe 62.50
+    }
+
+    /**
+     * Fiktive Bankverbindung für das Muster — bewusst fest im Code (kein env),
+     * damit der Überweisungs-Block unabhängig von der .env-Konfiguration
+     * demonstriert wird.
+     *
+     * @return array{iban: string, kontoinhaber: string, bic: string, bankname: string, konfiguriert: bool}
+     */
+    private function musterBank(): array
+    {
+        return [
+            'iban' => 'DE00 0000 0000 0000 0000 00',
+            'kontoinhaber' => 'VDSt zu Erlangen',
+            'bic' => 'MUSTERBANKXXX',
+            'bankname' => 'Musterbank Erlangen',
+            'konfiguriert' => true,
+        ];
     }
 
     /** @return list<array{person: string, betrag: float}> */

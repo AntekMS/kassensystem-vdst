@@ -32,6 +32,23 @@
                         </button>
                     </form>
                 <?php endif; ?>
+                <?php if ($summen['forderungen'] >= 0.01): ?>
+                    <a href="<?= base_url('/schulden/person/rechnung?name=' . urlencode($person)) ?>"
+                       class="btn btn-outline-vdst" target="_blank" rel="noopener">
+                        <i class="bi bi-file-earmark-text" aria-hidden="true"></i> Gesamtrechnung ansehen
+                    </a>
+                    <?php if (!$ist_institution && $smtp_ok && !empty($register_person['email'])): ?>
+                        <form method="post" class="d-inline"
+                              action="<?= base_url('/schulden/person/rechnung/senden') ?>"
+                              onsubmit="return confirm('Rechnung an <?= esc($register_person['email'], 'js') ?> senden?')">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="name" value="<?= esc($person) ?>">
+                            <button type="submit" class="btn btn-outline-vdst">
+                                <i class="bi bi-envelope-arrow-up" aria-hidden="true"></i> Rechnung versenden
+                            </button>
+                        </form>
+                    <?php endif; ?>
+                <?php endif; ?>
                 <a href="<?= base_url('/schulden/create?person=' . urlencode($person)) ?>" class="btn btn-vdst">
                     <i class="bi bi-plus-lg" aria-hidden="true"></i> Neuer Eintrag
                 </a>
@@ -159,7 +176,16 @@
                                             <br><small class="text-success">Rückzahlung</small>
                                         <?php endif; ?>
                                     </td>
-                                    <td data-label="Aktion" class="text-center <?= \App\Models\SchuldModel::istAutomatisch($eintrag) ? '' : 'stack-actions' ?>">
+                                    <?php $zeigeRechnung = $eintrag['typ'] === 'forderung' && $eintrag['betrag'] > 0; ?>
+                                    <td data-label="Aktion" class="text-center <?= (\App\Models\SchuldModel::istAutomatisch($eintrag) && !$zeigeRechnung) ? '' : 'stack-actions' ?>">
+                                        <?php if ($zeigeRechnung): ?>
+                                            <a href="<?= base_url('/schulden/rechnung?id=' . $eintrag['id']) ?>"
+                                               class="btn-icon" target="_blank" rel="noopener"
+                                               title="Rechnung ansehen" aria-label="Rechnung für diesen Eintrag ansehen">
+                                                <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+                                                <span class="d-lg-none">Rechnung</span>
+                                            </a>
+                                        <?php endif; ?>
                                         <?php if (\App\Models\SchuldModel::istAutomatisch($eintrag)): ?>
                                             <span class="badge-status badge-status-outline" title="Wird über Beleg/Buchung/Abrechnung verwaltet">
                                                 automatisch

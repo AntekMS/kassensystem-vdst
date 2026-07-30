@@ -237,6 +237,26 @@ class SchuldModel extends Model
     }
 
     /**
+     * Alle Forderungs-Zeilen einer Person für die allgemeine Rechnung (Issue #96)
+     * — chronologisch aufsteigend, damit die Rechnung wie ein Kontoauszug liest.
+     *
+     * Bewusst NUR `typ='forderung'` (keine Verbindlichkeiten — Vorzeichen-Invariante)
+     * und ALLE Zeilen inkl. negativer Ausgleiche/Rückzahlungen: so summieren sich
+     * die gelisteten Positionen exakt auf den offenen Netto-Restbetrag (das
+     * Rechnungs-Template leitet die Gesamtsumme aus genau diesen Zeilen ab).
+     *
+     * @return array<array{datum: string, grund: string, betrag: string, kategorie: string}>
+     */
+    public function getForderungenFuerPerson(string $person): array
+    {
+        return $this->where('person', $person)
+            ->where('typ', 'forderung')
+            ->orderBy('datum', 'ASC')
+            ->orderBy('id', 'ASC')
+            ->findAll();
+    }
+
+    /**
      * Summen je Typ und Kategorie für die Inventur
      *
      * Grundgerüst mit Nullwerten (wie berechneKontostaende), damit auch bei

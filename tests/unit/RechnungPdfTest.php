@@ -147,4 +147,45 @@ final class RechnungPdfTest extends CIUnitTestCase
     {
         $this->assertSame('Inventur_2026-07-18.pdf', RechnungPdf::inventurDateiname('2026-07-18'));
     }
+
+    public function testRechnungDateinamePraefixUndSlug(): void
+    {
+        // Issue #96: eigener Präfix "Rechnung", gleiche ASCII-/Umlaut-Regeln.
+        $this->assertSame(
+            'Rechnung_Ossig-Grosse.pdf',
+            RechnungPdf::rechnungDateiname('Oßig-Große')
+        );
+    }
+
+    public function testAllgemeineRechnungMitBankLiefertPdf(): void
+    {
+        // Issue #96: allgemeine Rechnung mit mehreren Positionen + Bankblock.
+        $bank = [
+            'iban' => 'DE00 0000 0000 0000 0000 00',
+            'kontoinhaber' => 'VDSt zu Erlangen',
+            'bic' => 'ABCDEFGHXXX',
+            'bankname' => 'Musterbank Erlangen',
+            'konfiguriert' => true,
+        ];
+        $positionen = [
+            ['beschreibung' => 'Getränkerechnung November 2025', 'datum' => '2025-12-01', 'betrag' => 42.5],
+            ['beschreibung' => 'Spende Stiftungsfest', 'datum' => '2026-01-18', 'betrag' => 20.0],
+        ];
+
+        $bytes = $this->pdf->allgemein('Müller-Lüdenscheidt', $positionen, 62.5, '2026-01-31', 'Rechnung Müller', $bank);
+
+        $this->assertStringStartsWith('%PDF-', $bytes);
+    }
+
+    public function testAllgemeineRechnungOhneBankLiefertPdf(): void
+    {
+        // Ohne konfigurierte Bankverbindung entfällt der Überweisungs-Block.
+        $bank = ['iban' => '', 'kontoinhaber' => '', 'bic' => '', 'bankname' => '', 'konfiguriert' => false];
+
+        $bytes = $this->pdf->allgemein('Große', [
+            ['beschreibung' => 'Spende', 'datum' => '2026-01-18', 'betrag' => 15.0],
+        ], 15.0, '2026-01-31', 'Rechnung Große', $bank);
+
+        $this->assertStringStartsWith('%PDF-', $bytes);
+    }
 }

@@ -67,6 +67,10 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
         $routes->post('getraenke-beglichen-undo', 'SchuldenController::getraenkeBeglichenUndo');
         $routes->get('export/inventur', 'SchuldenController::exportInventur');
         $routes->get('export/inventur-pdf', 'SchuldenController::exportInventurPdf');
+        // Allgemeine Rechnung (Issue #96): Inline-PDF-Vorschau + E-Mail-Versand
+        $routes->get('rechnung', 'SchuldenController::einzelRechnungPdf');            // ?id= (einzelne Forderung)
+        $routes->get('person/rechnung', 'SchuldenController::personRechnungPdf');     // ?name= (alle offenen Forderungen)
+        $routes->post('person/rechnung/senden', 'SchuldenController::personRechnungSenden'); // ?name= per E-Mail
         // Getränkerechnung-Import (Issue #35): Upload → Vorschau → Bestätigen
         $routes->get('import', 'SchuldenController::import');
         $routes->post('import/upload', 'SchuldenController::importUpload');

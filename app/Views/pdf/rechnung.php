@@ -4,13 +4,14 @@
  * App\Libraries\RechnungPdf für dompdf — kein Browser-View, daher bewusst
  * Standalone-HTML mit eigenem <style>-Block.
  *
- * $typ: 'einzel' | 'uebersicht' | 'coleur_bund' | 'inventur' | 'abrechnung'
+ * $typ: 'einzel' | 'allgemein' | 'uebersicht' | 'coleur_bund' | 'inventur' | 'abrechnung'
  */
 $datumAnzeige = date('d.m.Y', strtotime($datum));
 $kassenwart = trim((string) env('vdst.kassenwart_name', ''));
 $kopfzusatz = match ($typ) {
     'inventur' => 'Inventur',
     'abrechnung' => 'Abrechnung',
+    'allgemein' => 'Rechnung',
     default => 'Getränkeabrechnung',
 };
 
@@ -108,6 +109,20 @@ $formatiereAnzahl = static function ($anzahl): string {
         font-size: 10px;
         color: #555555;
     }
+    .bank-block {
+        border: 1px solid #dddddd;
+        padding: 12px 16px;
+        margin: 18px 0;
+        font-size: 11px;
+    }
+    .bank-block .titel {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #555555;
+        margin-bottom: 6px;
+    }
+    .bank-block .zeile { margin: 2px 0; }
     .fusszeile {
         position: fixed;
         bottom: -55px;
@@ -180,6 +195,79 @@ $formatiereAnzahl = static function ($anzahl): string {
     </p>
     <p class="hinweis">
         Bitte den Betrag zeitnah überweisen oder direkt beim Kassenwart begleichen.
+    </p>
+
+<?php elseif ($typ === 'allgemein'): ?>
+
+    <?php
+        // Gesamtsumme aus den gelisteten Positionen ableiten, damit die Rechnung
+        // nie widersprüchlich ist (analog abrechnung-Zweig) — enthält $positionen
+        // auch negative Ausgleiche, ergibt sich so der korrekte Netto-Restbetrag.
+        $positionsSumme = array_sum(array_map(
+            static fn ($position): float => (float) ($position['betrag'] ?? 0),
+            $positionen
+        ));
+    ?>
+    <h1>Rechnung</h1>
+    <div class="untertitel">für <?= esc($person) ?></div>
+
+    <table class="posten">
+        <thead>
+            <tr>
+                <th>Beschreibung</th>
+                <th>Datum</th>
+                <th class="betrag-spalte">Betrag</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($positionen as $position): ?>
+                <?php $posTs = !empty($position['datum']) ? strtotime((string) $position['datum']) : false; ?>
+                <tr>
+                    <td><?= esc($position['beschreibung'] ?? '') ?></td>
+                    <td><?= esc($posTs !== false ? date('d.m.Y', $posTs) : '') ?></td>
+                    <td class="betrag-spalte"><?= esc(formatiere_betrag((float) ($position['betrag'] ?? 0))) ?></td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if ($positionen === []): ?>
+                <tr><td colspan="3">Keine offenen Forderungen.</td></tr>
+            <?php endif; ?>
+            <tr class="summe">
+                <td colspan="2">Gesamt</td>
+                <td class="betrag-spalte"><?= esc(formatiere_betrag($positionsSumme)) ?></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="betrag-kasten">
+        <div class="label">Zu zahlender Betrag</div>
+        <div class="betrag"><?= esc(formatiere_betrag($positionsSumme)) ?></div>
+    </div>
+
+    <?php if (!empty($bank['konfiguriert'])): ?>
+        <?php
+            // Jede Zeile nur bei nicht-leerem Wert — sonst entstünden "BIC: "-
+            // oder Leerzeilen (gleiches Muster wie RechnungVersand::baueMail).
+            $bankZeilen = array_filter([
+                $bank['kontoinhaber'] ?? '',
+                'IBAN: ' . ($bank['iban'] ?? ''),
+                !empty($bank['bic']) ? 'BIC: ' . $bank['bic'] : '',
+                $bank['bankname'] ?? '',
+                $verwendungszweck !== '' ? 'Verwendungszweck: ' . $verwendungszweck : '',
+            ], static fn ($zeile): bool => trim((string) $zeile) !== '');
+        ?>
+        <div class="bank-block">
+            <div class="titel">Bitte überweise den Betrag auf folgendes Konto:</div>
+            <?php foreach ($bankZeilen as $zeile): ?>
+                <div class="zeile"><?= esc($zeile) ?></div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+
+    <p class="hinweis">
+        Dieser Betrag ergibt sich aus den offenen Forderungen, die in der
+        Schuldenliste des Vereins hinterlegt sind. Bei bestehendem
+        Lastschriftmandat wird der Betrag eingezogen; andernfalls bitte zeitnah
+        überweisen oder direkt beim Kassenwart begleichen.
     </p>
 
 <?php elseif ($typ === 'uebersicht'): ?>

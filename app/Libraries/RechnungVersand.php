@@ -78,10 +78,6 @@ class RechnungVersand
      */
     public static function baueMail(string $person, string $monatsName, string $fristDatum): array
     {
-        $kassenwart = trim((string) env('vdst.kassenwart_name', ''));
-        $gruss = $kassenwart !== '' ? $kassenwart : 'der Kassenwart';
-        $zeichen = trim((string) env('vdst.kassenwart_zeichen', ''));
-
         $frist = \DateTime::createFromFormat('Y-m-d', $fristDatum) ?: new \DateTime();
         $fristText = self::WOCHENTAGE[(int) $frist->format('N')] . ', den ' . $frist->format('d.m.Y');
 
@@ -116,14 +112,55 @@ class RechnungVersand
         }
 
         $absaetze[] = 'Bei Fragen stehe ich dir gerne zur Verfügung.';
-        $absaetze[] = 'Mit freundlichen Grüßen,' . "\n"
-            . $gruss . "\n"
-            . 'Kassenwart' . ($zeichen !== '' ? ' ' . $zeichen : '');
+        $absaetze[] = self::signatur();
 
         return [
             'betreff' => 'Getränkerechnung ' . $monatsName . ' – VDSt zu Erlangen',
             'text' => implode("\n\n", $absaetze),
         ];
+    }
+
+    /**
+     * Betreff und Text der allgemeinen Rechnungs-Mail (Issue #96) — Pendant zu
+     * baueMail für die allgemeine Rechnung (Spenden/Schulden). Wie dort steht
+     * der Betrag NUR im PDF-Anhang; auch die Überweisungsdetails stehen bereits
+     * IM PDF (RechnungPdf::allgemein), daher hier kein Bank-Absatz. Bewusst
+     * ohne Monats-/Fristbezug — die Rechnung deckt beliebige offene Forderungen
+     * ab. Rein und testbar.
+     *
+     * @return array{betreff: string, text: string}
+     */
+    public static function baueAllgemeineRechnungMail(string $person): array
+    {
+        $absaetze = [
+            'Hallo ' . $person . ',',
+            'anbei erhältst du eine Rechnung über deine offenen Beträge beim VDSt zu Erlangen (siehe Anhang).',
+            'Bei bestehendem Lastschriftmandat wird der Betrag in den nächsten Tagen eingezogen. '
+                . 'Andernfalls überweise ihn bitte zeitnah auf das in der Rechnung angegebene Konto '
+                . 'oder begleiche ihn direkt beim Kassenwart.',
+            'Bei Fragen stehe ich dir gerne zur Verfügung.',
+            self::signatur(),
+        ];
+
+        return [
+            'betreff' => 'Rechnung – VDSt zu Erlangen',
+            'text' => implode("\n\n", $absaetze),
+        ];
+    }
+
+    /**
+     * Gemeinsame Grußformel/Signatur aller Rechnungs-Mails: Kassenwart-Name
+     * (Fallback „der Kassenwart") + optionales Bandzeichen aus der .env.
+     */
+    private static function signatur(): string
+    {
+        $kassenwart = trim((string) env('vdst.kassenwart_name', ''));
+        $gruss = $kassenwart !== '' ? $kassenwart : 'der Kassenwart';
+        $zeichen = trim((string) env('vdst.kassenwart_zeichen', ''));
+
+        return 'Mit freundlichen Grüßen,' . "\n"
+            . $gruss . "\n"
+            . 'Kassenwart' . ($zeichen !== '' ? ' ' . $zeichen : '');
     }
 
     /**
@@ -139,7 +176,6 @@ class RechnungVersand
     {
         $kassenwart = trim((string) env('vdst.kassenwart_name', ''));
         $gruss = $kassenwart !== '' ? $kassenwart : 'der Kassenwart';
-        $zeichen = trim((string) env('vdst.kassenwart_zeichen', ''));
 
         $absaetze = [
             'Hallo ' . $gruss . ',',
@@ -147,9 +183,7 @@ class RechnungVersand
                 . ' (Excel plus alle Belege als ZIP) — automatisch erzeugt zum Monatsende.',
             'Bitte prüfe die Abrechnung und leite sie an den zuständigen Verantwortlichen weiter. '
                 . 'Der Status in der Anwendung bleibt unverändert; setze ihn dort wie gewohnt selbst auf „eingereicht".',
-            'Mit freundlichen Grüßen,' . "\n"
-                . $gruss . "\n"
-                . 'Kassenwart' . ($zeichen !== '' ? ' ' . $zeichen : ''),
+            self::signatur(),
         ];
 
         return [

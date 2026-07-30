@@ -387,22 +387,34 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   `slugDateiname()`. Test: `tests/unit/RechnungPdfTest.php`.
 - **Allgemeine Rechnung** (Issue #96): Rechnung über beliebige offene Forderungen
   einer Person (Spenden/Einzelforderungen bis „alle offenen Schulden") inkl.
-  Überweisungsdetails — ZWEI Inline-PDF-Vorschau-Endpoints (kein Versand, kein
-  Log; Muster wie `importEinzelPdf`): `GET schulden/person/rechnung?name=…`
-  (`personRechnungPdf()`, ALLE offenen Forderungen der Person) und
-  `GET schulden/rechnung?id=…` (`einzelRechnungPdf()`, eine einzelne Forderung).
-  Beide über den privaten Builder `baueRechnungAntwort()`. Datenquelle:
+  Überweisungsdetails. Zwei Inline-PDF-Vorschau-Endpoints (kein Log; Muster wie
+  `importEinzelPdf`): `GET schulden/person/rechnung?name=…` (`personRechnungPdf()`,
+  ALLE offenen Forderungen der Person) und `GET schulden/rechnung?id=…`
+  (`einzelRechnungPdf()`, eine einzelne Forderung). Datenquelle:
   `SchuldModel::getForderungenFuerPerson()` — bewusst NUR `typ='forderung'` (keine
   Verrechnung mit Verbindlichkeiten, Vorzeichen-Invariante) und ALLE Forderungen
   (Getränke-Import + manuell) inkl. negativer Ausgleiche, sodass die gelisteten
   Positionen sich exakt auf den offenen Netto-Restbetrag summieren. `< 0.01` →
-  Redirect mit Hinweis (nichts zu berechnen). UI-Einstiege in `schulden/person.php`:
-  „Gesamtrechnung ansehen" in der Aktionsleiste (nur bei offenen Forderungen) und
-  je positiver Forderungszeile ein „Rechnung"-Link (read-only, daher auch auf
-  automatischen Einträgen). Bankdaten aus `bank_daten()`. Versand per E-Mail ist
-  bewusst NOCH NICHT umgesetzt (Folge-Schritt; `RechnungVersand::sende/
-  istKonfiguriert` bleiben wiederverwendbar). Muster: Slug `allgemeine-rechnung`.
-- **Rechnungsversand** (Issue #35): `/schulden/import/versand?monat=JJJJ-MM`
+  Redirect mit Hinweis (nichts zu berechnen). Geteilte private Seams
+  (`forderungenAlsPositionen()`, `baueRechnungPdf()`, `ladeForderung()`) halten
+  Vorschau und Versand byte-identisch.
+  **E-Mail-Versand** (`POST schulden/person/rechnung/senden?name=…` →
+  `personRechnungSenden()` → privater `sendeRechnung()`): mailt die Gesamtrechnung
+  an die im Register hinterlegte Adresse (`PersonModel::findEmailsFuer`, NICHT aus
+  dem POST — der Name ist nur der Schlüssel), Gate über
+  `RechnungVersand::istKonfiguriert()`, PDF-Erzeugung + Versand try/catch-gekapselt,
+  Redirect mit Flash. Kein Versand-Log (bewusst keine Doppelversand-Sperre,
+  Skala von einer Handvoll Belegen/Woche). Mailtext: reine
+  `RechnungVersand::baueAllgemeineRechnungMail($person)` (Betrag + Bankdaten stehen
+  bewusst NUR im PDF-Anhang, kein Monats-/Fristbezug); die Grußformel aller drei
+  Mail-Builder (`baueMail`/`baueAbrechnungMail`/`baueAllgemeineRechnungMail`) liegt
+  jetzt im gemeinsamen privaten Seam `RechnungVersand::signatur()`.
+  UI-Einstiege in `schulden/person.php`: „Gesamtrechnung ansehen" (nur bei offenen
+  Forderungen) und „Rechnung versenden" (POST + JS-Confirm, nur bei
+  `!ist_institution && smtp_ok && register_person.email`) in der Aktionsleiste,
+  plus je positiver Forderungszeile ein „Rechnung"-Link (read-only, daher auch auf
+  automatischen Einträgen). Bankdaten aus `bank_daten()`. Muster: Slug
+  `allgemeine-rechnung`. Tests: `RechnungPdfTest`, `RechnungVersandTest`.
 - **Rechnungsversand** (Issue #35): `/schulden/import/versand?monat=JJJJ-MM`
   (Redirect-Ziel nach importConfirm, jederzeit erneut aufrufbar) listet die
   importierten Forderungen des Monats mit E-Mail-Feld und Auswahl; „Rechnungen

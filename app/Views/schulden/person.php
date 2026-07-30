@@ -37,6 +37,17 @@
                        class="btn btn-outline-vdst" target="_blank" rel="noopener">
                         <i class="bi bi-file-earmark-text" aria-hidden="true"></i> Gesamtrechnung ansehen
                     </a>
+                    <?php if (!$ist_institution && $smtp_ok && !empty($register_person['email'])): ?>
+                        <form method="post" class="d-inline"
+                              action="<?= base_url('/schulden/person/rechnung/senden') ?>"
+                              onsubmit="return confirm('Rechnung an <?= esc($register_person['email'], 'js') ?> senden?')">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="name" value="<?= esc($person) ?>">
+                            <button type="submit" class="btn btn-outline-vdst">
+                                <i class="bi bi-envelope-arrow-up" aria-hidden="true"></i> Rechnung versenden
+                            </button>
+                        </form>
+                    <?php endif; ?>
                 <?php endif; ?>
                 <a href="<?= base_url('/schulden/create?person=' . urlencode($person)) ?>" class="btn btn-vdst">
                     <i class="bi bi-plus-lg" aria-hidden="true"></i> Neuer Eintrag

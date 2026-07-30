@@ -62,6 +62,10 @@
            href="<?= base_url('/inventur') ?>">
             <i class="bi bi-calculator" aria-hidden="true"></i> Inventur
         </a>
+        <a class="app-nav-link <?= strpos(uri_string(), 'muster') === 0 ? 'active' : '' ?>"
+           href="<?= base_url('/muster') ?>">
+            <i class="bi bi-file-earmark-text" aria-hidden="true"></i> Muster &amp; Vorlagen
+        </a>
 
         <div class="app-nav-group">Abrechnungen</div>
         <a class="app-nav-link app-nav-sub <?= strpos(uri_string(), 'abrechnungen/ah') === 0 ? 'active' : '' ?>"

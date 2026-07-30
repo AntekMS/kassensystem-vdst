@@ -179,6 +179,20 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   (`BuchungModel::berechneKontostaende()` + `SchuldModel::berechneInventur()`);
   die Downloads bleiben unter `schulden/export/inventur` (Excel) und
   `schulden/export/inventur-pdf` (PDF).
+- **Muster/Vorlagen** (`/muster`, `MusterController`, View `muster/index.php`):
+  eine Seite, die JEDES vom System erzeugte Dokument mit **fiktiven Platzhalter-
+  daten** (fest im Controller, KEINE DB-Zugriffe) vorführt — 6 PDFs inline im
+  neuen Tab (`MusterController::zeige` → `setHeader('Content-Disposition','inline')`,
+  Muster aus `SchuldenController::importEinzelPdf`), 4 Excel als Download
+  (`ExcelHelper::downloadExcel`, kein Inline). Ruft dieselben reinen Generatoren
+  wie der Echtbetrieb (`RechnungPdf::{einzel,uebersicht,coleurBund,abrechnung,
+  inventur}`, `ExcelHelper::erstelle{Kassenbuch,AhAbrechnung,HvAbrechnung,Inventur}`)
+  — keine zweite Rendering-Logik. Registry `MusterController::muster()` ist die
+  EINZIGE Quelle für Index-Kacheln UND Dispatch (Slug-Whitelist → sonst 404).
+  INVARIANTE: die Getränkepositionen der `einzel`/`coleurBund`-Muster summieren
+  sich exakt auf den Betrag, sonst verwirft sie `RechnungPdf::positionenFuer`
+  (Summen-Guard). Das Komplett-ZIP hat bewusst KEIN Muster (bündelt echte
+  Beleg-Dateien) — nur als Hinweistext auf der Seite erklärt.
 - **Personen-Register** (Issue #61, Fundament für #59): `PersonModel` (Tabelle
   `persons`: vorname/nachname/email/aktiv) ist die autoritative Namens-/E-Mail-Quelle.
   **Registry + Soft-Link** (bewusst KEINE volle Normalisierung): `schulden` hat eine

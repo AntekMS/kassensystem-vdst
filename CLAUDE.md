@@ -63,9 +63,22 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   `AhAbrechnungenController`/`HvAbrechnungenController`
   (nur `$typ`, `$typName`, Modell — die ganze Logik liegt in der Basisklasse).
 - **Models**: `BelegModel` (belege), `BuchungModel` (buchungen),
-  `SchuldModel` (schulden), `AhAbrechnungModel`/`HvAbrechnungModel`
-  (ah_/hv_abrechnungen), `AbrechnungBelegModel` (Junction abrechnung_belege —
-  einziger Codepfad für Beleg-Zuordnungen), `PersonModel` (persons —
+  `SchuldModel` (schulden), `AbstractAbrechnungModel` mit den dünnen Subklassen
+  `AhAbrechnungModel`/`HvAbrechnungModel` (ah_/hv_abrechnungen; Issue #89 —
+  spiegelbildlich zur Controller-Abstraktion: die Subklassen setzen NUR `$table`,
+  `$typ` ('ah'|'hv'), `$typLabel` ('AH²'/'HV' für Default-Titel und Fehlertexte,
+  bewusst NICHT identisch mit `AbstractAbrechnungenController::$typName`, das
+  'Heimverein' ausschreibt) und `$berechtigtKategorie`; HV ergänzt im Konstruktor
+  nur `begruendung` in `$allowedFields`/`$validationRules` — die ganze Logik inkl.
+  der Beleg-Status-Invarianten liegt EINMAL in der Basisklasse. `getMonatName()`
+  delegiert an `GetraenkeRechnungImport::monatsName()`, die eine Monatsnamen-Quelle.
+  Eigene Fachfehler wie der Doppelmonat-Guard laufen über `$eigeneFehler` +
+  überschriebenes `errors()` — `BaseModel::errors()` liest nur Validation und DB,
+  ein rohes `$this->errors = […]` käme beim Controller NIE an),
+  `AbrechnungBelegModel` (Junction abrechnung_belege —
+  einziger Codepfad für Beleg-Zuordnungen; `setzeStatusWennUnbenutzt()` ist der
+  gemeinsame Pfad „Beleg in keiner Abrechnung mehr → zurück auf `erfasst`" für
+  `entferneZuordnung` und `loescheAlleZuordnungen`), `PersonModel` (persons —
   Personen-Register mit vorname/nachname/email, autoritative Namens-/E-Mail-Quelle
   seit Issue #61), `GetraenkeVersandModel` (getraenke_versand, Versand-Log),
   `SchuldPositionModel` (schuld_positionen — Getränkedetails je Import-Forderung,
@@ -165,7 +178,15 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   `js-autosubmit` (Filter-Selects) bzw. `js-betrag-format` (Betrag-Eingaben) — solche
   Handler NICHT wieder inline in Views duplizieren.
 - **Exporte**: `app/Helpers/ExcelHelper.php` + `ZipHelper.php`. Pro Bereich genau
-  2 Formate: Excel und Komplett-ZIP (Excel + Beleg-Dateien). Abrechnungen haben
+  2 Formate: Excel und Komplett-ZIP (Excel + Beleg-Dateien). Das Abrechnungs-Excel
+  baut EINE Methode `ExcelHelper::erstelleAbrechnung($abrechnung, $belege, $typ)`
+  (Issue #90 — vorher `erstelleAhAbrechnung`/`erstelleHvAbrechnung` zu ~85 %
+  doppelt); `$typ` steuert nur Sheet-/Default-Titel, Header-Füllfarbe
+  (`DDDDDD` AH / `FFE4B5` HV) und den HV-`begruendung`-Block, der die Tabelle
+  um eine Zeile nach unten schiebt (`$headerZeile` 2 → 3; alle Format- und
+  Rahmenbereiche hängen daran). Damit sind auch die `ah`/`hv`-Dispatch-Zweige in
+  `AbstractAbrechnungenController::exportExcel` und `ZipHelper::erstelleBelegeZip`
+  weg — keine neuen daneben bauen. Abrechnungen haben
   seit Issue #83 zusätzlich einen **PDF-Rechnungs-Export** (`abrechnungen/{typ}/exportPdf/{id}`
   → `AbstractAbrechnungenController::exportPdf`, `RechnungPdf::abrechnung`, s.u.
   „PDF-Rechnungen") — bewusst ERGÄNZEND (Excel/ZIP bleiben), als weiterer Eintrag
@@ -189,7 +210,8 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   Muster aus `SchuldenController::importEinzelPdf`), 4 Excel als Download
   (`ExcelHelper::downloadExcel`, kein Inline). Ruft dieselben reinen Generatoren
   wie der Echtbetrieb (`RechnungPdf::{einzel,allgemein,uebersicht,coleurBund,abrechnung,
-  inventur}`, `ExcelHelper::erstelle{Kassenbuch,AhAbrechnung,HvAbrechnung,Inventur}`)
+  inventur}`, `ExcelHelper::erstelle{Kassenbuch,Abrechnung,Inventur}` — die beiden
+  Abrechnungs-Kacheln reichen dabei `'ah'`/`'hv'` explizit durch)
   — keine zweite Rendering-Logik. Registry `MusterController::muster()` ist die
   EINZIGE Quelle für Index-Kacheln UND Dispatch (Slug-Whitelist → sonst 404).
   INVARIANTE: die Getränkepositionen der `einzel`/`coleurBund`-Muster summieren
@@ -487,7 +509,8 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   HV-Abrechnung als **Komplett-ZIP (Excel + Belege)** per E-Mail an den
   **Kassenwart selbst** (`vdst.kassenwart_email`) — zum Prüfen/Weiterleiten,
   **Status bleibt UNVERÄNDERT** (kein Auto-`eingereicht`). Iteriert über AH/HV,
-  je `findeOffeneAbrechnung()` (jetzt in BEIDEN Modellen — HV-Parität ergänzt) +
+  je `findeOffeneAbrechnung()` (seit #89 einmal in `AbstractAbrechnungModel`, also
+  für AH und HV per Konstruktion identisch) +
   `getBelege()`; reiner Seam `AbrechnungenVersenden::sollVersenden(?$abr,$belege)`
   überspringt fehlende/beleglose Abrechnungen; pro Typ `try/catch`. Anhang-Aufbau
   gekapselt in `baueAnhang()` (`ZipHelper::erstelleBelegeZip` → Buffer → `unlink`,
@@ -497,8 +520,10 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   Signatur wie `baueMail`). Gate: `RechnungVersand::istKonfiguriert()` **und**
   `vdst.kassenwart_email` gesetzt — sonst sauberer Abbruch. `RechnungVersand::sende()`
   nimmt jetzt optional `$mime='application/pdf'` (rückwärtskompatibel; ZIP reicht
-  `application/zip` durch). Deutscher Monatsname via jetzt `public`
-  `{Ah,Hv}AbrechnungModel::getMonatName()`. Host-Cron via
+  `application/zip` durch). Deutscher Monatsname via `public`
+  `AbstractAbrechnungModel::getMonatName()`, das seit #89 an
+  `GetraenkeRechnungImport::monatsName()` delegiert (EINE Monatsnamen-Quelle —
+  keine neue 12-Monats-Map irgendwo aufspannen). Host-Cron via
   `scripts/abrechnungen-versenden.sh` (Muster `backup.sh`, z.B. `0 8 1 * *`).
   `vdst.kassenwart_email` ist auskommentiertes Beispiel in `env`. Test:
   `tests/unit/AbrechnungVersandTest.php` (DB-los: `baueAbrechnungMail` + `sollVersenden`).
@@ -528,7 +553,8 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
 - **Beleg-Status** (ENUM): `erfasst → in_abrechnung → abgerechnet → bezahlt`. Nur `erfasst`
   ist editierbar. `addBeleg`/`removeBeleg` verweigern `eingereicht`/`bezahlt`-Abrechnungen;
   `aendereStatus` setzt Belege beim Zurückstufen aus `bezahlt` wieder auf `in_abrechnung`
-  (in beiden Modellen `Ah`/`HvAbrechnungModel` identisch pflegen).
+  (seit Issue #89 nur noch EINMAL in `AbstractAbrechnungModel` — die frühere
+  Doppelpflege in `Ah`/`HvAbrechnungModel` ist weg und darf nicht zurückkommen).
 - **Gesamtsummen** der Abrechnungen berechnet PHP (`berechneGesamtsumme()`) bei jedem
   Hinzufügen/Entfernen — es gibt KEINE DB-Trigger mehr (per Migration entfernt).
 - **Sammel-Zuordnung** (Issue #11): „Alle hinzufügen"-Button (select_belege, AJAX

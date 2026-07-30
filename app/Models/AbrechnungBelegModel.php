@@ -127,13 +127,7 @@ class AbrechnungBelegModel extends Model
             ])->delete();
 
             if ($deleted) {
-                // Prüfe ob Beleg in anderen Abrechnungen ist
-                $andereZuordnungen = $this->where('beleg_id', $belegId)->countAllResults();
-
-                if ($andereZuordnungen === 0) {
-                    // Beleg ist in keiner anderen Abrechnung, Status zurücksetzen
-                    $this->aktualisiereBeregStatus($belegId, 'erfasst');
-                }
+                $this->setzeStatusWennUnbenutzt($belegId);
 
                 log_message('info', "Beleg {$belegId} erfolgreich aus {$abrechnungsTyp}-Abrechnung {$abrechnungsId} entfernt");
                 return true;
@@ -272,6 +266,23 @@ class AbrechnungBelegModel extends Model
     }
 
     /**
+     * Setzt einen Beleg auf 'erfasst' zurück, wenn er in keiner Abrechnung mehr hängt.
+     *
+     * Gemeinsamer Pfad für entferneZuordnung() und loescheAlleZuordnungen() —
+     * erst nach dem Löschen der Zuordnung aufrufen.
+     */
+    private function setzeStatusWennUnbenutzt($belegId)
+    {
+        $andereZuordnungen = $this->where('beleg_id', $belegId)->countAllResults();
+
+        if ($andereZuordnungen === 0) {
+            return $this->aktualisiereBeregStatus($belegId, 'erfasst');
+        }
+
+        return true;
+    }
+
+    /**
      * Löscht alle Zuordnungen einer Abrechnung
      */
     public function loescheAlleZuordnungen($abrechnungsTyp, $abrechnungsId)
@@ -294,10 +305,7 @@ class AbrechnungBelegModel extends Model
         if ($deleted && !empty($belegIds)) {
             // Setze Status der Belege zurück, falls sie in keinen anderen Abrechnungen sind
             foreach ($belegIds as $belegId) {
-                $andereZuordnungen = $this->where('beleg_id', $belegId)->countAllResults();
-                if ($andereZuordnungen === 0) {
-                    $this->aktualisiereBeregStatus($belegId, 'erfasst');
-                }
+                $this->setzeStatusWennUnbenutzt($belegId);
             }
         }
 

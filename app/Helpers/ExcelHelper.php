@@ -132,102 +132,38 @@ class ExcelHelper
     }
 
     /**
-     * Erstellt AH²-Abrechnung Excel
+     * Erstellt das Abrechnungs-Excel für AH² oder HV.
+     *
+     * Der Typ steuert nur Sheet-/Default-Titel, Header-Farbe und — bei HV — den
+     * Freitext-Begründungs-Block, der die Tabelle um eine Zeile nach unten schiebt.
+     *
+     * @param array  $abrechnung
+     * @param array  $belege
+     * @param string $typ 'ah' | 'hv'
+     * @return Spreadsheet
      */
-    public static function erstelleAhAbrechnung($abrechnung, $belege)
+    public static function erstelleAbrechnung($abrechnung, $belege, string $typ)
     {
+        $istHv = $typ === 'hv';
+
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('AH² Abrechnung');
+        $sheet->setTitle($istHv ? 'HV Abrechnung' : 'AH² Abrechnung');
 
         // Titel der Abrechnung
-        $sheet->setCellValue('A1', $abrechnung['titel'] ?? 'Abrechnung Alt-Herren-Bund');
+        $sheet->setCellValue('A1', $abrechnung['titel'] ?? ($istHv ? 'Heimverein Abrechnung' : 'Abrechnung Alt-Herren-Bund'));
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
         $sheet->mergeCells('A1:E1');
 
-        // Header: Beschreibung | Datum | Beleg | Betrag | Bezugsquelle
-        $sheet->setCellValue('A2', 'Beschreibung');
-        $sheet->setCellValue('B2', 'Datum');
-        $sheet->setCellValue('C2', 'Beleg');
-        $sheet->setCellValue('D2', 'Betrag');
-        $sheet->setCellValue('E2', 'Bezugsquelle');
+        // Begründung (Freitext, nur HV) falls vorhanden — schiebt den Header eine Zeile runter
+        $headerZeile = 2;
 
-        // Header-Formatierung
-        $sheet->getStyle('A2:E2')->getFont()->setBold(true);
-        $sheet->getStyle('A2:E2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('A2:E2')->getFill()
-            ->setFillType(Fill::FILL_SOLID)
-            ->getStartColor()->setRGB('DDDDDD');
-
-        // Belege eintragen – ab Zeile 3
-        $zeile = 3;
-        foreach ($belege as $beleg) {
-            $sheet->setCellValue('A' . $zeile, $beleg['beschreibung']);
-            $sheet->setCellValue('B' . $zeile,
-                \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel(
-                    strtotime($beleg['rechnungsdatum'])
-                )
-            );
-            $sheet->setCellValue('C' . $zeile, $beleg['belegnummer'] ?? '');
-            $sheet->setCellValue('D' . $zeile, $beleg['betrag']);
-            $sheet->setCellValue('E' . $zeile, $beleg['lieferant'] ?: 'Kassenwart');
-            $zeile++;
-        }
-
-        // Gesamtsumme
-        $sheet->setCellValue('C' . $zeile, 'GESAMTSUMME:');
-        $sheet->setCellValue('D' . $zeile, $abrechnung['gesamtsumme']);
-        $sheet->getStyle('C' . $zeile . ':D' . $zeile)->getFont()->setBold(true);
-
-        // Spaltenbreiten
-        $sheet->getColumnDimension('A')->setWidth(35);
-        $sheet->getColumnDimension('B')->setWidth(12);
-        $sheet->getColumnDimension('C')->setWidth(18);
-        $sheet->getColumnDimension('D')->setWidth(12);
-        $sheet->getColumnDimension('E')->setWidth(25);
-
-        // Datum formatieren
-        $sheet->getStyle('B3:B' . ($zeile - 1))
-            ->getNumberFormat()
-            ->setFormatCode('DD.MM.YYYY');
-
-        // Beträge formatieren
-        $sheet->getStyle('D3:D' . $zeile)
-            ->getNumberFormat()
-            ->setFormatCode('#,##0.00 "€"');
-
-        // Rahmen
-        $sheet->getStyle('A2:E' . $zeile)
-            ->getBorders()
-            ->getAllBorders()
-            ->setBorderStyle(Border::BORDER_THIN);
-
-        return $spreadsheet;
-    }
-
-    /**
-     * Erstellt HV-Abrechnung Excel (mit Freitext-Begründung aus der Abrechnung)
-     */
-    public static function erstelleHvAbrechnung($abrechnung, $belege)
-    {
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('HV Abrechnung');
-
-        // Titel der Abrechnung
-        $sheet->setCellValue('A1', $abrechnung['titel'] ?? 'Heimverein Abrechnung');
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
-        $sheet->mergeCells('A1:E1');
-
-        // Begründung (Freitext aus der Abrechnung) falls vorhanden
-        if (!empty($abrechnung['begruendung'])) {
+        if ($istHv && !empty($abrechnung['begruendung'])) {
             $sheet->setCellValue('A2', 'Begründung:');
             $sheet->setCellValue('B2', $abrechnung['begruendung']);
             $sheet->getStyle('A2')->getFont()->setBold(true);
             $sheet->mergeCells('B2:E2');
             $headerZeile = 3;
-        } else {
-            $headerZeile = 2;
         }
 
         // Header: Beschreibung | Datum | Beleg | Betrag | Bezugsquelle
@@ -237,15 +173,18 @@ class ExcelHelper
         $sheet->setCellValue('D' . $headerZeile, 'Betrag');
         $sheet->setCellValue('E' . $headerZeile, 'Bezugsquelle');
 
-        // Header-Formatierung
-        $sheet->getStyle('A' . $headerZeile . ':E' . $headerZeile)->getFont()->setBold(true);
-        $sheet->getStyle('A' . $headerZeile . ':E' . $headerZeile)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('A' . $headerZeile . ':E' . $headerZeile)->getFill()
+        // Header-Formatierung (Hellgelb für HV, Grau für AH²)
+        $headerBereich = 'A' . $headerZeile . ':E' . $headerZeile;
+        $sheet->getStyle($headerBereich)->getFont()->setBold(true);
+        $sheet->getStyle($headerBereich)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle($headerBereich)->getFill()
             ->setFillType(Fill::FILL_SOLID)
-            ->getStartColor()->setRGB('FFE4B5'); // Hellgelb für HV
+            ->getStartColor()->setRGB($istHv ? 'FFE4B5' : 'DDDDDD');
 
         // Belege eintragen
-        $zeile = $headerZeile + 1;
+        $ersteBelegZeile = $headerZeile + 1;
+        $zeile = $ersteBelegZeile;
+
         foreach ($belege as $beleg) {
             $sheet->setCellValue('A' . $zeile, $beleg['beschreibung']);
             $sheet->setCellValue('B' . $zeile,
@@ -272,12 +211,12 @@ class ExcelHelper
         $sheet->getColumnDimension('E')->setWidth(25);
 
         // Datum formatieren
-        $sheet->getStyle('B' . ($headerZeile + 1) . ':B' . ($zeile - 1))
+        $sheet->getStyle('B' . $ersteBelegZeile . ':B' . ($zeile - 1))
             ->getNumberFormat()
             ->setFormatCode('DD.MM.YYYY');
 
         // Beträge formatieren
-        $sheet->getStyle('D' . ($headerZeile + 1) . ':D' . $zeile)
+        $sheet->getStyle('D' . $ersteBelegZeile . ':D' . $zeile)
             ->getNumberFormat()
             ->setFormatCode('#,##0.00 "€"');
 

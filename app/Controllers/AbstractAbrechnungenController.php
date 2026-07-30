@@ -326,9 +326,7 @@ abstract class AbstractAbrechnungenController extends BaseController
         $belege = $this->abrechnungModel->getBelege($id);
 
         try {
-            $spreadsheet = $this->typ === 'ah'
-                ? \App\Helpers\ExcelHelper::erstelleAhAbrechnung($abrechnung, $belege)
-                : \App\Helpers\ExcelHelper::erstelleHvAbrechnung($abrechnung, $belege);
+            $spreadsheet = \App\Helpers\ExcelHelper::erstelleAbrechnung($abrechnung, $belege, $this->typ);
 
             $filename = strtoupper($this->typ) . '_Abrechnung_' . $abrechnung['abrechnungsmonat'] . '.xlsx';
 

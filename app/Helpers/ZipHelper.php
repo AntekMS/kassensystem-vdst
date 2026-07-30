@@ -47,11 +47,7 @@ class ZipHelper
             $excelFilename = strtoupper($typ) . '_Abrechnung_' .
                 $abrechnung['abrechnungsmonat'] . '.xlsx';
 
-            if ($typ === 'ah') {
-                $spreadsheet = \App\Helpers\ExcelHelper::erstelleAhAbrechnung($abrechnung, $belege);
-            } else {
-                $spreadsheet = \App\Helpers\ExcelHelper::erstelleHvAbrechnung($abrechnung, $belege);
-            }
+            $spreadsheet = \App\Helpers\ExcelHelper::erstelleAbrechnung($abrechnung, $belege, $typ);
 
             // Excel temporär speichern
             $tempExcelPath = $tempDir . uniqid('temp_', true) . '.xlsx';

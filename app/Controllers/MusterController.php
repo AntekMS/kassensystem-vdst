@@ -174,8 +174,8 @@ class MusterController extends BaseController
     {
         $spreadsheet = match ($slug) {
             'kassenbuch' => ExcelHelper::erstelleKassenbuch($this->buchungen(), $this->kontostaende()),
-            'abrechnung-ah-excel' => ExcelHelper::erstelleAhAbrechnung($this->abrechnungAh(), $this->belegeAh()),
-            'abrechnung-hv-excel' => ExcelHelper::erstelleHvAbrechnung($this->abrechnungHv(), $this->belegeHv()),
+            'abrechnung-ah-excel' => ExcelHelper::erstelleAbrechnung($this->abrechnungAh(), $this->belegeAh(), 'ah'),
+            'abrechnung-hv-excel' => ExcelHelper::erstelleAbrechnung($this->abrechnungHv(), $this->belegeHv(), 'hv'),
             'inventur-excel' => ExcelHelper::erstelleInventur($this->kontostaende(), $this->inventur()),
         };
 

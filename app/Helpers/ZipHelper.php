@@ -2,15 +2,104 @@
 
 namespace App\Helpers;
 
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
  * ZipHelper - Erstellt ZIP-Archive mit Belegen + EXCEL-DATEI
  *
- * Wie ein intelligenter Archivar, der alle Dokumente ordentlich zusammenpackt
+ * Wie ein intelligenter Archivar, der alle Dokumente ordentlich zusammenpackt.
+ *
+ * `erstelleArchiv()` ist seit Issue #91 der EINZIGE Codepfad, der ein
+ * Export-ZIP zusammenbaut (Abrechnungen, Belege-Liste, Kassenbuch) — die
+ * Aufrufer liefern nur ihr Spreadsheet, ihre Dateiliste und ihre Abschlussdatei.
  */
 class ZipHelper
 {
+    /**
+     * Temp-Verzeichnis für Exporte (wird bei Bedarf angelegt).
+     */
+    public static function tempDir(): string
+    {
+        $tempDir = WRITEPATH . 'temp/zip/';
+
+        if (!is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        return $tempDir;
+    }
+
+    /**
+     * Baut ein Export-ZIP: Excel + Dateiliste + Abschlussdatei.
+     *
+     * Gemeinsamer Kern der drei früheren Kopien (Issue #91). Die Excel wird
+     * über eine Temp-Datei geschrieben (PhpSpreadsheet kann nicht in den
+     * ZipArchive-Stream) und danach wieder gelöscht.
+     *
+     * @param string      $zipPfad    Zielpfad des Archivs
+     * @param Spreadsheet $excel      fertiges Spreadsheet des Aufrufers
+     * @param string      $excelName  Name der Excel IM Archiv
+     * @param array       $dateien    Liste ['pfad' => absolut, 'name' => Name im Archiv, 'label' => für Fehlerliste]
+     * @param callable    $abschluss  fn(array $fehlgeschlagen): ?array{0:string,1:string} — [Dateiname, Inhalt] oder null
+     * @return string Pfad zum fertigen Archiv
+     * @throws \Exception wenn das Archiv nicht erstellt werden kann
+     */
+    public static function erstelleArchiv(
+        string $zipPfad,
+        Spreadsheet $excel,
+        string $excelName,
+        array $dateien,
+        callable $abschluss
+    ): string {
+        $zip = new \ZipArchive();
+        $result = $zip->open($zipPfad, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+
+        if ($result !== true) {
+            throw new \Exception('ZIP-Archiv konnte nicht erstellt werden. Fehlercode: ' . $result);
+        }
+
+        // 1. Excel über eine Temp-Datei hinzufügen
+        $tempExcelPfad = self::tempDir() . uniqid('temp_', true) . '.xlsx';
+        (new Xlsx($excel))->save($tempExcelPfad);
+        $zip->addFile($tempExcelPfad, $excelName);
+
+        // 2. Dateien hinzufügen, fehlende sammeln statt abzubrechen
+        $fehlgeschlagen = [];
+
+        foreach ($dateien as $datei) {
+            if (!file_exists($datei['pfad'])) {
+                log_message('warning', "Beleg-Datei nicht gefunden: {$datei['pfad']}");
+                $fehlgeschlagen[] = $datei['label'];
+                continue;
+            }
+
+            if (!$zip->addFile($datei['pfad'], $datei['name'])) {
+                log_message('error', "Beleg konnte nicht zur ZIP hinzugefügt werden: {$datei['label']}");
+                $fehlgeschlagen[] = $datei['label'];
+            }
+        }
+
+        // 3. Abschlussdatei (Info bzw. Hinweise) — der Aufrufer entscheidet, ob es eine gibt
+        $zusatz = $abschluss($fehlgeschlagen);
+
+        if ($zusatz !== null) {
+            $zip->addFromString($zusatz[0], $zusatz[1]);
+        }
+
+        $zip->close();
+
+        if (file_exists($tempExcelPfad)) {
+            unlink($tempExcelPfad);
+        }
+
+        if (!file_exists($zipPfad)) {
+            throw new \Exception('ZIP-Datei wurde nicht erstellt.');
+        }
+
+        return $zipPfad;
+    }
+
     /**
      * Erstellt ZIP-Archiv mit allen Belegen einer Abrechnung + EXCEL-DATEI
      *
@@ -22,86 +111,22 @@ class ZipHelper
     public static function erstelleBelegeZip($abrechnung, $belege, $typ)
     {
         try {
-            // Temporäres Verzeichnis für ZIP
-            $tempDir = WRITEPATH . 'temp/zip/';
-            if (!is_dir($tempDir)) {
-                mkdir($tempDir, 0755, true);
-            }
-
-            // ZIP-Dateiname generieren (uniqid statt time() — verhindert Kollisionen
-            // bei parallelen Exports innerhalb derselben Sekunde)
-            $zipFilename = strtoupper($typ) . '_Komplett_' .
+            // uniqid statt time() — verhindert Kollisionen bei parallelen
+            // Exports innerhalb derselben Sekunde
+            $zipPfad = self::tempDir() . strtoupper($typ) . '_Komplett_' .
                 $abrechnung['abrechnungsmonat'] . '_' .
                 uniqid('', true) . '.zip';
-            $zipPath = $tempDir . $zipFilename;
 
-            // ZIP erstellen
-            $zip = new \ZipArchive();
-            $result = $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
-
-            if ($result !== true) {
-                throw new \Exception('ZIP-Archiv konnte nicht erstellt werden. Fehlercode: ' . $result);
-            }
-
-            // ===== 1. EXCEL-DATEI ERSTELLEN UND HINZUFÜGEN =====
-            $excelFilename = strtoupper($typ) . '_Abrechnung_' .
-                $abrechnung['abrechnungsmonat'] . '.xlsx';
-
-            $spreadsheet = \App\Helpers\ExcelHelper::erstelleAbrechnung($abrechnung, $belege, $typ);
-
-            // Excel temporär speichern
-            $tempExcelPath = $tempDir . uniqid('temp_', true) . '.xlsx';
-            $writer = new Xlsx($spreadsheet);
-            $writer->save($tempExcelPath);
-
-            // Excel zur ZIP hinzufügen
-            $zip->addFile($tempExcelPath, $excelFilename);
-
-            // ===== 2. ALLE BELEG-DATEIEN HINZUFÜGEN =====
-            $erfolgreich = 0;
-            $fehlgeschlagen = 0;
-            $fehlgeschlageneListe = [];
-
-            foreach ($belege as $index => $beleg) {
-                $originalDatei = FCPATH . $beleg['dateipfad'];
-
-                if (!file_exists($originalDatei)) {
-                    log_message('warning', "Beleg-Datei nicht gefunden: {$originalDatei}");
-                    $fehlgeschlagen++;
-                    $fehlgeschlageneListe[] = $beleg['belegnummer'];
-                    continue;
-                }
-
-                // Aussagekräftigen Dateinamen generieren
-                $neuerDateiname = self::generiereZipDateiname($beleg, $index + 1);
-
-                if ($zip->addFile($originalDatei, 'Belege/' . $neuerDateiname)) {
-                    $erfolgreich++;
-                } else {
-                    log_message('error', "Beleg konnte nicht zur ZIP hinzugefügt werden: {$beleg['belegnummer']}");
-                    $fehlgeschlagen++;
-                    $fehlgeschlageneListe[] = $beleg['belegnummer'];
-                }
-            }
-
-            // ===== 3. INFO-DATEI HINZUFÜGEN =====
-            $zip->addFromString('00_Info.txt', self::erstelleInfoDatei($abrechnung, $belege, $typ, $fehlgeschlageneListe));
-
-            // ZIP schließen
-            $zip->close();
-
-            // Temporäre Excel-Datei löschen
-            if (file_exists($tempExcelPath)) {
-                unlink($tempExcelPath);
-            }
-
-            // Prüfen ob ZIP erfolgreich erstellt wurde
-            if (!file_exists($zipPath)) {
-                throw new \Exception('ZIP-Datei wurde nicht erstellt.');
-            }
-
-            return $zipPath;
-
+            return self::erstelleArchiv(
+                $zipPfad,
+                \App\Helpers\ExcelHelper::erstelleAbrechnung($abrechnung, $belege, $typ),
+                strtoupper($typ) . '_Abrechnung_' . $abrechnung['abrechnungsmonat'] . '.xlsx',
+                self::belegDateien($belege),
+                static fn (array $fehlgeschlagen) => [
+                    '00_Info.txt',
+                    self::erstelleInfoDatei($abrechnung, $belege, $typ, $fehlgeschlagen),
+                ]
+            );
         } catch (\Exception $e) {
             log_message('error', 'ZipHelper Error: ' . $e->getMessage());
             return false;
@@ -109,27 +134,57 @@ class ZipHelper
     }
 
     /**
-     * Generiert aussagekräftigen Dateinamen für Beleg in ZIP
+     * Beleg-Zeilen → Dateiliste für erstelleArchiv().
+     *
+     * @param array $belege Zeilen mit dateipfad/belegnummer/beschreibung/dateityp
+     * @param int   $maxLen Längenlimit der Beschreibung im Dateinamen
      */
-    private static function generiereZipDateiname($beleg, $laufendeNummer)
+    public static function belegDateien(array $belege, int $maxLen = 40): array
     {
-        // Format: 01_2024-06-15-001_Beschreibung.pdf
-        $prefix = str_pad($laufendeNummer, 2, '0', STR_PAD_LEFT);
-        $belegnummer = $beleg['belegnummer'];
+        $dateien = [];
 
-        // Beschreibung für Dateiname vorbereiten (max 40 Zeichen, nur sichere Zeichen)
-        $beschreibung = preg_replace('/[^a-zA-Z0-9äöüÄÖÜß\s]/', '', $beleg['beschreibung']);
-        $beschreibung = preg_replace('/\s+/', '_', trim($beschreibung));
-        $beschreibung = substr($beschreibung, 0, 40);
-        $beschreibung = rtrim($beschreibung, '_');
-
-        $extension = $beleg['dateityp'];
-
-        if (!empty($beschreibung)) {
-            return "{$prefix}_{$belegnummer}_{$beschreibung}.{$extension}";
-        } else {
-            return "{$prefix}_{$belegnummer}.{$extension}";
+        foreach (array_values($belege) as $index => $beleg) {
+            $dateien[] = [
+                'pfad' => FCPATH . $beleg['dateipfad'],
+                'name' => 'Belege/' . self::belegDateiname($beleg, $index + 1, $maxLen),
+                'label' => $beleg['belegnummer'],
+            ];
         }
+
+        return $dateien;
+    }
+
+    /**
+     * Generiert aussagekräftigen Dateinamen für Beleg in ZIP
+     * Format: 01_2024-06-15-001_Beschreibung.pdf
+     */
+    public static function belegDateiname(array $beleg, int $laufendeNummer, int $maxLen = 40): string
+    {
+        $prefix = str_pad((string) $laufendeNummer, 2, '0', STR_PAD_LEFT);
+        $beschreibung = self::dateinameTeil($beleg['beschreibung'] ?? '', $maxLen);
+
+        $dateiname = "{$prefix}_{$beleg['belegnummer']}";
+
+        if ($beschreibung !== '') {
+            $dateiname .= "_{$beschreibung}";
+        }
+
+        return $dateiname . '.' . $beleg['dateityp'];
+    }
+
+    /**
+     * Macht Freitext dateinamen-sicher: nur Buchstaben/Ziffern/Umlaute, Leerraum
+     * zu Unterstrichen, auf $maxLen gekürzt, ohne Rand-Unterstrich.
+     *
+     * EINZIGE Sanitize-Regel für ZIP-Dateinamen (Issue #91) — die drei früheren
+     * Kopien unterschieden sich nur im Längenlimit.
+     */
+    public static function dateinameTeil(?string $text, int $maxLen): string
+    {
+        $sauber = preg_replace('/[^a-zA-Z0-9äöüÄÖÜß\s]/', '', (string) $text);
+        $sauber = preg_replace('/\s+/', '_', trim($sauber));
+
+        return rtrim(substr($sauber, 0, $maxLen), '_');
     }
 
     /**

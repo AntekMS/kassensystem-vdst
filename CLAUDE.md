@@ -30,7 +30,8 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   (`HealthTest`, `BetragTest`, `SchuldLabelTest`, `GetraenkeBeglichenTest`,
   `GetraenkeImportParserTest`, `RechnungPdfTest`, `RechnungVersandTest`,
   `PersonSchluesselTest`, `PersonModelTest`, `GetraenkeImportAufloeserTest`,
-  `SchuldPositionTest`, `AbrechnungVersandTest`); entspricht `composer test`
+  `SchuldPositionTest`, `AbrechnungVersandTest`, `ZipDateinameTest`);
+  entspricht `composer test`
 - `docker exec kassensystem-vdst-web php spark migrate` — Migrationen (auch die
   Datei-/Trigger-Cleanup-Migrationen)
 - `docker exec kassensystem-vdst-web php spark abrechnungen:versenden` — automatischer
@@ -186,7 +187,23 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   um eine Zeile nach unten schiebt (`$headerZeile` 2 → 3; alle Format- und
   Rahmenbereiche hängen daran). Damit sind auch die `ah`/`hv`-Dispatch-Zweige in
   `AbstractAbrechnungenController::exportExcel` und `ZipHelper::erstelleBelegeZip`
-  weg — keine neuen daneben bauen. Abrechnungen haben
+  weg — keine neuen daneben bauen. **`ZipHelper::erstelleArchiv()`** ist seit
+  Issue #91 der EINZIGE Codepfad, der ein Export-ZIP zusammenbaut (Abrechnung,
+  Belege-Liste, Kassenbuch): Aufrufer liefern Spreadsheet, Dateiliste
+  (`['pfad','name','label']`) und eine Abschluss-Callback, die aus der Liste der
+  fehlenden Dateien `[Name, Inhalt]` oder `null` macht (Abrechnung: immer
+  `00_Info.txt`; die beiden Listen-Exporte: `00_Hinweise.txt` nur bei Lücken).
+  Excel geht über eine `uniqid()`-Temp-Datei und wird danach gelöscht. Die
+  Sanitize-Regel für ZIP-Dateinamen lebt einmal in
+  `ZipHelper::dateinameTeil($text, $maxLen)`; `ZipHelper::belegDateiname()`
+  baut daraus `NN_Belegnummer_Beschreibung.endung` (Limit 40 für Abrechnungen,
+  30 für die Belege-Liste). Der Kassenbuch-Beleg-Name hat bewusst eine EIGENE
+  Form (Buchungsdatum als zweites Segment, Endung aus dem Dateipfad) und teilt
+  nur den Sanitizer. Download-Dateinamen der Exporte baut
+  `BaseController::exportDateiname($prefix,$filter,$ext,$filterSchluessel,$leerText)`
+  — Datumsblock gemeinsam, die zusätzlichen Filter gibt der Aufrufer vor
+  (Belege: `kategorie`,`status` + Platzhalter `alle`; Buchungen: `konto_typ`,
+  ohne Platzhalter — dieser Unterschied ist gewollt). Abrechnungen haben
   seit Issue #83 zusätzlich einen **PDF-Rechnungs-Export** (`abrechnungen/{typ}/exportPdf/{id}`
   → `AbstractAbrechnungenController::exportPdf`, `RechnungPdf::abrechnung`, s.u.
   „PDF-Rechnungen") — bewusst ERGÄNZEND (Excel/ZIP bleiben), als weiterer Eintrag

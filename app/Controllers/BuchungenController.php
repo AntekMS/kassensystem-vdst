@@ -248,7 +248,7 @@ class BuchungenController extends BaseController
 
         try {
             $spreadsheet = \App\Helpers\ExcelHelper::erstelleKassenbuch($buchungen, $kontostaende, $filter);
-            $filename = $this->generiereExportFilename('Kassenbuch', $filter, 'xlsx');
+            $filename = $this->exportDateiname('Kassenbuch', $filter, 'xlsx', ['konto_typ']);
 
             return \App\Helpers\ExcelHelper::downloadExcel($spreadsheet, $filename);
         } catch (\Exception $e) {
@@ -273,59 +273,32 @@ class BuchungenController extends BaseController
         try {
             \App\Helpers\ZipHelper::cleanupTempZips();
 
-            $tempDir = WRITEPATH . 'temp/zip/';
-            if (!is_dir($tempDir)) {
-                mkdir($tempDir, 0755, true);
-            }
-
-            $zipPath = $tempDir . 'kassenbuch_komplett_' . uniqid('', true) . '.zip';
-
-            $zip = new \ZipArchive();
-            if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
-                throw new \Exception('ZIP-Archiv konnte nicht erstellt werden.');
-            }
-
-            // 1. Kassenbuch-Excel erstellen und hinzufügen
-            $kontostaende = $this->buchungModel->berechneKontostaende();
-            $kassenbuchExcel = \App\Helpers\ExcelHelper::erstelleKassenbuch($buchungen, $kontostaende, $filter);
-            $kassenbuchFilename = 'Kassenbuch_' . date('Y-m-d') . '.xlsx';
-            $tempKassenbuchPath = $tempDir . $kassenbuchFilename;
-
-            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($kassenbuchExcel);
-            $writer->save($tempKassenbuchPath);
-            $zip->addFile($tempKassenbuchPath, $kassenbuchFilename);
-
-            // 2. Beleg-Dateien hinzufügen (nur Buchungen mit Beleg)
+            // Nur Buchungen mit hinterlegtem Beleg landen im Belege/-Ordner
             $buchungenMitBelegen = array_values(array_filter($buchungen, fn ($b) => !empty($b['beleg_id']) && !empty($b['dateipfad'])));
-            $fehlgeschlagen = [];
 
+            $dateien = [];
             foreach ($buchungenMitBelegen as $index => $buchung) {
-                $originalDatei = FCPATH . $buchung['dateipfad'];
-
-                if (!file_exists($originalDatei)) {
-                    log_message('warning', "Beleg-Datei nicht gefunden: {$originalDatei}");
-                    $fehlgeschlagen[] = $buchung['belegnummer'];
-                    continue;
-                }
-
-                $zip->addFile($originalDatei, 'Belege/' . $this->generiereBelegDateiname($buchung, $index + 1));
+                $dateien[] = [
+                    'pfad' => FCPATH . $buchung['dateipfad'],
+                    'name' => 'Belege/' . $this->generiereBelegDateiname($buchung, $index + 1),
+                    'label' => $buchung['belegnummer'],
+                ];
             }
 
-            // 3. Hinweis-Datei bei fehlenden Dateien
-            if (!empty($fehlgeschlagen)) {
-                $hinweis = "Folgende Beleg-Dateien wurden nicht gefunden und übersprungen:\n- "
-                    . implode("\n- ", $fehlgeschlagen)
-                    . "\nDas Kassenbuch-Excel enthält trotzdem alle Buchungen.\n";
-                $zip->addFromString('00_Hinweise.txt', $hinweis);
-            }
+            $zipPath = \App\Helpers\ZipHelper::erstelleArchiv(
+                \App\Helpers\ZipHelper::tempDir() . 'kassenbuch_komplett_' . uniqid('', true) . '.zip',
+                \App\Helpers\ExcelHelper::erstelleKassenbuch($buchungen, $this->buchungModel->berechneKontostaende(), $filter),
+                'Kassenbuch_' . date('Y-m-d') . '.xlsx',
+                $dateien,
+                static fn (array $fehlgeschlagen) => $fehlgeschlagen === [] ? null : [
+                    '00_Hinweise.txt',
+                    "Folgende Beleg-Dateien wurden nicht gefunden und übersprungen:\n- "
+                        . implode("\n- ", $fehlgeschlagen)
+                        . "\nDas Kassenbuch-Excel enthält trotzdem alle Buchungen.\n",
+                ]
+            );
 
-            $zip->close();
-
-            if (file_exists($tempKassenbuchPath)) {
-                unlink($tempKassenbuchPath);
-            }
-
-            $filename = $this->generiereExportFilename('Kassenbuch_komplett', $filter, 'zip');
+            $filename = $this->exportDateiname('Kassenbuch_komplett', $filter, 'zip', ['konto_typ']);
 
             return $this->response->download($zipPath, null, true)
                 ->setFileName($filename)
@@ -374,42 +347,19 @@ class BuchungenController extends BaseController
 
     /**
      * Generiert Dateiname für Beleg im Kassenbuch-ZIP
+     *
+     * Bewusst eine eigene Form (Buchungsdatum als zweites Segment, Endung aus
+     * dem Dateipfad) — nur die Sanitize-Regel teilt sie sich mit dem
+     * Belege-Export über ZipHelper::dateinameTeil() (Issue #91).
      */
     private function generiereBelegDateiname($buchung, $laufendeNummer)
     {
         $prefix = str_pad($laufendeNummer, 2, '0', STR_PAD_LEFT);
         $datum = date('Y-m-d', strtotime($buchung['buchungsdatum']));
-
-        $beschreibung = preg_replace('/[^a-zA-Z0-9äöüÄÖÜß\s]/', '', $buchung['beschreibung']);
-        $beschreibung = preg_replace('/\s+/', '_', trim($beschreibung));
-        $beschreibung = rtrim(substr($beschreibung, 0, 20), '_');
-
+        $beschreibung = \App\Helpers\ZipHelper::dateinameTeil($buchung['beschreibung'] ?? '', 20);
         $extension = pathinfo($buchung['dateipfad'], PATHINFO_EXTENSION);
 
         return "{$prefix}_{$datum}_{$buchung['belegnummer']}_{$beschreibung}.{$extension}";
     }
 
-    /**
-     * Generiert Export-Dateiname basierend auf Filter
-     */
-    private function generiereExportFilename($prefix, $filter, $extension)
-    {
-        $parts = [];
-
-        if (!empty($filter['datum_von']) && !empty($filter['datum_bis'])) {
-            $parts[] = $filter['datum_von'] . '_bis_' . $filter['datum_bis'];
-        } elseif (!empty($filter['datum_von'])) {
-            $parts[] = 'ab_' . $filter['datum_von'];
-        } elseif (!empty($filter['datum_bis'])) {
-            $parts[] = 'bis_' . $filter['datum_bis'];
-        }
-
-        if (!empty($filter['konto_typ'])) {
-            $parts[] = $filter['konto_typ'];
-        }
-
-        $filename = $prefix . (empty($parts) ? '' : '_' . implode('_', $parts));
-
-        return $filename . '_' . date('Y-m-d') . '.' . $extension;
-    }
 }

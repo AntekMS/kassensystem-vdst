@@ -359,7 +359,7 @@ class BelegeController extends BaseController
 
         try {
             $excel = $this->erstelleBelegeExcel($belege);
-            $filename = $this->generiereExportFilename('Belege_Export', $filter, 'xlsx');
+            $filename = $this->exportDateiname('Belege_Export', $filter, 'xlsx', ['kategorie', 'status'], 'alle');
 
             return \App\Helpers\ExcelHelper::downloadExcel($excel, $filename);
         } catch (\Exception $e) {
@@ -384,57 +384,20 @@ class BelegeController extends BaseController
         try {
             \App\Helpers\ZipHelper::cleanupTempZips();
 
-            $tempDir = WRITEPATH . 'temp/zip/';
-            if (!is_dir($tempDir)) {
-                mkdir($tempDir, 0755, true);
-            }
+            $zipPath = \App\Helpers\ZipHelper::erstelleArchiv(
+                \App\Helpers\ZipHelper::tempDir() . 'belege_komplett_' . uniqid('', true) . '.zip',
+                $this->erstelleBelegeExcel($belege),
+                'Belege_Liste_' . date('Y-m-d') . '.xlsx',
+                \App\Helpers\ZipHelper::belegDateien($belege, 30),
+                static fn (array $fehlgeschlagen) => $fehlgeschlagen === [] ? null : [
+                    '00_Hinweise.txt',
+                    "Folgende Beleg-Dateien wurden nicht gefunden und übersprungen:\n- "
+                        . implode("\n- ", $fehlgeschlagen)
+                        . "\nDie Excel-Liste enthält trotzdem alle Belege.\n",
+                ]
+            );
 
-            $zipPath = $tempDir . 'belege_komplett_' . uniqid('', true) . '.zip';
-
-            $zip = new \ZipArchive();
-            if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
-                throw new \Exception('ZIP-Archiv konnte nicht erstellt werden.');
-            }
-
-            // 1. Excel-Datei erstellen und hinzufügen
-            $excel = $this->erstelleBelegeExcel($belege);
-            $excelFilename = 'Belege_Liste_' . date('Y-m-d') . '.xlsx';
-            $tempExcelPath = $tempDir . uniqid('temp_', true) . '.xlsx';
-
-            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($excel);
-            $writer->save($tempExcelPath);
-            $zip->addFile($tempExcelPath, $excelFilename);
-
-            // 2. Alle Beleg-Dateien hinzufügen
-            $fehlgeschlagen = [];
-
-            foreach ($belege as $index => $beleg) {
-                $originalDatei = FCPATH . $beleg['dateipfad'];
-
-                if (!file_exists($originalDatei)) {
-                    log_message('warning', "Beleg-Datei nicht gefunden: {$originalDatei}");
-                    $fehlgeschlagen[] = $beleg['belegnummer'];
-                    continue;
-                }
-
-                $zip->addFile($originalDatei, 'Belege/' . $this->generiereZipDateiname($beleg, $index + 1));
-            }
-
-            // 3. Hinweis-Datei bei fehlenden Dateien
-            if (!empty($fehlgeschlagen)) {
-                $hinweis = "Folgende Beleg-Dateien wurden nicht gefunden und übersprungen:\n- "
-                    . implode("\n- ", $fehlgeschlagen)
-                    . "\nDie Excel-Liste enthält trotzdem alle Belege.\n";
-                $zip->addFromString('00_Hinweise.txt', $hinweis);
-            }
-
-            $zip->close();
-
-            if (file_exists($tempExcelPath)) {
-                unlink($tempExcelPath);
-            }
-
-            $filename = $this->generiereExportFilename('Belege_mit_Dateien', $filter, 'zip');
+            $filename = $this->exportDateiname('Belege_mit_Dateien', $filter, 'zip', ['kategorie', 'status'], 'alle');
 
             return $this->response->download($zipPath, null, true)
                 ->setFileName($filename)
@@ -565,51 +528,4 @@ class BelegeController extends BaseController
         $sheet->getStyle('E' . $gesamtRow)->getNumberFormat()->setFormatCode('#,##0.00 "€"');
     }
 
-    /**
-     * Generiert Export-Dateiname basierend auf Filter
-     */
-    private function generiereExportFilename($prefix, $filter, $extension)
-    {
-        $parts = [];
-
-        if (!empty($filter['datum_von']) && !empty($filter['datum_bis'])) {
-            $parts[] = $filter['datum_von'] . '_bis_' . $filter['datum_bis'];
-        } elseif (!empty($filter['datum_von'])) {
-            $parts[] = 'ab_' . $filter['datum_von'];
-        } elseif (!empty($filter['datum_bis'])) {
-            $parts[] = 'bis_' . $filter['datum_bis'];
-        }
-
-        if (!empty($filter['kategorie'])) {
-            $parts[] = $filter['kategorie'];
-        }
-
-        if (!empty($filter['status'])) {
-            $parts[] = $filter['status'];
-        }
-
-        $filename = $prefix . '_' . (empty($parts) ? 'alle' : implode('_', $parts));
-
-        return $filename . '_' . date('Y-m-d') . '.' . $extension;
-    }
-
-    /**
-     * Generiert aussagekräftigen Dateinamen für Belege im ZIP
-     * Format: 01_2024-06-15-001_Beschreibung.pdf
-     */
-    private function generiereZipDateiname($beleg, $laufendeNummer)
-    {
-        $prefix = str_pad($laufendeNummer, 2, '0', STR_PAD_LEFT);
-
-        $beschreibung = preg_replace('/[^a-zA-Z0-9äöüÄÖÜß\s]/', '', $beleg['beschreibung']);
-        $beschreibung = preg_replace('/\s+/', '_', trim($beschreibung));
-        $beschreibung = rtrim(substr($beschreibung, 0, 30), '_');
-
-        $dateiname = "{$prefix}_{$beleg['belegnummer']}";
-        if (!empty($beschreibung)) {
-            $dateiname .= "_{$beschreibung}";
-        }
-
-        return $dateiname . '.' . $beleg['dateityp'];
-    }
 }

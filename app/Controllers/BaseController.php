@@ -55,4 +55,47 @@ abstract class BaseController extends Controller
 
         // E.g.: $this->session = service('session');
     }
+
+    /**
+     * Baut den Download-Dateinamen eines Exports aus dem aktiven Filter
+     * (Issue #91) — vorher je einmal in Belege- und Buchungen-Controller.
+     *
+     * Aufbau: {Prefix}_{Datumsblock}_{Filterwerte}_{heute}.{Endung}. Den
+     * Datumsblock kennen beide Bereiche gleich; welche weiteren Filter in den
+     * Namen wandern, gibt der Aufrufer über $filterSchluessel vor.
+     *
+     * @param array         $filterSchluessel Filter-Keys, die angehängt werden (Reihenfolge zählt)
+     * @param string|null   $leerText         Platzhalter, wenn gar kein Filter aktiv ist (z.B. 'alle')
+     */
+    protected function exportDateiname(
+        string $prefix,
+        array $filter,
+        string $extension,
+        array $filterSchluessel = [],
+        ?string $leerText = null
+    ): string {
+        $parts = [];
+
+        if (!empty($filter['datum_von']) && !empty($filter['datum_bis'])) {
+            $parts[] = $filter['datum_von'] . '_bis_' . $filter['datum_bis'];
+        } elseif (!empty($filter['datum_von'])) {
+            $parts[] = 'ab_' . $filter['datum_von'];
+        } elseif (!empty($filter['datum_bis'])) {
+            $parts[] = 'bis_' . $filter['datum_bis'];
+        }
+
+        foreach ($filterSchluessel as $schluessel) {
+            if (!empty($filter[$schluessel])) {
+                $parts[] = $filter[$schluessel];
+            }
+        }
+
+        if ($parts === [] && $leerText !== null) {
+            $parts[] = $leerText;
+        }
+
+        $name = $prefix . ($parts === [] ? '' : '_' . implode('_', $parts));
+
+        return $name . '_' . date('Y-m-d') . '.' . $extension;
+    }
 }

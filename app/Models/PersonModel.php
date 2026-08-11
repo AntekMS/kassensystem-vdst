@@ -225,17 +225,38 @@ class PersonModel extends Model
      */
     public function upsertFuerName(string $name, ?string $email): ?int
     {
+        $map = $this->alleMitSchluessel();
+
+        return $this->upsertFuerNameMitMap($name, $email, $map);
+    }
+
+    /**
+     * Wie upsertFuerName(), aber mit von außen gereichter Schlüssel-Map
+     * (Issue #92): Der Rechnungsversand ruft den Upsert in einer Schleife über
+     * alle Empfänger auf und lud dabei je Zeile die komplette persons-Tabelle.
+     *
+     * Die Map kommt PER REFERENZ herein und wird nach einem Insert bzw. einer
+     * geänderten Adresse mitgepflegt — sonst wäre sie ab der zweiten Runde
+     * veraltet und ein zweiter Treffer desselben Namens legte die Person
+     * doppelt an. Verhalten damit identisch zum Neuladen je Aufruf.
+     *
+     * @param array $schluesselMap person_schluessel() => Personen-Zeile
+     */
+    public function upsertFuerNameMitMap(string $name, ?string $email, array &$schluesselMap): ?int
+    {
         $name = person_normalisiere($name);
         if ($name === '') {
             return null;
         }
 
         $email = $email !== null ? trim($email) : null;
-        $vorhanden = $this->alleMitSchluessel()[person_schluessel($name)] ?? null;
+        $schluessel = person_schluessel($name);
+        $vorhanden = $schluesselMap[$schluessel] ?? null;
 
         if ($vorhanden) {
             if ($email !== null && $email !== '' && ($vorhanden['email'] ?? null) !== $email) {
                 $this->update($vorhanden['id'], ['email' => $email]);
+                $schluesselMap[$schluessel]['email'] = $email;
             }
 
             return (int) $vorhanden['id'];
@@ -246,7 +267,18 @@ class PersonModel extends Model
             'email' => ($email === '' ? null : $email),
         ]);
 
-        return $id ? (int) $id : null;
+        if (!$id) {
+            return null;
+        }
+
+        $schluesselMap[$schluessel] = [
+            'id' => (int) $id,
+            'vorname' => null,
+            'nachname' => $name,
+            'email' => ($email === '' ? null : $email),
+        ];
+
+        return (int) $id;
     }
 
     /**

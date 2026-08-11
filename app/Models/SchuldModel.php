@@ -576,6 +576,55 @@ class SchuldModel extends Model
     }
 
     /**
+     * Wie letzterGetraenkeAusgleich(), aber für ALLE Personen in EINER Query
+     * (Issue #92) — die Schulden-Übersicht setzte vorher pro Zeile eine
+     * Einzelquery ab.
+     *
+     * Die Fensterfunktion liefert je Person nur den neuesten Getränke-Eintrag
+     * (gleiche Sortierung wie die Einzelvariante: datum DESC, id DESC);
+     * ob er ein 1-Klick-Ausgleich ist, entscheidet weiterhin allein
+     * istGetraenkeAusgleich() über den puren Seam unten.
+     *
+     * @return array<string,true> Set von person_schluessel()
+     */
+    public function getraenkeUndoSchluessel(): array
+    {
+        $neueste = $this->db->query("
+            SELECT person, typ, kategorie, betrag, grund, beleg_id, buchung_id, abrechnung_id
+            FROM (
+                SELECT s.*,
+                       ROW_NUMBER() OVER (PARTITION BY person ORDER BY datum DESC, id DESC) AS rn
+                FROM {$this->table} s
+                WHERE s.kategorie = 'getraenke'
+            ) neueste
+            WHERE rn = 1
+        ")->getResultArray();
+
+        return self::undoSchluesselAus($neueste);
+    }
+
+    /**
+     * Pure, DB-los testbarer Seam zu getraenkeUndoSchluessel(): filtert die
+     * neuesten Getränke-Einträge auf die 1-Klick-Ausgleiche und macht daraus
+     * ein person_schluessel()-Set.
+     *
+     * @param array $neueste je Person der neueste Getränke-Eintrag
+     * @return array<string,true>
+     */
+    public static function undoSchluesselAus(array $neueste): array
+    {
+        $set = [];
+
+        foreach ($neueste as $eintrag) {
+            if (self::istGetraenkeAusgleich($eintrag)) {
+                $set[person_schluessel((string) $eintrag['person'])] = true;
+            }
+        }
+
+        return $set;
+    }
+
+    /**
      * Importierte Getränke-Forderungen eines Monats bzw. Zeitraums, aggregiert
      * pro Person (Issue #35) — kanonische Datenquelle für Übersichts-PDF und
      * Versand-Seite; jederzeit re-derivierbar, keine Session nötig.

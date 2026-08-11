@@ -458,8 +458,13 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   Upsert frisch aus der DB geladen (`PersonModel::findEmailsFuer`), nicht aus dem
   POST — so greift auch eine schon gespeicherte Adresse, deren Feld leer gepostet
   wurde. Adressen liegen seit Issue #61 in `persons.email` (Upsert beim Versand
-  über `PersonModel::upsertFuerName` — legt fehlende Personen als Nachname-Eintrag
-  an; Verwaltungsseite `/schulden/personen`); erfolgreiche Sends landen im Log `getraenke_versand`
+  über `PersonModel::upsertFuerNameMitMap` — legt fehlende Personen als
+  Nachname-Eintrag an; Verwaltungsseite `/schulden/personen`). Die Schleife über
+  die Empfänger lädt die Schlüssel-Map seit Issue #92 EINMAL davor und reicht sie
+  **per Referenz** durch; die Variante pflegt sie nach Insert/Adressänderung mit,
+  sonst legte ein zweiter Treffer desselben Namens die Person doppelt an. Das
+  bequeme `upsertFuerName()` (lädt selbst) bleibt für Einzelaufrufe — NICHT
+  wieder in eine Schleife stecken. Erfolgreiche Sends landen im Log `getraenke_versand`
   („verschickt am"-Badge, Checkbox dann default aus — bewusst keine harte
   Doppelversand-Sperre). Das Log ist wie die Import-Marker auf
   `monat`+`monat_bis` gekeyt (Migration `2026-07-19-000001`, Normalisierung
@@ -575,6 +580,12 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   angeboten, solange der Ausgleich der neueste Getränke-Eintrag der Person ist —
   danach normal in der Personen-Ansicht löschen. Beide Buttons bewusst ohne
   JS-Confirm (gegenseitig 1-Klick-umkehrbar); Test: `tests/unit/GetraenkeBeglichenTest.php`.
+  Das „Rückgängig möglich"-Flag der ÜBERSICHT kommt seit Issue #92 aus EINER
+  Query (`SchuldModel::getraenkeUndoSchluessel()` — Fensterfunktion holt je
+  Person den neuesten Getränke-Eintrag, purer Seam `undoSchluesselAus()`
+  entscheidet per `istGetraenkeAusgleich()` und liefert ein
+  `person_schluessel()`-Set); NICHT wieder `letzterGetraenkeAusgleich()` pro
+  Zeile in die Schleife holen. Die Einzelvariante bleibt für die Personen-Seite.
 - **Massen-Getränkeausgleich** (Issue #55): „Alle Getränke begleichen" in der
   Übersichts-Aktionsleiste (nur sichtbar, wenn es offene Getränke-Forderungen
   gibt; `.btn-outline-vdst`, da „Neuer Eintrag" die eine rote Primäraktion ist)

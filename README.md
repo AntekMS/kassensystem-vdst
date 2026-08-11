@@ -5,7 +5,7 @@ Kassenbuch- und Abrechnungssystem für den **Verein deutscher Studenten zu Erlan
 Bewusst klein gehalten: **ein** Kassenwart (Ehrenamt), ~12 Aktive, ein paar Belege pro Woche.
 Keine Multi-User-Verwaltung, keine Rollen, kein Feature-Creep. Das Tool sammelt Belege,
 führt ein Kassenbuch mit 3 Konten und erzeugt monatliche Abrechnungen für AH²-Bund und
-Heimverein (HV) als Excel/ZIP.
+Heimverein (HV) als Excel, ZIP und PDF.
 
 ---
 
@@ -17,7 +17,9 @@ Heimverein (HV) als Excel/ZIP.
 - **AH²- und HV-Abrechnungen** mit AJAX-Beleg-Zuordnung; HV zusätzlich mit Freitext-Begründung.
   Per 1 Klick lassen sich alle verfügbaren Belege übernehmen („Alle hinzufügen" bzw.
   Checkbox beim Erstellen)
-- **Exporte** – pro Bereich genau zwei Formate: **Excel** und **Komplett-ZIP** (Excel + Beleg-Dateien)
+- **Exporte** – Grundregel: pro Bereich **Excel** und **Komplett-ZIP** (Excel + Beleg-Dateien).
+  Zwei bewusste Ergänzungen: Abrechnungen haben zusätzlich eine **PDF-Rechnung** (VDSt-gebrandet,
+  ersetzt Excel/ZIP nicht), und die Inventur hat statt des ZIPs einen **PDF-Export**
 - **Schuldenliste** – Forderungen/Verbindlichkeiten pro Person (Freitext-Name)
   mit nachvollziehbarer Historie (z.B. monatliche Getränkerechnungen, Rückzahlungen als
   negativer Betrag) und Getränkestopp-Badge ab 50 € Getränkeschulden; mit Namenssuche,
@@ -33,13 +35,22 @@ Heimverein (HV) als Excel/ZIP.
   VDSt-gebrandete **PDF-Rechnungen** in die offene AH-Abrechnung übernommen
 - **Rechnungsversand** – nach dem Import lassen sich personalisierte
   PDF-Einzelrechnungen per E-Mail an die Aktiven verschicken (Adressen im
-  Personen-Register, Versand-Log gegen Doppelversand) und eine allgemeine
+  Personen-Register, Versand-Log gegen Doppelversand) und eine
   Übersichts-Rechnung als PDF für den Aushang herunterladen
+- **Allgemeine Rechnung** – Rechnung über beliebige offene Forderungen einer Person
+  (von der einzelnen Spende bis „alle offenen Schulden") inklusive der
+  **Überweisungsdetails** des Vereins; als Vorschau im Browser oder per E-Mail an die
+  im Register hinterlegte Adresse
 - **Personen-Register** – Stammdaten der Aktiven (Vor-/Nachname, E-Mail) unter
   „Personen"; Grundlage für Schulden-Zuordnung und Rechnungsversand
 - **Inventur** – eigene Seite ("Kassenwart – Aktueller Bestand": Kassenbestand +
-  Forderungen − Verbindlichkeiten) mit Dashboard-Kachel und Excel-Download
+  Forderungen − Verbindlichkeiten) mit Dashboard-Kachel, Excel- und PDF-Download
+- **Muster/Vorlagen** – die Seite `/muster` führt jedes vom System erzeugte Dokument
+  (7 PDFs, 4 Excel) mit fiktiven Platzhalterdaten vor, ohne echte Daten anzufassen –
+  praktisch zum Nachschauen, wie eine Rechnung beim Empfänger ankommt
 - **Suche & Filter** über Beschreibung/Lieferant/Notizen, Datum, Kategorie, Status und Betrag
+- **Darkmode** – umschaltbar über Sidebar bzw. Topbar, folgt beim ersten Aufruf der
+  System-Einstellung und merkt sich danach die Wahl
 - **Master-Passwort-Login** mit 8-Stunden-Session (Idle-Timeout)
 
 ---
@@ -83,7 +94,7 @@ die Defaults gelten nur für lokale Entwicklung.
 ### Container-Befehle
 
 ```bash
-docker exec kassensystem-vdst-web vendor/bin/phpunit tests/unit/   # Tests (Health, Betrag, Labels, Import, PDF, Versand)
+docker exec kassensystem-vdst-web vendor/bin/phpunit tests/unit/   # Tests (Health, Betrag, Labels, Import, Personen, PDF, Versand)
 docker exec kassensystem-vdst-web php spark migrate                # Migrationen
 docker exec kassensystem-vdst-web php spark routes                 # Routenliste
 docker exec kassensystem-vdst-web php spark abrechnungen:versenden # Abrechnungen an Kassenwart mailen (Issue #37)
@@ -92,8 +103,9 @@ docker exec kassensystem-vdst-web php -l <datei>                   # Syntax-Chec
 
 ### E-Mail-Versand einrichten (optional)
 
-Für den Rechnungsversand nach dem Getränkerechnung-Import braucht die `.env`
-einen SMTP-Zugang (Beispielblock steht in der Datei `env`):
+Für den Rechnungsversand – Einzelrechnungen nach dem Getränkerechnung-Import wie auch
+die allgemeine Rechnung über offene Forderungen – braucht die `.env` einen SMTP-Zugang
+(Beispielblock steht in der Datei `env`):
 
 ```
 email.protocol  = smtp
@@ -108,6 +120,12 @@ email.fromName  = 'VDSt Kassenwart'
 
 Ohne diese Keys bleibt der Versand-Button deaktiviert – Import, Übersichts-PDF
 und Adress-Verwaltung funktionieren trotzdem.
+
+**Bankverbindung für die Überweisungsdetails:** Die Keys `vdst.bank_iban`,
+`vdst.bank_kontoinhaber`, `vdst.bank_bic` und `vdst.bank_name` (auskommentierte
+Beispiele in `env`) speisen den Überweisungs-Absatz im Rechnungs-Mailtext und den
+Überweisungs-Block auf der allgemeinen Rechnung. Ohne `vdst.bank_iban` entfallen
+beide; einzelne leere Werte lassen nur ihre Zeile weg.
 
 **Automatischer Monats-Versand der Abrechnungen (Issue #37):** Setzt man zusätzlich
 `vdst.kassenwart_email` in der `.env`, schickt `php spark abrechnungen:versenden`
@@ -144,15 +162,22 @@ php spark serve       # Dev-Server auf :8080
 
 ### Controller (`app/Controllers/`)
 - `DashboardController`, `BuchungenController`, `BelegeController`, `SchuldenController`,
-  `AuthController`
+  `AuthController`, `MusterController` (Vorlagen-Seite mit Platzhalterdaten)
 - `AbstractAbrechnungenController` mit den dünnen Subklassen
   `AhAbrechnungenController` / `HvAbrechnungenController` (nur `$typ`/`$typName`/Modell –
   die gesamte Logik liegt in der Basisklasse)
 
+### Commands (`app/Commands/`)
+`AbrechnungenVersenden` (`php spark abrechnungen:versenden`) – Monats-Versand der offenen
+Abrechnungen an den Kassenwart, für den Host-Cron.
+
 ### Models (`app/Models/`)
-`BelegModel`, `BuchungModel`, `SchuldModel`, `AhAbrechnungModel`, `HvAbrechnungModel`,
+`BelegModel`, `BuchungModel`, `SchuldModel`,
+`AbstractAbrechnungModel` mit den dünnen Subklassen `AhAbrechnungModel` / `HvAbrechnungModel`
+(nur Tabelle, Typ, Label und Beleg-Kategorie – die gesamte Logik liegt in der Basisklasse),
 `AbrechnungBelegModel` (Junction `abrechnung_belege` – einziger Codepfad für Beleg-Zuordnungen),
 `PersonModel` (Personen-Register: Vor-/Nachname + E-Mail, autoritative Namensquelle),
+`SchuldPositionModel` (Getränke-Einzelpositionen je Import-Forderung),
 `GetraenkeVersandModel` (Versand-Log).
 
 ### Datenbank
@@ -160,6 +185,7 @@ php spark serve       # Dev-Server auf :8080
 belege               # Herzstück – alle Belege inkl. Datei
 buchungen            # Kassenbuch-Einträge (optional mit beleg_id)
 schulden             # Schulden-Ledger pro Person (Name-String + Soft-Link person_id, Rückzahlung = negativ)
+schuld_positionen    # Getränke-Einzelpositionen je Import-Forderung (Menge × Einzelpreis)
 persons              # Personen-Register (Vor-/Nachname, E-Mail) – autoritative Namensquelle
 ah_abrechnungen      # AH²-Monatsabrechnungen
 hv_abrechnungen      # HV-Abrechnungen (mit Freitext-Begründung)
@@ -173,7 +199,11 @@ Gesamtsummen berechnet PHP (`berechneGesamtsumme()`) bei jeder Zuordnung – **k
 - **Upload-Logik** zentral in `app/Libraries/BelegUpload.php`
 - **Auth** ausschließlich über `App\Libraries\Auth::istAngemeldet()`
 - **Labels/Formatierung** in `app/Helpers/label_helper.php` (autogeladen)
-- **Exporte** über `app/Helpers/ExcelHelper.php` + `ZipHelper.php`
+- **Exporte** über `app/Helpers/ExcelHelper.php` + `ZipHelper.php`; das Abrechnungs-Excel
+  baut für AH und HV dieselbe Methode `ExcelHelper::erstelleAbrechnung(…, $typ)`
+- **PDF-Rechnungen** über `app/Libraries/RechnungPdf.php` (dompdf) – ein geteiltes
+  Template `app/Views/pdf/rechnung.php`, gesteuert über `$typ`
+- **Theme** zentral in `public/css/app.css`; Darkmode über Bootstraps `data-bs-theme`
 
 ---
 
@@ -199,11 +229,16 @@ Gesamtsummen berechnet PHP (`berechneGesamtsumme()`) bei jeder Zuordnung – **k
 2. **Belege** unter `/belege` erfassen (Upload + Kategorie: normal / AH²-berechtigt / HV-berechtigt).
 3. **Kassenbuch** unter `/buchungen` führen (3 Konten, optionale Beleg-Verknüpfung, Excel/ZIP-Export).
 4. **Abrechnungen** unter `/abrechnungen/ah` bzw. `/abrechnungen/hv`: Monatsabrechnung anlegen,
-   berechtigte Belege per AJAX zuordnen, als Excel oder ZIP für die Einreichung exportieren.
+   berechtigte Belege per AJAX zuordnen, als Excel, ZIP oder PDF-Rechnung exportieren.
 5. **Getränkerechnung** unter `/schulden/import` hochladen: Vorschau prüfen und bestätigen –
    Forderungen und die Coleur-/Bund-PDF-Belege entstehen automatisch. Danach auf der
    Versand-Seite E-Mail-Adressen ergänzen und die Einzelrechnungen verschicken bzw. das
    Übersichts-PDF für den Aushang herunterladen.
+6. **Rechnung über offene Forderungen** auf der Personen-Seite (`/schulden/person?name=…`):
+   Gesamtrechnung ansehen oder direkt per E-Mail verschicken; einzelne Forderungen haben
+   je einen eigenen Rechnungs-Link.
+7. **Inventur** unter `/inventur` einsehen und als Excel oder PDF herunterladen.
+8. **Muster** unter `/muster` – jedes erzeugte Dokument mit Platzhalterdaten ansehen.
 
 ### AJAX-Endpoints (Abrechnungen)
 ```

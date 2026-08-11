@@ -45,8 +45,11 @@ class SchuldenController extends BaseController
         ];
 
         $personen = $this->schuldModel->getPersonenUebersicht($filter);
+
+        // Eine Query für alle Zeilen statt einer pro Person (Issue #92).
+        $undoSchluessel = $this->schuldModel->getraenkeUndoSchluessel();
         foreach ($personen as &$p) {
-            $p['getraenke_undo'] = $this->schuldModel->letzterGetraenkeAusgleich($p['person']) !== null;
+            $p['getraenke_undo'] = isset($undoSchluessel[person_schluessel((string) $p['person'])]);
         }
         unset($p);
 
@@ -845,6 +848,10 @@ class SchuldenController extends BaseController
         $personModel = new PersonModel();
         $fehler = [];
 
+        // Schlüssel-Map EINMAL vor der Schleife laden statt je Empfänger die
+        // ganze persons-Tabelle (Issue #92); upsertFuerNameMitMap pflegt sie mit.
+        $schluesselMap = $personModel->alleMitSchluessel();
+
         foreach ((array) $this->request->getPost('email') as $index => $email) {
             $key = person_schluessel((string) ($namenNachIndex[$index] ?? ''));
             $email = trim((string) $email);
@@ -853,7 +860,7 @@ class SchuldenController extends BaseController
                 continue;
             }
 
-            if ($personModel->upsertFuerName($forderungen[$key]['person'], $email) === null) {
+            if ($personModel->upsertFuerNameMitMap($forderungen[$key]['person'], $email, $schluesselMap) === null) {
                 $fehler[] = $forderungen[$key]['person'] . ': ' . implode(' ', $personModel->errors());
             }
         }

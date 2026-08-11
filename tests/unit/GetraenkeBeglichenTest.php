@@ -209,4 +209,46 @@ final class GetraenkeBeglichenTest extends CIUnitTestCase
         $this->assertSame('AH²-Bund', SchuldModel::INSTITUTION_PERSONEN['ah']);
         $this->assertSame('Heimverein', SchuldModel::INSTITUTION_PERSONEN['hv']);
     }
+
+    // --- Batch-Undo-Flag der Übersicht (Issue #92) ---------------------------
+
+    public function testUndoSchluesselNimmtNurAusgleiche(): void
+    {
+        $set = SchuldModel::undoSchluesselAus([
+            $this->markerEintrag(['person' => 'Meier']),
+            // kein Ausgleich: positiver Betrag (offene Forderung)
+            $this->markerEintrag(['person' => 'Schulze', 'betrag' => '12.50']),
+            // kein Ausgleich: anderer Grund
+            $this->markerEintrag(['person' => 'Lehmann', 'grund' => 'Getränkerechnung November 2025']),
+        ]);
+
+        $this->assertSame(['meier' => true], $set);
+    }
+
+    public function testUndoSchluesselIgnoriertAutomatischeEintraege(): void
+    {
+        // Automatische Einträge (Quelle Beleg/Buchung/Abrechnung) sind nie
+        // 1-Klick-Ausgleiche — gleiche Regel wie in der Einzelvariante.
+        $set = SchuldModel::undoSchluesselAus([
+            $this->markerEintrag(['person' => 'Meier', 'buchung_id' => 7]),
+        ]);
+
+        $this->assertSame([], $set);
+    }
+
+    public function testUndoSchluesselNutztPersonSchluessel(): void
+    {
+        // Der Controller schlägt mit person_schluessel($p['person']) nach —
+        // Groß-/Kleinschreibung und Whitespace dürfen dabei nicht stören.
+        $set = SchuldModel::undoSchluesselAus([
+            $this->markerEintrag(['person' => '  Von Der  Heide ']),
+        ]);
+
+        $this->assertArrayHasKey(person_schluessel('von der heide'), $set);
+    }
+
+    public function testUndoSchluesselBleibtBeiLeererEingabeLeer(): void
+    {
+        $this->assertSame([], SchuldModel::undoSchluesselAus([]));
+    }
 }

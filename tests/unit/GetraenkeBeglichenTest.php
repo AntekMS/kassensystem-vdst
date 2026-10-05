@@ -251,4 +251,55 @@ final class GetraenkeBeglichenTest extends CIUnitTestCase
     {
         $this->assertSame([], SchuldModel::undoSchluesselAus([]));
     }
+
+    // --- Massen-Undo (Issue #102) --------------------------------------------
+
+    public function testUndoIdsNimmtNurAusgleiche(): void
+    {
+        $ids = SchuldModel::undoIdsAus([
+            $this->markerEintrag(['id' => 11, 'person' => 'Meier']),
+            // kein Ausgleich: positiver Betrag (offene Forderung)
+            $this->markerEintrag(['id' => 12, 'person' => 'Schulze', 'betrag' => '12.50']),
+            // kein Ausgleich: anderer Grund
+            $this->markerEintrag(['id' => 13, 'person' => 'Lehmann', 'grund' => 'Getränkerechnung November 2025']),
+            $this->markerEintrag(['id' => 14, 'person' => 'Kuhn']),
+        ]);
+
+        $this->assertSame([11, 14], $ids);
+    }
+
+    public function testUndoIdsIgnoriertAutomatischeEintraege(): void
+    {
+        // Automatische Einträge (Quelle Beleg/Buchung/Abrechnung) dürfen nie
+        // per Massen-Undo verschwinden — sie werden über ihre Quelle gepflegt.
+        $this->assertSame([], SchuldModel::undoIdsAus([
+            $this->markerEintrag(['id' => 21, 'person' => 'Meier', 'beleg_id' => 7]),
+            $this->markerEintrag(['id' => 22, 'person' => 'Kuhn', 'buchung_id' => 7]),
+            $this->markerEintrag(['id' => 23, 'person' => 'AH²-Bund', 'abrechnung_id' => 7]),
+        ]));
+    }
+
+    public function testUndoIdsBleibtBeiLeererEingabeLeer(): void
+    {
+        $this->assertSame([], SchuldModel::undoIdsAus([]));
+    }
+
+    public function testUndoIdsUndUndoSchluesselWaehlenDieselbenZeilen(): void
+    {
+        // Übersichts-Flag und Massen-Undo müssen über dieselbe Query dieselbe
+        // Auswahl treffen (beide hängen allein an istGetraenkeAusgleich()) —
+        // sonst zeigt die Liste ein Undo an, das der Batch nicht anfasst.
+        $neueste = [
+            $this->markerEintrag(['id' => 31, 'person' => 'Meier']),
+            $this->markerEintrag(['id' => 32, 'person' => 'Schulze', 'betrag' => '12.50']),
+            $this->markerEintrag(['id' => 33, 'person' => 'Kuhn', 'buchung_id' => 7]),
+            $this->markerEintrag(['id' => 34, 'person' => 'Von Der Heide']),
+        ];
+
+        $this->assertSame([31, 34], SchuldModel::undoIdsAus($neueste));
+        $this->assertSame(
+            ['meier' => true, person_schluessel('Von Der Heide') => true],
+            SchuldModel::undoSchluesselAus($neueste)
+        );
+    }
 }

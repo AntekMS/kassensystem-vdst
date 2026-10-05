@@ -23,7 +23,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
     <!-- VDSt Design-System (einzige Theme-Quelle) -->
-    <link href="<?= base_url('css/app.css') ?>?v=9" rel="stylesheet">
+    <link href="<?= base_url('css/app.css') ?>?v=10" rel="stylesheet">
 
     <?= $this->renderSection('styles') ?>
 </head>
@@ -123,7 +123,7 @@
     <!-- Flash Messages -->
     <?php if (session()->getFlashdata('success')): ?>
         <div class="container-fluid mt-3">
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <div class="alert alert-success alert-dismissible fade show js-auto-dismiss" role="alert">
                 <strong><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Erfolg!</strong> <?= esc(session()->getFlashdata('success')) ?>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
@@ -132,7 +132,7 @@
 
     <?php if (session()->getFlashdata('error')): ?>
         <div class="container-fluid mt-3">
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <div class="alert alert-danger alert-dismissible fade show js-auto-dismiss" role="alert">
                 <strong><i class="bi bi-x-circle-fill" aria-hidden="true"></i> Fehler!</strong> <?= esc(session()->getFlashdata('error')) ?>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
@@ -141,7 +141,7 @@
 
     <?php if (session()->getFlashdata('errors')): ?>
         <div class="container-fluid mt-3">
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <div class="alert alert-danger alert-dismissible fade show js-auto-dismiss" role="alert">
                 <strong><i class="bi bi-x-circle-fill" aria-hidden="true"></i> Validierungsfehler:</strong>
                 <ul class="mb-0 mt-2">
                     <?php foreach (session()->getFlashdata('errors') as $error): ?>
@@ -163,7 +163,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <!-- Gemeinsames Kassensystem-JS -->
-<script src="<?= base_url('js/app.js') ?>?v=1"></script>
+<script src="<?= base_url('js/app.js') ?>?v=2"></script>
 
 <?= $this->renderSection('scripts') ?>
 </body>

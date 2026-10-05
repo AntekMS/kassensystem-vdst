@@ -157,6 +157,18 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   `label_helper.php` (Soft-Badges `badge-status-*`), keine `badge bg-*` mehr.
   `style="display:none"` ist nur für JS-gesteuerte Toggles erlaubt — sonstige
   Inline-Styles gehören als Klasse in app.css.
+  **Hilfe-Tipps** (Issue #103): aufklappbare Hilfetexte sind ein natives
+  `<details class="hilfe-tipp">` + `<summary>` (Fragezeichen-Piktogramm
+  `bi-question-circle` als Icon, Standard-Dreieck per `list-style: none` +
+  `::-webkit-details-marker` aus) mit `.hilfe-tipp-inhalt` als Körper —
+  bewusst OHNE JS und ohne Bootstrap-Popover: Tastatur-/Screenreader-Bedienung
+  und `aria-expanded` kommen vom Browser. Erklärender Fließtext („Was passiert
+  beim Import?", „Automatische Verarbeitung", „Tipp: Belege zuordnen") gehört
+  dorthin, NICHT in eine `alert alert-info`-Box; `.alert` bleibt den
+  kontextbezogenen Hinweisen/Warnungen vorbehalten, die dauerhaft stehen
+  („N Belege verfügbar", Import-Vorschau-Hinweise, SMTP-Warnung). Das Styling
+  nutzt nur bestehende Tokens, der Darkmode greift daher ohne eigene
+  `[data-bs-theme="dark"]`-Regel.
   Layout: schwarze Sidebar (`.app-sidebar`, Bootstrap `offcanvas-lg` — ab lg feste
   Spalte, darunter Drawer per Burger in `.app-topbar`); Aktiv-Zustand über
   `uri_string()`-Checks in `main.php`. `<main class="main-content">` muss diese
@@ -176,8 +188,19 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   Browser-Cache hängen, da die Datei ohne Query-String nur `ETag`/
   `Last-Modified` mitbekommt, kein `Cache-Control`):
   `confirmDelete()`, `showMessage()`, Export-Toasts; Views binden Verhalten per CSS-Klasse
-  `js-autosubmit` (Filter-Selects) bzw. `js-betrag-format` (Betrag-Eingaben) — solche
-  Handler NICHT wieder inline in Views duplizieren.
+  `js-autosubmit` (Filter-Selects), `js-betrag-format` (Betrag-Eingaben) bzw.
+  `js-auto-dismiss` (Issue #103 — Banner, die nach 5 s automatisch zugehen) —
+  solche Handler NICHT wieder inline in Views duplizieren.
+  `js-auto-dismiss` ist bewusst **Opt-in** und sitzt NUR an den drei
+  Flash-Bannern in `layouts/main.php`: vorher war es ein Opt-out
+  (`.alert:not(.alert-permanent)`, Klasse nirgends genutzt), das auch die
+  statischen Info-/Hilfe-Boxen der Views erwischte — die sind ebenfalls
+  `.alert` und müssen stehen bleiben (Import-Vorschau-Hinweise, SMTP-Warnung,
+  Beleg-Verknüpfungs-Infos). Kein neues `.alert` auto-ausblenden lassen, das
+  nicht wirklich eine Flash-Meldung ist. `showMessage()` behält seinen eigenen
+  4-s-Timeout, weil es erst nach `DOMContentLoaded` eingefügt wird und der
+  geteilte Handler es nie sähe. Die Login-Seite ist standalone (kein `app.js`)
+  und blendet ihre beiden echten Flash-Alerts per eigenem Inline-Handler aus.
 - **Exporte**: `app/Helpers/ExcelHelper.php` + `ZipHelper.php`. Pro Bereich genau
   2 Formate: Excel und Komplett-ZIP (Excel + Beleg-Dateien). Das Abrechnungs-Excel
   baut EINE Methode `ExcelHelper::erstelleAbrechnung($abrechnung, $belege, $typ)`
@@ -598,11 +621,16 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   danach normal in der Personen-Ansicht löschen. Beide Buttons bewusst ohne
   JS-Confirm (gegenseitig 1-Klick-umkehrbar); Test: `tests/unit/GetraenkeBeglichenTest.php`.
   Das „Rückgängig möglich"-Flag der ÜBERSICHT kommt seit Issue #92 aus EINER
-  Query (`SchuldModel::getraenkeUndoSchluessel()` — Fensterfunktion holt je
-  Person den neuesten Getränke-Eintrag, purer Seam `undoSchluesselAus()`
-  entscheidet per `istGetraenkeAusgleich()` und liefert ein
-  `person_schluessel()`-Set); NICHT wieder `letzterGetraenkeAusgleich()` pro
-  Zeile in die Schleife holen. Die Einzelvariante bleibt für die Personen-Seite.
+  Query; seit Issue #102 ist diese Fensterfunktion als private
+  `SchuldModel::neuesteGetraenkeEintraege()` (je Person der neueste
+  Getränke-Eintrag, `datum DESC, id DESC` wie die Einzelvariante, Select
+  inkl. `id`) die gemeinsame Grundlage von Flag UND Massen-Undo — NICHT wieder
+  `letzterGetraenkeAusgleich()` pro Zeile in die Schleife holen. Darauf sitzen
+  zwei pure Seams, die beide allein an `istGetraenkeAusgleich()` hängen und
+  deshalb per Konstruktion dieselben Zeilen wählen:
+  `undoSchluesselAus()` → `person_schluessel()`-Set für die Zeilen-Buttons
+  (`getraenkeUndoSchluessel()`), `undoIdsAus()` → id-Liste für das Massen-Undo.
+  Die Einzelvariante `letzterGetraenkeAusgleich()` bleibt für die Personen-Seite.
 - **Massen-Getränkeausgleich** (Issue #55): „Alle Getränke begleichen" in der
   Übersichts-Aktionsleiste (nur sichtbar, wenn es offene Getränke-Forderungen
   gibt; `.btn-outline-vdst`, da „Neuer Eintrag" die eine rote Primäraktion ist)
@@ -614,6 +642,21 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   DB-los testbaren Seam `erstelleAlleGetraenkeAusgleiche()`. Auch ohne
   JS-Confirm; Redirect an den Listenanfang (`/schulden`, kein Personen-Anker).
   Route `POST schulden/getraenke-alle-beglichen`.
+- **Massen-Undo** (Issue #102): „Alle Ausgleiche rückgängig" ist das Spiegelbild
+  des Massen-Begleichens (`SchuldenController::getraenkeAlleBeglichenUndo` →
+  `SchuldModel::macheAlleGetraenkeAusgleicheRueckgaengig()`, Route
+  `POST schulden/getraenke-alle-beglichen-undo`). Gelöscht wird je Person GENAU
+  der Eintrag, den auch der Zeilen-Button löschen würde — der 1-Klick-Ausgleich,
+  solange er der neueste Getränke-Eintrag ist (`undoIdsAus()` auf
+  `neuesteGetraenkeEintraege()`, s.o.); ein Ausgleich, auf den schon eine neue
+  Forderung folgt, bleibt unangetastet. Anders als beim Begleichen genügt EIN
+  `whereIn`-DELETE in einer Transaktion (keine Per-Zeile-Fachlogik nötig). Das
+  Sichtbarkeits-Flag `hat_getraenke_undo` kommt aus dem **ungefilterten**
+  `$undoSchluessel`-Set des Controllers, weil die Aktion alle Personen umfasst
+  (das benachbarte `$hatOffeneGetraenke` im View leitet sich dagegen aus der
+  gefilterten `$personen`-Liste ab — bestehende Asymmetrie). Ebenfalls ohne
+  JS-Confirm: die beiden Massen-Buttons kehren sich gegenseitig um. Pure Seams
+  DB-los getestet in `GetraenkeBeglichenTest`.
 - **Kein Scroll-Sprung** (Issue #55): die Einzel-Pfade `getraenkeBeglichen`/
   `getraenkeBeglichenUndo` redirecten über `beglichenRedirect()` zurück zur
   Herkunftsseite MIT Fragment `#` . `person_anker($name)`; die Übersicht setzt

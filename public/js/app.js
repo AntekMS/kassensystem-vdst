@@ -132,8 +132,12 @@ function bindThemeToggle(button) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    // Flash-Messages nach 5 Sekunden automatisch ausblenden
-    document.querySelectorAll('.alert:not(.alert-permanent)').forEach(function (alert) {
+    // Flash-Messages nach 5 Sekunden automatisch ausblenden.
+    // Opt-IN über .js-auto-dismiss (gesetzt an den Flash-Bannern in
+    // layouts/main.php) — vorher war es ein Opt-out, das auch die statischen
+    // Info-/Hilfe-Boxen der Views erwischte: die sind ebenfalls .alert und
+    // dürfen NICHT verschwinden (Issue #103).
+    document.querySelectorAll('.alert.js-auto-dismiss').forEach(function (alert) {
         setTimeout(function () {
             if (alert && alert.parentNode && window.bootstrap) {
                 new bootstrap.Alert(alert).close();

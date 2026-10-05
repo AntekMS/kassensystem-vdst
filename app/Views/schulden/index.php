@@ -59,6 +59,17 @@
                     </button>
                 </form>
             <?php endif; ?>
+            <?php // Massen-Undo (Issue #102): Flag kommt aus dem ungefilterten
+                  // Schlüssel-Set des Controllers, da die Aktion alle Personen umfasst. ?>
+            <?php if ($hat_getraenke_undo): ?>
+                <form method="post" class="d-inline"
+                      action="<?= base_url('/schulden/getraenke-alle-beglichen-undo') ?>">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-outline-vdst">
+                        <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Alle Ausgleiche rückgängig
+                    </button>
+                </form>
+            <?php endif; ?>
             <a href="<?= base_url('/schulden/import') ?>" class="btn btn-outline-vdst">
                 <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i> Getränkerechnung importieren
             </a>

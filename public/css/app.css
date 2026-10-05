@@ -725,6 +725,57 @@ tfoot.table-light {
     margin-bottom: .6rem;
 }
 
+/* ---------- Hilfe-Tipps (Issue #103) ----------
+   Aufklappbare Hilfetexte als natives <details>/<summary> — kein JS-Vertrag,
+   Tastatur-/Screenreader-Bedienung kommt vom Browser. Das Fragezeichen ist
+   das Piktogramm, deshalb ist das Standard-Dreieck ausgeblendet.
+   Hilfe-Fließtexte gehören hierher, NICHT in eine .alert-Box. */
+.hilfe-tipp {
+    background: var(--grau-50);
+    border: 1px solid var(--grau-200);
+    border-radius: var(--radius);
+}
+
+.hilfe-tipp > summary {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .6rem .8rem;
+    cursor: pointer;
+    color: var(--grau-700);
+    font-size: .9rem;
+    list-style: none;
+}
+
+.hilfe-tipp > summary::-webkit-details-marker {
+    display: none;
+}
+
+.hilfe-tipp > summary:hover {
+    color: var(--vdst-rot-text);
+}
+
+.hilfe-tipp > summary .bi {
+    font-size: 1.05rem;
+}
+
+.hilfe-tipp[open] > summary {
+    border-bottom: 1px solid var(--grau-200);
+}
+
+.hilfe-tipp-inhalt {
+    padding: .7rem .8rem;
+    font-size: .875rem;
+    color: var(--grau-700);
+}
+
+@media (max-width: 991.98px) {
+    /* Tap-Fläche wie bei den Formularfeldern */
+    .hilfe-tipp > summary {
+        min-height: 44px;
+    }
+}
+
 /* ---------- Formulare ---------- */
 .form-control:focus,
 .form-select:focus {

@@ -211,22 +211,18 @@
                                           placeholder="Weitere Informationen, Anmerkungen oder Besonderheiten..."><?= esc(old('notizen') ?? '') ?></textarea>
                             </div>
 
-                            <!-- Info-Box -->
-                            <div class="alert alert-info">
-                                <div class="row">
-                                    <div class="col-1 text-center">
-                                        <i class="bi bi-info-circle fs-4" aria-hidden="true"></i>
-                                    </div>
-                                    <div class="col-11">
-                                        <strong>Automatische Verarbeitung:</strong><br>
-                                        <small>
-                                            • Belegnummer wird automatisch generiert (Format: YYYY-MM-DD-001)<br>
-                                            • Datei wird systematisch organisiert und umbenannt<br>
-                                            • Status wird auf "Erfasst" gesetzt
-                                        </small>
-                                    </div>
+                            <!-- Hilfe-Tipp (Issue #103) -->
+                            <details class="hilfe-tipp">
+                                <summary>
+                                    <i class="bi bi-question-circle" aria-hidden="true"></i>
+                                    Automatische Verarbeitung
+                                </summary>
+                                <div class="hilfe-tipp-inhalt">
+                                    • Belegnummer wird automatisch generiert (Format: YYYY-MM-DD-001)<br>
+                                    • Datei wird systematisch organisiert und umbenannt<br>
+                                    • Status wird auf "Erfasst" gesetzt
                                 </div>
-                            </div>
+                            </details>
                         </div>
                     </div>
                 </div>

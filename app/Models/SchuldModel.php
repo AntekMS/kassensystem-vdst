@@ -576,21 +576,21 @@ class SchuldModel extends Model
     }
 
     /**
-     * Wie letzterGetraenkeAusgleich(), aber für ALLE Personen in EINER Query
-     * (Issue #92) — die Schulden-Übersicht setzte vorher pro Zeile eine
-     * Einzelquery ab.
+     * Je Person der neueste Getränke-Eintrag — EINE Query statt einer pro
+     * Person (Issue #92). Gemeinsame Grundlage des Undo-Flags der Übersicht
+     * UND des Massen-Undo (Issue #102); nicht wieder pro Zeile aufziehen.
      *
-     * Die Fensterfunktion liefert je Person nur den neuesten Getränke-Eintrag
-     * (gleiche Sortierung wie die Einzelvariante: datum DESC, id DESC);
-     * ob er ein 1-Klick-Ausgleich ist, entscheidet weiterhin allein
-     * istGetraenkeAusgleich() über den puren Seam unten.
+     * Die Fensterfunktion sortiert wie die Einzelvariante
+     * letzterGetraenkeAusgleich() (datum DESC, id DESC), damit beide Pfade
+     * garantiert dieselbe Zeile sehen. Ob der Eintrag ein 1-Klick-Ausgleich
+     * ist, entscheidet allein istGetraenkeAusgleich() in den puren Seams unten.
      *
-     * @return array<string,true> Set von person_schluessel()
+     * @return array<array<string,mixed>>
      */
-    public function getraenkeUndoSchluessel(): array
+    private function neuesteGetraenkeEintraege(): array
     {
-        $neueste = $this->db->query("
-            SELECT person, typ, kategorie, betrag, grund, beleg_id, buchung_id, abrechnung_id
+        return $this->db->query("
+            SELECT id, person, typ, kategorie, betrag, grund, beleg_id, buchung_id, abrechnung_id
             FROM (
                 SELECT s.*,
                        ROW_NUMBER() OVER (PARTITION BY person ORDER BY datum DESC, id DESC) AS rn
@@ -599,8 +599,18 @@ class SchuldModel extends Model
             ) neueste
             WHERE rn = 1
         ")->getResultArray();
+    }
 
-        return self::undoSchluesselAus($neueste);
+    /**
+     * Wie letzterGetraenkeAusgleich(), aber für ALLE Personen in EINER Query
+     * (Issue #92) — die Schulden-Übersicht setzte vorher pro Zeile eine
+     * Einzelquery ab.
+     *
+     * @return array<string,true> Set von person_schluessel()
+     */
+    public function getraenkeUndoSchluessel(): array
+    {
+        return self::undoSchluesselAus($this->neuesteGetraenkeEintraege());
     }
 
     /**
@@ -622,6 +632,58 @@ class SchuldModel extends Model
         }
 
         return $set;
+    }
+
+    /**
+     * Pure, DB-los testbarer Seam zum Massen-Undo (Issue #102): dieselbe
+     * Auswahl wie undoSchluesselAus(), nur als id-Liste zum Löschen.
+     *
+     * @param array $neueste je Person der neueste Getränke-Eintrag
+     * @return list<int>
+     */
+    public static function undoIdsAus(array $neueste): array
+    {
+        $ids = [];
+
+        foreach ($neueste as $eintrag) {
+            if (self::istGetraenkeAusgleich($eintrag)) {
+                $ids[] = (int) $eintrag['id'];
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
+     * Nimmt die 1-Klick-Getränkeausgleiche ALLER Personen zurück (Issue #102) —
+     * Spiegelbild zu begleicheAlleGetraenke().
+     *
+     * Gelöscht wird je Person genau der Eintrag, den auch der Zeilen-Button
+     * „Rückgängig" löschen würde: der 1-Klick-Ausgleich, solange er der
+     * neueste Getränke-Eintrag der Person ist. Ein Ausgleich, auf den schon
+     * eine neue Forderung folgt, bleibt also unangetastet.
+     *
+     * Ganz-oder-gar-nicht wie der Begleichen-Batch: eine Transaktion. Anders
+     * als dort genügt EIN whereIn-DELETE, weil pro Zeile keine Fachlogik
+     * (personId(), Betragsermittlung) nötig ist.
+     *
+     * @return int Anzahl der zurückgenommenen Ausgleiche
+     */
+    public function macheAlleGetraenkeAusgleicheRueckgaengig(): int
+    {
+        $ids = self::undoIdsAus($this->neuesteGetraenkeEintraege());
+
+        if ($ids === []) {
+            return 0;
+        }
+
+        $this->db->transStart();
+
+        $this->whereIn('id', $ids)->delete();
+
+        $this->db->transComplete();
+
+        return count($ids);
     }
 
     /**

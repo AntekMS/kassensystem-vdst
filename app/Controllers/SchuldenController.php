@@ -73,6 +73,9 @@ class SchuldenController extends BaseController
             ],
             'summe_forderungen' => $inventur['forderung']['summe'],
             'summe_verbindlichkeiten' => $inventur['verbindlichkeit']['summe'],
+            // Massen-Undo-Button (Issue #102): bewusst aus dem UNGEFILTERTEN
+            // Schlüssel-Set, denn die Aktion läuft über alle Personen.
+            'hat_getraenke_undo' => $undoSchluessel !== [],
         ];
 
         return view('schulden/index', $data);
@@ -305,6 +308,26 @@ class SchuldenController extends BaseController
         // Massen-Aktion: kein Personen-Anker, Sprung an den Listenanfang genügt.
         return redirect()->to('/schulden')
             ->with('success', $anzahl . ($anzahl === 1 ? ' offene Getränkerechnung' : ' offene Getränkerechnungen') . ' beglichen.');
+    }
+
+    /**
+     * 1-Klick: den Massen-Getränkeausgleich zurücknehmen (Issue #102).
+     *
+     * Spiegelbild zu getraenkeAlleBeglichen(): löscht je Person denselben
+     * Eintrag wie der Zeilen-Button „Rückgängig" (den 1-Klick-Ausgleich,
+     * solange er der neueste Getränke-Eintrag ist). Ebenfalls ohne JS-Confirm —
+     * die beiden Massen-Buttons kehren sich gegenseitig um.
+     */
+    public function getraenkeAlleBeglichenUndo()
+    {
+        $anzahl = $this->schuldModel->macheAlleGetraenkeAusgleicheRueckgaengig();
+
+        if ($anzahl === 0) {
+            return redirect()->to('/schulden')->with('error', 'Es gibt keinen rückgängig machbaren Getränkeausgleich.');
+        }
+
+        return redirect()->to('/schulden')
+            ->with('success', $anzahl . ($anzahl === 1 ? ' Getränkeausgleich' : ' Getränkeausgleiche') . ' rückgängig gemacht.');
     }
 
     /**

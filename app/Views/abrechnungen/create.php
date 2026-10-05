@@ -180,10 +180,17 @@
                             <li>Status auf "Ausstehend" setzen und einreichen</li>
                         </ol>
 
-                        <div class="alert alert-info mt-3">
-                            <strong><i class="bi bi-lightbulb" aria-hidden="true"></i> Tipp:</strong> Nach dem Erstellen kannst du über "Belege" die gewünschten
-                            Belege für diese Abrechnung auswählen — oder mit der Checkbox oben direkt alle verfügbaren Belege übernehmen.
-                        </div>
+                        <details class="hilfe-tipp mt-3">
+                            <summary>
+                                <i class="bi bi-question-circle" aria-hidden="true"></i>
+                                Tipp: Belege zuordnen
+                            </summary>
+                            <div class="hilfe-tipp-inhalt">
+                                Nach dem Erstellen kannst du über "Belege" die gewünschten
+                                Belege für diese Abrechnung auswählen — oder mit der Checkbox oben direkt alle
+                                verfügbaren Belege übernehmen.
+                            </div>
+                        </details>
                     </div>
                 </div>
 

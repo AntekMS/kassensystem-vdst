@@ -65,6 +65,7 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
         $routes->post('getraenke-beglichen', 'SchuldenController::getraenkeBeglichen');
         $routes->post('getraenke-alle-beglichen', 'SchuldenController::getraenkeAlleBeglichen');
         $routes->post('getraenke-beglichen-undo', 'SchuldenController::getraenkeBeglichenUndo');
+        $routes->post('getraenke-alle-beglichen-undo', 'SchuldenController::getraenkeAlleBeglichenUndo');
         $routes->get('export/inventur', 'SchuldenController::exportInventur');
         $routes->get('export/inventur-pdf', 'SchuldenController::exportInventurPdf');
         // Allgemeine Rechnung (Issue #96): Inline-PDF-Vorschau + E-Mail-Versand

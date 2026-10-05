@@ -91,27 +91,23 @@
                                 <div class="invalid-feedback d-block"><?= esc($errors['import_datei']) ?></div>
                             <?php endif; ?>
 
-                            <div class="alert alert-info">
-                                <div class="row">
-                                    <div class="col-1 text-center">
-                                        <i class="bi bi-info-circle fs-4" aria-hidden="true"></i>
-                                    </div>
-                                    <div class="col-11">
-                                        <strong>Was passiert beim Import?</strong><br>
-                                        <small>
-                                            • Sheet „Bundesbrüder &amp; Gäste": pro Person eine Getränke-Forderung
-                                            (Gesamt abzüglich „Ausstehend" — Altbestände führt bereits die Schuldenliste)<br>
-                                            • Sheet „Coleur &amp; Bund": zwei PDF-Rechnungen als Belege für die AH-Abrechnung
-                                            (offene wird verwendet, sonst neu angelegt)<br>
-                                            • Ohne Monatsangabe wird der Monat aus dem Dateinamen erkannt
-                                            (z.&nbsp;B. „GetraenkeNovember2025.xlsx"), sonst der Vormonat verwendet<br>
-                                            • Vor dem Anlegen wird eine Vorschau zur Kontrolle angezeigt<br>
-                                            • Danach: Einzelrechnungen per E-Mail verschicken und Übersichts-PDF herunterladen
-                                            (<a href="<?= base_url('/schulden/import/versand?monat=' . esc($vormonat, 'url')) ?>">zum Rechnungsversand eines früheren Imports</a>)
-                                        </small>
-                                    </div>
+                            <details class="hilfe-tipp">
+                                <summary>
+                                    <i class="bi bi-question-circle" aria-hidden="true"></i>
+                                    Was passiert beim Import?
+                                </summary>
+                                <div class="hilfe-tipp-inhalt">
+                                    • Sheet „Bundesbrüder &amp; Gäste": pro Person eine Getränke-Forderung
+                                    (Gesamt abzüglich „Ausstehend" — Altbestände führt bereits die Schuldenliste)<br>
+                                    • Sheet „Coleur &amp; Bund": zwei PDF-Rechnungen als Belege für die AH-Abrechnung
+                                    (offene wird verwendet, sonst neu angelegt)<br>
+                                    • Ohne Monatsangabe wird der Monat aus dem Dateinamen erkannt
+                                    (z.&nbsp;B. „GetraenkeNovember2025.xlsx"), sonst der Vormonat verwendet<br>
+                                    • Vor dem Anlegen wird eine Vorschau zur Kontrolle angezeigt<br>
+                                    • Danach: Einzelrechnungen per E-Mail verschicken und Übersichts-PDF herunterladen
+                                    (<a href="<?= base_url('/schulden/import/versand?monat=' . esc($vormonat, 'url')) ?>">zum Rechnungsversand eines früheren Imports</a>)
                                 </div>
-                            </div>
+                            </details>
 
                             <div class="d-flex justify-content-end gap-2">
                                 <a href="<?= base_url('/schulden') ?>" class="btn btn-outline-vdst">Abbrechen</a>

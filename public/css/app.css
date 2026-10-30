@@ -961,6 +961,44 @@ tfoot.table-light {
     border-radius: var(--radius);
 }
 
+/* ---------- Pager der Listen (Issue #105, app/Views/pager/bootstrap.php) ----------
+   Aktive Seite bewusst schwarz wie der Segment-Umschalter: Rot bleibt der
+   einen Primäraktion vorbehalten, --vdst-schwarz kehrt sich im Darkmode nicht um. */
+.pager-leiste {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: .5rem;
+    padding: .75rem 1rem;
+    border-top: 1px solid var(--grau-200);
+}
+
+.pagination-vdst {
+    --bs-pagination-color: var(--grau-700);
+    --bs-pagination-bg: var(--surface);
+    --bs-pagination-border-color: var(--grau-200);
+    --bs-pagination-hover-color: var(--grau-900);
+    --bs-pagination-hover-bg: var(--grau-100);
+    --bs-pagination-hover-border-color: var(--grau-200);
+    --bs-pagination-focus-color: var(--grau-900);
+    --bs-pagination-focus-bg: var(--grau-100);
+    --bs-pagination-focus-box-shadow: 0 0 0 .2rem rgba(var(--vdst-schwarz-rgb), .15);
+    --bs-pagination-active-color: var(--vdst-weiss);
+    --bs-pagination-active-bg: var(--vdst-schwarz);
+    --bs-pagination-active-border-color: var(--vdst-schwarz);
+    --bs-pagination-disabled-color: var(--grau-500);
+    --bs-pagination-disabled-bg: var(--surface);
+    --bs-pagination-disabled-border-color: var(--grau-200);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Im Darkmode liegt das schwarze Aktiv-Feld auf fast ebenso dunklem Grund —
+   ein heller Rand macht die aktuelle Seite erkennbar, ohne die Fläche umzukehren. */
+[data-bs-theme="dark"] .pagination-vdst {
+    --bs-pagination-active-border-color: var(--grau-700);
+}
+
 /* ---------- Login-Seite (standalone, nutzt dieselben Tokens) ---------- */
 .login-page {
     min-height: 100vh;

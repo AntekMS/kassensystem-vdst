@@ -36,9 +36,11 @@ class BelegeController extends BaseController
     {
         $filter = $this->getFilterFromRequest();
 
-        $belege = $this->belegModel->sucheBelege($filter);
+        // Nur eine Seite laden (Issue #105) — die Summe kommt per SQL über alle Treffer
+        $belege = $this->belegModel->sucheBelegeSeite($filter);
+        $pager = $this->belegModel->pager;
 
-        // Abrechnungs-Zuordnungen für alle Belege in 2 Queries laden (statt 2·N)
+        // Abrechnungs-Zuordnungen für die Belege der Seite in 2 Queries laden (statt 2·N)
         $abrechnungenMap = $this->abrechnungBelegModel->getAbrechnungenFuerBelege(
             array_column($belege, 'id')
         );
@@ -51,6 +53,8 @@ class BelegeController extends BaseController
         $data = [
             'title' => 'Belege-Übersicht',
             'belege' => $belege,
+            'pager' => $pager,
+            'summe_gefiltert' => $this->belegModel->summeGefiltert($filter),
             'filter' => $filter,
             'stats' => $this->belegModel->getDashboardStats(),
             'kategorien' => kategorie_optionen(),

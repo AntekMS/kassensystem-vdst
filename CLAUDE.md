@@ -30,7 +30,8 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   (`HealthTest`, `BetragTest`, `SchuldLabelTest`, `GetraenkeBeglichenTest`,
   `GetraenkeImportParserTest`, `RechnungPdfTest`, `RechnungVersandTest`,
   `PersonSchluesselTest`, `PersonModelTest`, `GetraenkeImportAufloeserTest`,
-  `SchuldPositionTest`, `AbrechnungVersandTest`, `ZipDateinameTest`);
+  `SchuldPositionTest`, `AbrechnungVersandTest`, `ZipDateinameTest`,
+  `PaginierungTest`);
   entspricht `composer test`
 - `docker exec kassensystem-vdst-web php spark migrate` — Migrationen (auch die
   Datei-/Trigger-Cleanup-Migrationen)
@@ -52,6 +53,7 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   dann lokal `git merge --no-ff` in `small` + `git push`; `Closes #N` im PR-Body schließt
   das Issue beim Merge automatisch.
 - Issues: Labels `priority: hoch|mittel|niedrig`, `security`, `tech-debt`, `Big Update`.
+- Passende Claude-Code-Skills (wann/wo/wie) und vorgeschlagene Projekt-Skills: `docs/SKILLS.md`.
 - **Doku aktuell halten**: Nach **jeder** abgeschlossenen Aufgabe diese `CLAUDE.md` (und
   bei Bedarf die `README.md`) auf den neuesten Stand bringen — geänderte Architektur,
   neue/entfernte Invarianten, Konventionen und Befehle einpflegen, damit die Landkarte
@@ -106,7 +108,8 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   von `person_schluessel()`, Issue #55), `bank_daten()` (Issue #96 — liest die
   Vereins-Bankverbindung `vdst.bank_*` aus der `.env`; EINZIGE Quelle dieser Keys,
   genutzt vom Mailtext `RechnungVersand::baueMail` UND dem allgemeinen Rechnungs-PDF;
-  `konfiguriert` hängt allein an der IBAN).
+  `konfiguriert` hängt allein an der IBAN), `seiten_bereich_text()` (Issue #105 —
+  Bereichsanzeige „26–50 von 112" über dem Pager der Listen).
 - **Design-System** (Issue #47): `public/css/app.css` ist die EINZIGE Theme-Quelle,
   eingebunden von `layouts/main.php` und `auth/login.php` (Cache-Buster `?v=N` bei
   CSS-Änderungen hochzählen). Tokens: Vereinsfarben (`--vdst-rot` #dc143c nur als
@@ -237,6 +240,29 @@ ausführen (`docker ps` → `kassensystem-vdst-web`, `-db`, `-phpmyadmin`):
   `RechnungPdf::inventur()` + `$typ === 'inventur'` im geteilten Template
   `pdf/rechnung.php` — gleiche Datengrundlage wie das Excel, sekundärer
   `.btn-outline-vdst`-Button neben dem primären Excel-Download).
+- **Listen-Paginierung** (Issue #105): Belege-Liste und Kassenbuch laden je Seite
+  nur `Config\Pager::$perPage` (25) Zeilen über CI4-`paginate()` (Default-Gruppe,
+  `?page=N`). Je Model genau EINE private Filterquelle `wendeFilterAn($filter)`, auf
+  der drei Einstiege sitzen: die unpaginierte Methode (`BelegModel::sucheBelege()`/
+  `BuchungModel::getBuchungenMitBelegen()`) bleibt für die Excel-/ZIP-Exporte — die
+  exportieren weiterhin ALLE Treffer, NIE die Seite; die Seiten-Methode
+  (`sucheBelegeSeite()`/`getBuchungenSeite()`, Pager danach in `$model->pager`);
+  und die Summen (`summeGefiltert()`/`summenGefiltert()`) als SQL-Aggregat über ALLE
+  gefilterten Treffer — die „Summe(n) (gefiltert)"-Zeilen dürfen NIE wieder per
+  `array_sum` aus den geladenen Zeilen kommen (zählten sonst nur die aktuelle Seite).
+  Der Kassenbuch-Pure-Seam `BuchungModel::summenAusAggregat()` ist DB-los getestet
+  (`PaginierungTest`). Sortierung mit `id DESC` als Tie-Breaker hinter dem Datum,
+  damit Zeilen gleichen Datums nicht zwischen Seiten springen. Die Header-Zahl
+  „(N Einträge)" ist `$pager->getTotal()`. Pager-Template `app/Views/pager/bootstrap.php`
+  (registriert als `bootstrap` in `Config/Pager.php`, Aufruf
+  `$pager->links('default', 'bootstrap')`): Bereichsanzeige + Bootstrap-
+  `pagination` in `.pager-leiste`, rendert bei nur einer Seite nichts; Links
+  behalten die Filter-GET-Parameter (CI4-Default), ein neues Filtern startet auf
+  Seite 1, `?page` hinter dem Ende kappt CI4 auf die letzte Seite. Aktive Seite
+  schwarz (`.pagination-vdst`, wie der Segment-Umschalter), im Darkmode zusätzlich
+  mit hellem Rand. Bewusst NICHT paginiert: Schulden-Übersicht (eine Zeile je
+  Person), Abrechnungs- und Personen-Listen. Bekannte Lücke: Store/Update/Delete
+  redirecten auf die nackte Liste (Seite und Filter gehen verloren).
 - **Inventur** ist zusätzlich eine eigene HTML-Seite (`GET /inventur` →
   `SchuldenController::inventur`, View `schulden/inventur.php`, eigener Navbar-Punkt
   und Dashboard-Kachel) mit derselben Datengrundlage wie Excel/PDF

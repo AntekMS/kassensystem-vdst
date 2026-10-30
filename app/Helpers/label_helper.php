@@ -319,3 +319,23 @@ if (!function_exists('bank_daten')) {
         ];
     }
 }
+
+if (!function_exists('seiten_bereich_text')) {
+    /**
+     * Bereichsanzeige über dem Pager der Listen (Issue #105), z.B.
+     * „26–50 von 112". Leer ohne Treffer. Eine Seite hinter dem Ende liefert
+     * ebenfalls '' — in der App tritt das nicht auf (CI4s Pager kappt ?page auf
+     * die letzte Seite), die Funktion bleibt aber für jede Eingabe definiert.
+     */
+    function seiten_bereich_text(int $seite, int $proSeite, int $gesamt): string
+    {
+        $von = ($seite - 1) * $proSeite + 1;
+        if ($gesamt < 1 || $von > $gesamt) {
+            return '';
+        }
+
+        $bis = min($seite * $proSeite, $gesamt);
+
+        return ($von === $bis ? (string) $von : $von . '–' . $bis) . ' von ' . $gesamt;
+    }
+}

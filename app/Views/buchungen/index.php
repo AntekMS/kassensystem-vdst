@@ -156,7 +156,7 @@
         <!-- Kassenbuch-Tabelle -->
         <div class="card">
             <div class="card-header table-vdst">
-                <strong>Kassenbuch-Einträge (<?= count($buchungen) ?> Einträge)</strong>
+                <strong>Kassenbuch-Einträge (<?= $pager->getTotal() ?> Einträge)</strong>
             </div>
             <div class="card-body p-0">
                 <?php if (empty($buchungen)): ?>
@@ -246,19 +246,19 @@
                                 <th colspan="4" class="text-end">Summen (gefiltert):</th>
                                 <th class="text-end">
                                     <?php
-                                    $summeEinnahmen = array_sum(array_map(fn($b) => $b['buchungsart'] === 'einnahme' ? $b['betrag'] : 0, $buchungen));
+                                    $summeEinnahmen = $summen_gefiltert['einnahmen'];
                                     echo '<strong class="text-success">+' . number_format($summeEinnahmen, 2, ',', '.') . ' €</strong>';
                                     ?>
                                 </th>
                                 <th class="text-end">
                                     <?php
-                                    $summeAusgaben = array_sum(array_map(fn($b) => $b['buchungsart'] === 'ausgabe' ? $b['betrag'] : 0, $buchungen));
+                                    $summeAusgaben = $summen_gefiltert['ausgaben'];
                                     echo '<strong class="text-danger">-' . number_format($summeAusgaben, 2, ',', '.') . ' €</strong>';
                                     ?>
                                 </th>
                                 <th class="text-center">
                                     <?php
-                                    $saldoGefiltert = $summeEinnahmen - $summeAusgaben;
+                                    $saldoGefiltert = $summen_gefiltert['saldo'];
                                     $saldoClass = $saldoGefiltert >= 0 ? 'saldo-positiv' : 'saldo-negativ';
                                     echo '<strong class="' . $saldoClass . '">' . number_format($saldoGefiltert, 2, ',', '.') . ' €</strong>';
                                     ?>
@@ -282,6 +282,7 @@
                         </div>
                     </div>
                 <?php endif; ?>
+                <?= $pager->links('default', 'bootstrap') ?>
             </div>
         </div>
     </div>

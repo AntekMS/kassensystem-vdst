@@ -33,9 +33,14 @@ class BuchungenController extends BaseController
     {
         $filter = $this->getFilterFromRequest();
 
+        // Nur eine Seite laden (Issue #105) — die Summen kommen per SQL über alle Treffer
+        $buchungen = $this->buchungModel->getBuchungenSeite($filter);
+
         $data = [
             'title' => 'Kassenbuch',
-            'buchungen' => $this->buchungModel->getBuchungenMitBelegen($filter),
+            'buchungen' => $buchungen,
+            'pager' => $this->buchungModel->pager,
+            'summen_gefiltert' => $this->buchungModel->summenGefiltert($filter),
             'filter' => $filter,
             'kontostaende' => $this->buchungModel->berechneKontostaende(),
             'stats' => $this->buchungModel->getDashboardStats(),

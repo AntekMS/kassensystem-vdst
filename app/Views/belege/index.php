@@ -104,7 +104,7 @@
         <!-- Belege-Tabelle -->
         <div class="card">
             <div class="card-header table-vdst d-flex justify-content-between align-items-center">
-                <strong>Belege (<?= count($belege) ?> Einträge)</strong>
+                <strong>Belege (<?= $pager->getTotal() ?> Einträge)</strong>
                 <?php if (!empty($belege)): ?>
                     <div class="btn-group">
                         <button type="button" class="btn btn-outline-vdst btn-sm dropdown-toggle" data-bs-toggle="dropdown">
@@ -251,10 +251,7 @@
                                 <th colspan="4" class="text-end d-none d-xl-table-cell">Summe (gefiltert):</th>
                                 <th colspan="3" class="text-end d-none d-lg-table-cell d-xl-none">Summe (gefiltert):</th>
                                 <th class="text-end">
-                                    <?php
-                                    $gesamtbetrag = array_sum(array_column($belege, 'betrag'));
-                                    echo '<strong>' . number_format($gesamtbetrag, 2, ',', '.') . ' €</strong>';
-                                    ?>
+                                    <strong><?= number_format($summe_gefiltert, 2, ',', '.') ?> €</strong>
                                 </th>
                                 <th colspan="5" class="d-none d-xl-table-cell"></th>
                                 <th colspan="3" class="d-none d-lg-table-cell d-xl-none"></th>
@@ -264,9 +261,10 @@
                     </div>
                     <div class="summe-mobile d-lg-none m-3">
                         <span>Summe (gefiltert)</span>
-                        <span><?= number_format(array_sum(array_column($belege, 'betrag')), 2, ',', '.') ?> €</span>
+                        <span><?= number_format($summe_gefiltert, 2, ',', '.') ?> €</span>
                     </div>
                 <?php endif; ?>
+                <?= $pager->links('default', 'bootstrap') ?>
             </div>
         </div>
     </div>

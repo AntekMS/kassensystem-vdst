@@ -182,7 +182,51 @@ class BelegModel extends Model
      */
     public function sucheBelege($filter = [])
     {
-        $builder = $this->select('*');
+        return $this->sortiert($filter)->findAll();
+    }
+
+    /**
+     * Eine Seite der gefilterten Belege für die Belege-Liste (Issue #105).
+     * Die Exporte nutzen weiter sucheBelege() und bekommen ALLE Treffer.
+     * Seitenzahl kommt aus ?page, der Pager liegt danach in $this->pager;
+     * ohne $proSeite gilt Config\Pager::$perPage.
+     */
+    public function sucheBelegeSeite(array $filter, ?int $proSeite = null): array
+    {
+        return $this->sortiert($filter)->paginate($proSeite);
+    }
+
+    /**
+     * Summe über ALLE gefilterten Belege — die Summenzeile der Liste darf
+     * sich nicht nur auf die aktuelle Seite beziehen.
+     */
+    public function summeGefiltert(array $filter): float
+    {
+        $zeile = $this->wendeFilterAn($filter)
+            ->selectSum('betrag', 'summe')
+            ->first();
+
+        return round((float) ($zeile['summe'] ?? 0), 2);
+    }
+
+    /**
+     * `id DESC` als Tie-Breaker, damit Belege mit gleichem Rechnungsdatum
+     * beim Blättern nicht zwischen den Seiten springen.
+     */
+    private function sortiert(array $filter): self
+    {
+        return $this->wendeFilterAn($filter)
+            ->orderBy('rechnungsdatum', 'DESC')
+            ->orderBy('id', 'DESC');
+    }
+
+    /**
+     * Filter der Belege-Liste — einzige Stelle, an der die Filter gelten
+     * (Liste, Summe und Exporte).
+     */
+    private function wendeFilterAn(array $filter): self
+    {
+        $builder = $this;
 
         // Suchtext in allen relevanten Textfeldern
         if (!empty($filter['suche'])) {
@@ -222,8 +266,7 @@ class BelegModel extends Model
             $builder->where('betrag <=', $filter['betrag_max']);
         }
 
-        return $builder->orderBy('rechnungsdatum', 'DESC')
-            ->findAll();
+        return $builder;
     }
 
     /**

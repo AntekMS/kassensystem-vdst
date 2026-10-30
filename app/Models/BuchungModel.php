@@ -66,14 +66,82 @@ class BuchungModel extends Model
      */
     public function getBuchungenMitBelegen($filter = [])
     {
-        $builder = $this->select('
-                buchungen.*, 
-                belege.belegnummer, 
+        return $this->mitBelegen($filter)->findAll();
+    }
+
+    /**
+     * Eine Seite der gefilterten Buchungen für die Kassenbuch-Liste (Issue #105).
+     * Die Exporte nutzen weiter getBuchungenMitBelegen() und bekommen ALLE Treffer.
+     * Seitenzahl kommt aus ?page, der Pager liegt danach in $this->pager;
+     * ohne $proSeite gilt Config\Pager::$perPage.
+     */
+    public function getBuchungenSeite(array $filter, ?int $proSeite = null): array
+    {
+        return $this->mitBelegen($filter)->paginate($proSeite);
+    }
+
+    /**
+     * Einnahmen/Ausgaben/Saldo über ALLE gefilterten Buchungen — die Summenzeile
+     * der Liste darf sich nicht nur auf die aktuelle Seite beziehen.
+     *
+     * @return array{einnahmen: float, ausgaben: float, saldo: float}
+     */
+    public function summenGefiltert(array $filter): array
+    {
+        $zeilen = $this->wendeFilterAn($filter)
+            ->select('buchungen.buchungsart, SUM(buchungen.betrag) AS summe')
+            ->groupBy('buchungen.buchungsart')
+            ->findAll();
+
+        return self::summenAusAggregat($zeilen);
+    }
+
+    /**
+     * Pure Seam zu summenGefiltert(): GROUP-BY-Zeilen (buchungsart, summe)
+     * → Einnahmen, Ausgaben und Saldo.
+     *
+     * @return array{einnahmen: float, ausgaben: float, saldo: float}
+     */
+    public static function summenAusAggregat(array $zeilen): array
+    {
+        $summen = ['einnahme' => 0.0, 'ausgabe' => 0.0];
+        foreach ($zeilen as $zeile) {
+            $summen[$zeile['buchungsart']] = round((float) $zeile['summe'], 2);
+        }
+
+        return [
+            'einnahmen' => $summen['einnahme'],
+            'ausgaben' => $summen['ausgabe'],
+            'saldo' => round($summen['einnahme'] - $summen['ausgabe'], 2),
+        ];
+    }
+
+    /**
+     * Buchungen + Beleg-Spalten, gefiltert und sortiert (gemeinsam für Liste
+     * und Exporte). `id DESC` als Tie-Breaker, damit Buchungen mit gleichem
+     * Datum beim Blättern nicht zwischen den Seiten springen.
+     */
+    private function mitBelegen(array $filter): self
+    {
+        return $this->wendeFilterAn($filter)
+            ->select('
+                buchungen.*,
+                belege.belegnummer,
                 belege.rechnungsdatum,
                 belege.lieferant,
                 belege.dateipfad
             ')
-            ->join('belege', 'belege.id = buchungen.beleg_id', 'left');
+            ->orderBy('buchungen.buchungsdatum', 'DESC')
+            ->orderBy('buchungen.id', 'DESC');
+    }
+
+    /**
+     * Filter der Kassenbuch-Liste inkl. Beleg-Join (die Suche greift auch auf
+     * Beleg-Felder) — einzige Stelle, an der die Filter gelten.
+     */
+    private function wendeFilterAn(array $filter): self
+    {
+        $builder = $this->join('belege', 'belege.id = buchungen.beleg_id', 'left');
 
         // Filter anwenden
         if (!empty($filter['datum_von'])) {
@@ -104,8 +172,7 @@ class BuchungModel extends Model
                 ->groupEnd();
         }
 
-        return $builder->orderBy('buchungen.buchungsdatum', 'DESC')
-            ->findAll();
+        return $builder;
     }
 
     /**
